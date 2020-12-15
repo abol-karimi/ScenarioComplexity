@@ -5,6 +5,7 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
+import visualization
 import intersection_monitor
 import carla
 
@@ -54,7 +55,7 @@ monitor egoEvents:
 		for maneuver in intersection.maneuvers:
 			lane = maneuver.connectingLane
 			if lane.intersects(ego):
-				intersection_monitor.monitor.draw_lane(lane, color=carla.Color(255, 0, 0), life_time=0.01)
+				visualization.draw_lane(carla_world, lane, color=carla.Color(255, 0, 0), life_time=0.01)
 				if not lane in egoLanes:
 					egoLanes.add(lane)
 					intersection_monitor.monitor.events.append(intersection_monitor.EnteredLaneEvent(elapsed_seconds, ego, lane))
