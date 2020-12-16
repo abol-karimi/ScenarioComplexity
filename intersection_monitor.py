@@ -31,13 +31,13 @@ class SignalType(enum.Enum):
 
     @classmethod
     def from_maneuver(cls, maneuver):
-        if maneuver is ManeuverType.STRAIGHT:
+        if maneuver.type is ManeuverType.STRAIGHT:
             return SignalType.OFF
-        if maneuver is ManeuverType.LEFT_TURN:
+        if maneuver.type is ManeuverType.LEFT_TURN:
             return SignalType.LEFT
-        if maneuver is ManeuverType.RIGHT_TURN:
+        if maneuver.type is ManeuverType.RIGHT_TURN:
             return SignalType.RIGHT
-        if maneuver is ManeuverType.U_TURN:
+        if maneuver.type is ManeuverType.U_TURN:
             return SignalType.LEFT
 
 
@@ -112,15 +112,19 @@ class Monitor():
             maneuver = maneuvers[index]
             maneuverId[maneuver] = index
             laneId[maneuver.connectingLane] = index
+            lane = maneuver.connectingLane
             fork = maneuver.startLane
             exit = maneuver.endLane
-            print("Lane from " + "F" + str(forkId[fork]) + " to E" +
-                  str(exitId[exit]) + " is " + maneuver.type.name)
+            self.geometry.append(
+                f'laneFromTo({lane.uid}, {fork.uid}, {exit.uid})')
+            signal = SignalType.from_maneuver(maneuver).name.lower()
+            self.geometry.append(
+                f'laneCorrectSignal({lane.uid}, {signal})')
 
         for maneuver in maneuvers:
             for conflict in maneuver.conflictingManeuvers:
-                print(
-                    "overlaps(" + str(maneuverId[maneuver]) + ", " + str(maneuverId[conflict]) + ")")
+                self.geometry.append(
+                    f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
 
     def on_arrival(self, timestamp, vehicle, incoming_lane):
         self.events.append(ArrivedAtIntersectionEvent(
