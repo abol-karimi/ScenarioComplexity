@@ -8,13 +8,31 @@ model scenic.simulators.carla.model
 import visualization
 import intersection_monitor
 import carla
+from signals import vehicleLightState_from_maneuverType
 
 #CONSTANTS
 EGO_SPEED = 3
+ARRIVAL_DISTANCE = 4 # meters
 
-#EGO BEHAVIOR: Follow lane
-behavior EgoBehavior():
-	do FollowLaneBehavior(target_speed=EGO_SPEED)
+behavior Stop():
+	while (self.speed > 0):
+		take SetBrakeAction(1)
+	take SetBrakeAction(0)
+
+#EGO BEHAVIOR: stop at intersection and go
+behavior EgoBehavior(target_speed, trajectory):
+	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
+	lights = vehicleLightState_from_maneuverType(maneuverType)
+	take SetVehicleLightStateAction(lights)
+	carla_world = simulation().world
+	stopped = False
+	try:
+		do FollowTrajectoryBehavior(target_speed, trajectory)
+	interrupt when (not stopped) and (distance from (front of self) to trajectory[1]) < ARRIVAL_DISTANCE:
+		timestamp = carla_world.get_snapshot().timestamp.frame
+		intersection_monitor.monitor.on_arrival(timestamp, self, self.lane)
+		do Stop()
+		stopped = True
 
 #GEOMETRY
 incomingLanes = []
@@ -25,30 +43,13 @@ intersection = network.intersections[id]
 intersection_monitor.monitor.set_intersection(intersection)
 
 #PLACEMENT
-initLane = intersection.incomingLanes[0]
-spawnPt = OrientedPoint on initLane.centerline
-require (distance from spawnPt to initLane.maneuvers[0].intersection) > 20
-require (distance from spawnPt to initLane.maneuvers[0].intersection) < 40
-
-behavior Stop():
-	while (self.speed > 1): # change to 0
-		take SetBrakeAction(1)
-	take SetBrakeAction(0)
-
-behavior StopAtIntersection():
-	take SetVehicleLightStateAction(carla.VehicleLightState.All)
-	carla_world = simulation().world
-	stopped = False
-	try:
-		do EgoBehavior()
-	interrupt when (not stopped) and (distance from (front of self) to intersection) < 4:
-		timestamp = carla_world.get_snapshot().timestamp.frame
-		intersection_monitor.monitor.on_arrival(timestamp, self, self.lane)
-		do Stop()
-		stopped = True
-		
+maneuvers = intersection.maneuvers
+maneuver = Uniform(*maneuvers)
+trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
+spawnPt = maneuver.startLane.flowFrom(maneuver.startLane.centerline[-1], -15)
+	
 ego = Car at spawnPt, with name 'ego',
-	with behavior StopAtIntersection()
+	with behavior EgoBehavior(EGO_SPEED, trajectory)
 
 monitor egoEvents:
 	carla_world = simulation().world
