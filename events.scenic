@@ -51,12 +51,13 @@ ego = Car at spawnPt, with name 'ego',
 
 monitor egoEvents:
 	carla_world = simulation().world
+	visualization.draw_intersection(carla_world, intersection)
 	egoLanes = set()
 	while True:
 		for maneuver in intersection.maneuvers:
 			lane = maneuver.connectingLane
 			if lane.intersects(ego):
-				visualization.draw_lane(carla_world, lane, color=carla.Color(255, 0, 0), life_time=0.01)
+				visualization.draw_lane(carla_world, lane, color=carla.Color(255, 0, 0), life_time=0.1)
 				if not lane in egoLanes:
 					egoLanes.add(lane)
 					timestamp = carla_world.get_snapshot().timestamp.frame
