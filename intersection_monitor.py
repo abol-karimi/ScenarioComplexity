@@ -106,6 +106,20 @@ class Monitor():
                 self.geometry.append(
                     f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
 
+        roads = intersection.roads
+        incomings = intersection.incomingLanes
+        road2incomings = {road.uid: [] for road in roads}
+        for incoming in incomings:
+            road2incomings[incoming.road.uid].append(incoming.uid)
+        # An intersection stores the intersecting roads in CW or CCW order.
+        # Assuming the order is CCW, then:
+        for i in range(len(roads)):
+            j = (i+1) % len(roads)
+            lefts = road2incomings[roads[i].uid]
+            rights = road2incomings[roads[j].uid]
+            self.geometry += [
+                f'forkIsOnRightOf({right}, {left})' for left in lefts for right in rights]
+
     def on_arrival(self, timestamp, vehicle, incoming_lane):
         self.events.append(ArrivedAtIntersectionEvent(
             timestamp, vehicle, incoming_lane))
