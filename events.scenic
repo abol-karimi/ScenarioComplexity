@@ -36,6 +36,7 @@ behavior Stop():
 	take SetBrakeAction(0)
 
 behavior StopAtIntersection():
+	take SetVehicleLightStateAction(carla.VehicleLightState.All)
 	carla_world = simulation().world
 	stopped = False
 	try:
@@ -52,6 +53,8 @@ ego = Car at spawnPt, with name 'ego',
 monitor egoEvents:
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
+	entered = False
+	exited = False
 	egoLanes = set()
 	while True:
 		for maneuver in intersection.maneuvers:
@@ -66,5 +69,13 @@ monitor egoEvents:
 				egoLanes.remove(lane)
 				timestamp = carla_world.get_snapshot().timestamp.frame
 				intersection_monitor.monitor.on_exitLane(timestamp, ego, lane)
+			if (not entered) and intersection.intersects(ego):
+				entered = True
+				timestamp = carla_world.get_snapshot().timestamp.frame
+				intersection_monitor.monitor.on_entrance(timestamp, ego, ego.lane)
+			if entered and (not exited) and not intersection.intersects(ego):
+				exited = True
+				timestamp = carla_world.get_snapshot().timestamp.frame
+				intersection_monitor.monitor.on_exit(timestamp, ego, ego.lane)
 		wait
 	

@@ -75,6 +75,16 @@ class ExitedLaneEvent(Event):
         return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {self.timestamp})'
 
 
+class EnteredIntersectionEvent(Event):
+    """When any part of a vehicle enters the intersection."""
+
+    def __init__(self, timestamp, vehicle, incoming_lane):
+        super().__init__(timestamp, vehicle)
+        self.incoming_lane = incoming_lane
+
+    def __str__(self):
+        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.timestamp})'
+
 class ExitedIntersectionEvent(Event):
     """When the last part of a vehicle exits the intersection."""
 
@@ -82,6 +92,8 @@ class ExitedIntersectionEvent(Event):
         super().__init__(timestamp, vehicle)
         self.outgoing_lane = outgoing_lane
 
+    def __str__(self):
+        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {self.timestamp})'
 
 class Monitor():
     """Record all the static and dynamic traffic predicates."""
@@ -129,6 +141,14 @@ class Monitor():
 
     def on_exitLane(self, timestamp, vehicle, lane):
         self.events.append(ExitedLaneEvent(timestamp, vehicle, lane))
+
+    def on_entrance(self, timestamp, vehicle, incoming_lane):
+        self.events.append(EnteredIntersectionEvent(timestamp, vehicle, incoming_lane))
+        print(self.events[-1])
+
+    def on_exit(self, timestamp, vehicle, outgoing_lane):
+        self.events.append(ExitedIntersectionEvent(timestamp, vehicle, outgoing_lane))
+        print(self.events[-1])        
 
 
 monitor = Monitor()
