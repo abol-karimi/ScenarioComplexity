@@ -20,9 +20,31 @@ def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1):
 
 def draw_intersection(world, intersection):
     polygon = intersection.polygon
-    centroid = polygon.centroid
-    print(type(centroid))
+
+    # Boundaries of the intersection
+    locs = [carla.Location(p[0], -p[1], 0.5) for p in polygon.exterior.coords]
+    for i in range(len(locs)):
+        p0 = locs[i]
+        p1 = locs[(i+1) % len(locs)]
+        world.debug.draw_line(
+            p0, p1, color=carla.Color(0, 0, 255), life_time=0)
+
+    # Draw lane names
+    for lane in intersection.incomingLanes:
+        c = lane.centerline[-1]
+        v = lane.flowFrom(c, -1)
+        loc = carla.Location(v.x, -v.y, 0.5)
+        world.debug.draw_string(
+            loc, lane.uid, draw_shadow=False, life_time=1000)
+    for lane in intersection.outgoingLanes:
+        c = lane.centerline[0]
+        v = lane.flowFrom(c, 1)
+        loc = carla.Location(v.x, -v.y, 0.5)
+        world.debug.draw_string(
+            loc, lane.uid, draw_shadow=False, life_time=1000)
+
+    # Bird-eye view of the intersection
+    centroid = polygon.centroid  # a Shapely point
     loc = carla.Location(centroid.x, -centroid.y, 30)
     rot = carla.Rotation(pitch=-90)
     world.get_spectator().set_transform(carla.Transform(loc, rot))
-    print(polygon.centroid)
