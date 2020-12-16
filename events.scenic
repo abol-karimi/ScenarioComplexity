@@ -36,33 +36,34 @@ behavior Stop():
 	take SetBrakeAction(0)
 
 behavior StopAtIntersection():
+	carla_world = simulation().world
 	stopped = False
 	try:
 		do EgoBehavior()
 	interrupt when (not stopped) and (distance from (front of self) to intersection) < 4:
-		intersection_monitor.monitor.on_arrival()
+		timestamp = carla_world.get_snapshot().timestamp.frame
+		intersection_monitor.monitor.on_arrival(timestamp, self, self.lane)
 		do Stop()
 		stopped = True
 		
-ego = Car at spawnPt,
+ego = Car at spawnPt, with name 'ego',
 	with behavior StopAtIntersection()
 
-egoLanes = set()
 monitor egoEvents:
 	carla_world = simulation().world
+	egoLanes = set()
 	while True:
-		elapsed_seconds = carla_world.get_snapshot().timestamp.elapsed_seconds
 		for maneuver in intersection.maneuvers:
 			lane = maneuver.connectingLane
 			if lane.intersects(ego):
 				visualization.draw_lane(carla_world, lane, color=carla.Color(255, 0, 0), life_time=0.01)
 				if not lane in egoLanes:
 					egoLanes.add(lane)
-					intersection_monitor.monitor.events.append(intersection_monitor.EnteredLaneEvent(elapsed_seconds, ego, lane))
-					print("Ego entered lane " + str(intersection_monitor.monitor.laneId[lane]) + " at " + str(elapsed_seconds) + " seconds.")
+					timestamp = carla_world.get_snapshot().timestamp.frame
+					intersection_monitor.monitor.on_enterLane(timestamp, ego, lane)
 			elif lane in egoLanes:
 				egoLanes.remove(lane)
-				intersection_monitor.monitor.events.append(intersection_monitor.ExitedLaneEvent(elapsed_seconds, ego, lane))
-				print("Ego exited lane " + str(intersection_monitor.monitor.laneId[lane]) + " at " + str(elapsed_seconds) + " seconds.")
+				timestamp = carla_world.get_snapshot().timestamp.frame
+				intersection_monitor.monitor.on_exitLane(timestamp, ego, lane)
 		wait
 	
