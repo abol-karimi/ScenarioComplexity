@@ -87,31 +87,11 @@ class Monitor():
     """Record all the static and dynamic traffic predicates."""
     intersection = None
     geometry = []
-    forkId = {}
-    exitId = {}
-    maneuverId = {}
-    laneId = {}
     events = []
 
     def set_intersection(self, intersection):
         self.intersection = intersection
-        forkId = self.forkId = {}
-        forks = intersection.incomingLanes
-        for index in range(len(forks)):
-            forkId[forks[index]] = index
-
-        exitId = self.exitId = {}
-        exits = intersection.outgoingLanes
-        for index in range(len(exits)):
-            exitId[exits[index]] = index
-
-        maneuverId = self.maneuverId = {}
-        laneId = self.laneId = {}
-        maneuvers = intersection.maneuvers
-        for index in range(len(maneuvers)):
-            maneuver = maneuvers[index]
-            maneuverId[maneuver] = index
-            laneId[maneuver.connectingLane] = index
+        for maneuver in intersection.maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
             exit = maneuver.endLane
@@ -121,7 +101,7 @@ class Monitor():
             self.geometry.append(
                 f'laneCorrectSignal({lane.uid}, {signal})')
 
-        for maneuver in maneuvers:
+        for maneuver in intersection.maneuvers:
             for conflict in maneuver.conflictingManeuvers:
                 self.geometry.append(
                     f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
