@@ -13,6 +13,7 @@ from signals import vehicleLightState_from_maneuverType
 #CONSTANTS
 EGO_SPEED = 3
 ARRIVAL_DISTANCE = 4 # meters
+SPAWN_DISTANCE = 20 # meters
 
 behavior Stop():
 	while (self.speed > 0):
@@ -48,7 +49,8 @@ maneuver = Uniform(*maneuvers)
 trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
 spawnPt = maneuver.startLane.flowFrom(maneuver.startLane.centerline[-1], -15)
 	
-ego = Car at spawnPt, with name 'ego',
+ego = Car following roadDirection from maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
+	with name 'ego',
 	with behavior EgoBehavior(EGO_SPEED, trajectory)
 
 monitor egoEvents:
