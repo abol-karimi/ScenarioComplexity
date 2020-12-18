@@ -48,3 +48,8 @@ def draw_intersection(world, intersection):
     loc = carla.Location(centroid.x, -centroid.y, 30)
     rot = carla.Rotation(pitch=-90)
     world.get_spectator().set_transform(carla.Transform(loc, rot))
+
+
+def label_car(world, car):
+    loc = carla.Location(car.position.x, -car.position.y, 1.5)
+    world.debug.draw_string(loc, car.name, life_time=0.001)

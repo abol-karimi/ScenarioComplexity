@@ -191,3 +191,4 @@ violatesRightOf(V1, V2):-
 %-------------------------------------------------
 
 #show violatesRightOf/2.
+#show mustYieldToForRuleAtTime/4.

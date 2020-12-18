@@ -41,7 +41,7 @@ class SignalType(enum.Enum):
             return SignalType.LEFT
 
 
-class SignaledAtIntersectionEvent(Event):
+class SignaledAtForkEvent(Event):
     """Using a turn signal when arriving at an intersection."""
 
     def __init__(self, timestamp, vehicle, signal, incoming_lane):
@@ -50,7 +50,7 @@ class SignaledAtIntersectionEvent(Event):
         self.incoming_lane = incoming_lane
 
     def __str__(self):
-        return f'signaledAtForkAtTime({self.vehicle}, {self.signal}, {self.incoming_lane}, {self.timestamp})'
+        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {self.timestamp})'
 
 
 class EnteredLaneEvent(Event):
@@ -85,6 +85,7 @@ class EnteredIntersectionEvent(Event):
     def __str__(self):
         return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.timestamp})'
 
+
 class ExitedIntersectionEvent(Event):
     """When the last part of a vehicle exits the intersection."""
 
@@ -94,6 +95,7 @@ class ExitedIntersectionEvent(Event):
 
     def __str__(self):
         return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {self.timestamp})'
+
 
 class Monitor():
     """Record all the static and dynamic traffic predicates."""
@@ -130,11 +132,13 @@ class Monitor():
             lefts = road2incomings[roads[i].uid]
             rights = road2incomings[roads[j].uid]
             self.geometry += [
-                f'forkIsOnRightOf({right}, {left})' for left in lefts for right in rights]
+                f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
 
-    def on_arrival(self, timestamp, vehicle, incoming_lane):
+    def on_arrival(self, timestamp, vehicle, incoming_lane, signal):
         self.events.append(ArrivedAtIntersectionEvent(
             timestamp, vehicle, incoming_lane))
+        self.events.append(SignaledAtForkEvent(
+            timestamp, vehicle, signal, incoming_lane))
 
     def on_enterLane(self, timestamp, vehicle, lane):
         self.events.append(EnteredLaneEvent(timestamp, vehicle, lane))
@@ -143,12 +147,20 @@ class Monitor():
         self.events.append(ExitedLaneEvent(timestamp, vehicle, lane))
 
     def on_entrance(self, timestamp, vehicle, incoming_lane):
-        self.events.append(EnteredIntersectionEvent(timestamp, vehicle, incoming_lane))
-        print(self.events[-1])
+        self.events.append(EnteredIntersectionEvent(
+            timestamp, vehicle, incoming_lane))
 
     def on_exit(self, timestamp, vehicle, outgoing_lane):
-        self.events.append(ExitedIntersectionEvent(timestamp, vehicle, outgoing_lane))
-        print(self.events[-1])        
+        self.events.append(ExitedIntersectionEvent(
+            timestamp, vehicle, outgoing_lane))
+
+
+class CarState():
+    def __init__(self):
+        self.arrived = False
+        self.entered = False
+        self.exited = False
+        self.lanes = set()
 
 
 monitor = Monitor()
