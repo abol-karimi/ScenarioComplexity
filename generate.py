@@ -2,10 +2,13 @@ import intersection_monitor
 import scenic
 from solver import Solver
 
-scenario = scenic.scenarioFromFile('events.scenic')
+params = {'map': './maps/Town05.xodr',
+          'carla_map': 'Town05'}
+scenario = scenic.scenarioFromFile('events.scenic', params=params)
+
 scene, iterations = scenario.generate()
 simulator = scenario.getSimulator()
-simulator.simulate(scene, maxSteps=200)
+simulator.simulate(scene, maxSteps=100)
 
 for atom in intersection_monitor.monitor.geometry:
     print(atom)

@@ -5,14 +5,21 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-import visualization
+param intersection = network.intersections[3] # unsignalized four-way intersection in Town05
+# 2: unsignalized T-intersection in Town05
+# 11: signalized T-intersection
+intersection = globalParameters.intersection
+
 import intersection_monitor
+intersection_monitor.monitor.set_intersection(intersection)
+
+import visualization
 from intersection_monitor import CarState, SignalType
 import carla
 from signals import vehicleLightState_from_maneuverType
 
 #CONSTANTS
-EGO_SPEED = 3
+EGO_SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
@@ -21,26 +28,24 @@ behavior Stop():
 		take SetBrakeAction(1)
 	take SetBrakeAction(0)
 
-#EGO BEHAVIOR: stop at intersection and go
-behavior EgoBehavior(target_speed, trajectory):
+behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
-	carla_world = simulation().world
+
+behavior PassIntersectionBehavior(target_speed, trajectory):
+	do SignalBehavior(trajectory)
+	do FollowTrajectoryBehavior(target_speed, trajectory)
+
+#Stop at intersection then proceed
+behavior StopAndEnterBehavior(target_speed, trajectory):
+	do SignalBehavior(trajectory)
 	stopped = False
 	try:
 		do FollowTrajectoryBehavior(target_speed, trajectory)
-	interrupt when (not stopped) and (distance from (front of self) to trajectory[1]) < ARRIVAL_DISTANCE:
+	interrupt when (not stopped) and (distance from (front of self) to intersection) < ARRIVAL_DISTANCE:
 		do Stop()
 		stopped = True
-
-#GEOMETRY
-incomingLanes = []
-# id = 2 # unsignalized T-intersection in Town05
-id = 3 # unsignalized four-way intersection in Town05
-# id = 11 # signalized T-intersection
-intersection = network.intersections[id]
-intersection_monitor.monitor.set_intersection(intersection)
 
 #PLACEMENT
 ego_maneuver = Uniform(*(intersection.maneuvers))
@@ -50,11 +55,11 @@ car1_trajectory = [car1_maneuver.startLane, car1_maneuver.connectingLane, car1_m
 
 ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'ego',
-	with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
+	with behavior PassIntersectionBehavior(EGO_SPEED, ego_trajectory)
 
 car1 = Car following roadDirection from car1_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'car1',
-	with behavior FollowTrajectoryBehavior(EGO_SPEED, car1_trajectory)
+	with behavior PassIntersectionBehavior(EGO_SPEED, car1_trajectory)
 
 cars = [ego, car1]
 
