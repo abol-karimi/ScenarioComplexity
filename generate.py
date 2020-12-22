@@ -11,7 +11,7 @@ sim_result = simulator.simulate(scene, maxSteps=100)
 
 params = {'map': './maps/Town05.xodr',
           'carla_map': 'Town05',
-          'trajectories':sim_result.trajectory}
+          'sim_result':sim_result}
 scenario = scenic.scenarioFromFile('replay.scenic', params=params)
 scene, iterations = scenario.generate()
 simulator = scenario.getSimulator()
