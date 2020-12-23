@@ -1,6 +1,6 @@
 import intersection_monitor
 import scenic
-from solver import Solver
+# from solver import Solver
 
 maxSteps=100
 params = {'map': './maps/Town05.xodr',
