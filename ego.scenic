@@ -18,6 +18,7 @@ if sim_result:
 
 param blueprints = {'ego': 'vehicle.tesla.model3'}
 blueprints = globalParameters.blueprints
+print(blueprints)
 
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)

@@ -15,6 +15,7 @@ sim_actions = sim_result.actions
 
 param blueprints = None
 blueprints = globalParameters.blueprints
+print(blueprints)
 
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
@@ -56,6 +57,7 @@ behavior SignalBehavior(trajectory):
 	take SetVehicleLightStateAction(lights)
 
 behavior ViolatedBehavior(target_speed, trajectory):
+	blueprints[self.name] = self.blueprint
 	do SignalBehavior(trajectory)
 	do FollowTrajectoryBehavior(target_speed, trajectory)
 
@@ -74,11 +76,9 @@ nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-
 	with name 'car'+str(len(cars)),
 	with behavior ViolatedBehavior(EGO_SPEED, nonego_trajectory)
 turnSignal[nonego.name] = SignalType.from_maneuver(nonego_maneuver)
-blueprints[nonego.name] = nonego.blueprint
 
 cars.append(nonego)
 ego = cars[0]
-
 
 monitor carEvents:
 	carla_world = simulation().world
