@@ -51,6 +51,19 @@ behavior ReplayBehavior():
 		take SetTransformAction(state[0], state[1])
 		wait
 
+behavior ReActBehavior():
+	while True:
+		currentTime = simulation().currentTime
+		myActions = None
+		for agent, actions in sim_actions[currentTime].items():
+			if agent.name != self.name:
+				continue
+			myActions = actions
+			break
+		for act in myActions:
+			take act
+		wait
+
 #CONSTANTS
 EGO_SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
@@ -82,7 +95,7 @@ if sim_trajectory:
 		car = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
-			with behavior ReplayBehavior()
+			with behavior ReActBehavior()
 		cars.append(car)
 		
 monitor carEvents:
