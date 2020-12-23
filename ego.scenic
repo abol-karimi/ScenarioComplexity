@@ -90,7 +90,7 @@ monitor carEvents:
 	maneuvers = intersection.maneuvers
 	carState = {car:CarState() for car in cars}
 	while True:
-		timestamp = carla_world.get_snapshot().timestamp.frame
+		timestamp = simulation().currentTime
 		for car in cars:
 			visualization.label_car(carla_world, car)
 			state = carState[car]
