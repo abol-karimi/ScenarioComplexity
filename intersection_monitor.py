@@ -1,6 +1,7 @@
 import enum
 from scenic.domains.driving.roads import ManeuverType
 import carla
+from signals import SignalType
 
 
 class Event():
@@ -20,25 +21,6 @@ class ArrivedAtIntersectionEvent(Event):
 
     def __str__(self):
         return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.timestamp})'
-
-
-@enum.unique
-class SignalType(enum.Enum):
-    """Turn signal at an intersection."""
-    OFF = enum.auto()
-    LEFT = enum.auto()
-    RIGHT = enum.auto()
-
-    @classmethod
-    def from_maneuver(cls, maneuver):
-        if maneuver.type is ManeuverType.STRAIGHT:
-            return SignalType.OFF
-        if maneuver.type is ManeuverType.LEFT_TURN:
-            return SignalType.LEFT
-        if maneuver.type is ManeuverType.RIGHT_TURN:
-            return SignalType.RIGHT
-        if maneuver.type is ManeuverType.U_TURN:
-            return SignalType.LEFT
 
 
 class SignaledAtForkEvent(Event):
@@ -105,6 +87,8 @@ class Monitor():
 
     def set_intersection(self, intersection):
         self.intersection = intersection
+        self.geometry = []
+        self.events = []
         for maneuver in intersection.maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
