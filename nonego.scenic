@@ -13,6 +13,9 @@ sim_result = globalParameters.sim_result
 sim_trajectory = sim_result.trajectory
 sim_actions = sim_result.actions
 
+param blueprints = None
+blueprints = globalParameters.blueprints
+
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
 
@@ -60,6 +63,7 @@ cars = []
 for carName, carState in sim_trajectory[0].items(): 
 	car = Car at carState[0], facing carState[1],
 		with name carName,
+		with blueprint blueprints[carName],
 		with behavior ReplayBehavior()
 	cars.append(car)
 
@@ -70,6 +74,7 @@ nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-
 	with name 'car'+str(len(cars)),
 	with behavior ViolatedBehavior(EGO_SPEED, nonego_trajectory)
 turnSignal[nonego.name] = SignalType.from_maneuver(nonego_maneuver)
+blueprints[nonego.name] = nonego.blueprint
 
 cars.append(nonego)
 ego = cars[0]

@@ -12,9 +12,12 @@ param sim_result = None
 sim_result = globalParameters.sim_result
 sim_trajectory = None
 sim_actions = None
-if not (sim_result is None):
+if sim_result:
 	sim_trajectory = sim_result.trajectory
 	sim_actions = sim_result.actions
+
+param blueprints = {'ego': 'vehicle.tesla.model3'}
+blueprints = globalParameters.blueprints
 
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
@@ -61,11 +64,12 @@ behavior LegalBehavior(target_speed, trajectory):
 	do SignalBehavior(trajectory)
 	do FollowTrajectoryBehavior(target_speed, trajectory)
 
-#PLACEMENT
+#Ego vehicle
 ego_maneuver = intersection.maneuvers[0]
 ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
 ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'ego',
+	with blueprint blueprints['ego'],
 	with behavior LegalBehavior(EGO_SPEED, ego_trajectory)
 turnSignal['ego'] = SignalType.from_maneuver(ego_maneuver)
 
@@ -76,6 +80,7 @@ if sim_trajectory:
 			continue
 		car = Car at carState[0], facing carState[1],
 			with name carName,
+			with blueprint blueprints[carName],
 			with behavior ReplayBehavior()
 		cars.append(car)
 		
