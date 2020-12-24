@@ -58,10 +58,12 @@ arrivedEarlierThan(Vehicle1, Vehicle2):-
   T1 < T2.
 
 arrivedSameTime(Vehicle1, Vehicle2):-
-  arrivedAtForkAtTime(Vehicle1, _, T),
-  arrivedAtForkAtTime(Vehicle2, _, T).
+  Vehicle1 != Vehicle2,
+  arrivedAtTime(Vehicle1, T),
+  arrivedAtTime(Vehicle2, T).
 
 enteredSameOrEarlierThan(V1, V2):-
+  V1 != V2,
   enteredForkAtTime(V1, _, T1),
   enteredForkAtTime(V2, _, T2),
   T1 <= T2.
@@ -95,10 +97,8 @@ signaledAtFork(Vehicle, Signal, Fork):-
 signaledLeft(Vehicle):-
   signaledAtFork(Vehicle, left, _).
 
-goingStraight(Vehicle):-
-  signaledAtFork(Vehicle, off, _).
-
 arrivedFromDifferentHighways(Vehicle1, Vehicle2):-
+  Vehicle1 != Vehicle2,
   arrivedAtFork(Vehicle1, F1),
   arrivedAtFork(Vehicle2, F2),
   not onSameHighway(F1, F2).
