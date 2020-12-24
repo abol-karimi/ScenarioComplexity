@@ -18,7 +18,6 @@ if sim_result:
 
 param blueprints = {'ego': 'vehicle.tesla.model3'}
 blueprints = globalParameters.blueprints
-print(blueprints)
 
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
@@ -38,19 +37,6 @@ if sim_trajectory:
 		vehicleLightState = setVehicleLightStateAction.vehicleLightState
 		turnSignal[actingCar.name] = signalType_from_vehicleLightState(vehicleLightState)
 		
-behavior ReplayBehavior():
-	actingCars = sim_actions[0].keys()
-	thisCar = [ac for ac in actingCars if ac.name == self.name][0]
-	actions = sim_actions[0][thisCar]
-	setVehicleLightStateAction = [a for a in actions if isinstance(a, SetVehicleLightStateAction)][0]
-	take setVehicleLightStateAction
-
-	while True:
-		currentTime = simulation().currentTime
-		state = sim_trajectory[currentTime][self.name]
-		take SetTransformAction(state[0], state[1])
-		wait
-
 behavior ReActBehavior():
 	while True:
 		currentTime = simulation().currentTime
@@ -65,7 +51,7 @@ behavior ReActBehavior():
 		wait
 
 #CONSTANTS
-EGO_SPEED = 4
+MAX_SPEED = 20
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
@@ -74,9 +60,13 @@ behavior SignalBehavior(trajectory):
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
 
-behavior LegalBehavior(target_speed, trajectory):
+behavior LegalBehavior(max_speed, trajectory):
 	do SignalBehavior(trajectory)
-	do FollowTrajectoryBehavior(target_speed, trajectory)
+	while (distance from self to trajectory[2].centerline[-1]) > 5:
+		target_speed = Range(0, max_speed)
+		do FollowTrajectoryBehavior(target_speed, trajectory) for 10 steps
+		wait
+	take SetBrakeAction(0.5)
 
 #Ego vehicle
 ego_maneuver = intersection.maneuvers[0]
@@ -84,7 +74,7 @@ ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneu
 ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'ego',
 	with blueprint blueprints['ego'],
-	with behavior LegalBehavior(EGO_SPEED, ego_trajectory)
+	with behavior LegalBehavior(MAX_SPEED, ego_trajectory)
 turnSignal['ego'] = SignalType.from_maneuver(ego_maneuver)
 
 cars = [ego]

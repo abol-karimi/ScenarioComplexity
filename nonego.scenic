@@ -15,7 +15,6 @@ sim_actions = sim_result.actions
 
 param blueprints = None
 blueprints = globalParameters.blueprints
-print(blueprints)
 
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
@@ -33,19 +32,6 @@ if sim_trajectory:
 		vehicleLightState = setVehicleLightStateAction.vehicleLightState
 		turnSignal[actingCar.name] = signalType_from_vehicleLightState(vehicleLightState)
 
-behavior ReplayBehavior():
-	actingCars = sim_actions[0].keys()
-	thisCar = [ac for ac in actingCars if ac.name == self.name][0]
-	actions = sim_actions[0][thisCar]
-	setVehicleLightStateAction = [a for a in actions if isinstance(a, SetVehicleLightStateAction)][0]
-	take setVehicleLightStateAction
-
-	while True:
-		currentTime = simulation().currentTime
-		state = sim_trajectory[currentTime][self.name]
-		take SetTransformAction(state[0], state[1])
-		wait
-
 behavior ReActBehavior():
 	while True:
 		currentTime = simulation().currentTime
@@ -60,7 +46,7 @@ behavior ReActBehavior():
 		wait
 
 #CONSTANTS
-EGO_SPEED = 4
+MAX_SPEED = 20
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
@@ -69,10 +55,14 @@ behavior SignalBehavior(trajectory):
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
 
-behavior ViolatedBehavior(target_speed, trajectory):
+behavior ViolatedBehavior(max_speed, trajectory):
 	blueprints[self.name] = self.blueprint
 	do SignalBehavior(trajectory)
-	do FollowTrajectoryBehavior(target_speed, trajectory)
+	while (distance from self to trajectory[2].centerline[-1]) > 5:
+		target_speed = Range(0, max_speed)
+		do FollowTrajectoryBehavior(target_speed, trajectory) for 10 steps
+		wait
+	take SetBrakeAction(0.5)
 
 cars = []
 for carName, carState in sim_trajectory[0].items(): 
@@ -87,7 +77,7 @@ nonego_maneuver = Uniform(*(intersection.maneuvers))
 nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, nonego_maneuver.endLane]
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'car'+str(len(cars)),
-	with behavior ViolatedBehavior(EGO_SPEED, nonego_trajectory)
+	with behavior ViolatedBehavior(MAX_SPEED, nonego_trajectory)
 turnSignal[nonego.name] = SignalType.from_maneuver(nonego_maneuver)
 
 cars.append(nonego)
