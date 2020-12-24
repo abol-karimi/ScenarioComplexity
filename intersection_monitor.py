@@ -4,6 +4,14 @@ import carla
 from signals import SignalType
 
 
+class CarState():
+    def __init__(self):
+        self.arrived = False
+        self.entered = False
+        self.exited = False
+        self.lanes = set()
+
+
 class Event():
     """Abstract class for traffic monitor events."""
 
@@ -138,13 +146,13 @@ class Monitor():
         self.events.append(ExitedIntersectionEvent(
             timestamp, vehicle, outgoing_lane))
 
-
-class CarState():
-    def __init__(self):
-        self.arrived = False
-        self.entered = False
-        self.exited = False
-        self.lanes = set()
+    def violatesRightOf(self, name1, name2):
+        from solver import Solver
+        solver = Solver("uncontrolled-4way.lp")
+        solver.add_atoms(self.geometry)
+        solver.add_atoms(self.events)
+        violations = solver.solve()
+        return (tuple([name1, name2]) in violations)
 
 
 monitor = Monitor()

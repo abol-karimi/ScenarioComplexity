@@ -62,6 +62,7 @@ behavior ViolatedBehavior(max_speed, trajectory):
 		target_speed = Range(0, max_speed)
 		do FollowTrajectoryBehavior(target_speed, trajectory) for 10 steps
 		wait
+	require intersection_monitor.monitor.violatesRightOf('ego', self.name)
 	take SetBrakeAction(0.5)
 
 cars = []
@@ -78,12 +79,12 @@ nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, 
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'car'+str(len(cars)),
 	with behavior ViolatedBehavior(MAX_SPEED, nonego_trajectory)
-turnSignal[nonego.name] = SignalType.from_maneuver(nonego_maneuver)
 
 cars.append(nonego)
 ego = cars[0]
 
 monitor carEvents:
+	turnSignal[nonego.name] = SignalType.from_maneuver(nonego_maneuver)
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
 	maneuvers = intersection.maneuvers
