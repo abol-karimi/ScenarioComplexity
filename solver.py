@@ -26,5 +26,5 @@ class Solver():
                 cars = [arg.name for arg in atom.arguments]
                 self.__solution.add(tuple([cars[0], cars[1]]))
                 print(atom)
-            if atom.match("mustYieldToForRuleAtTime", 4):
-                print(atom)
+            # else:
+            #     print(atom)

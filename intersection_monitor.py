@@ -126,25 +126,33 @@ class Monitor():
             self.geometry += [
                 f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
 
+    def timestamp_to_ruletime(self, timestamp):
+        return int(timestamp.elapsed_seconds*2)
+
     def on_arrival(self, timestamp, vehicle, incoming_lane, signal):
+        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events.append(ArrivedAtIntersectionEvent(
-            timestamp, vehicle, incoming_lane))
+            ruletime, vehicle, incoming_lane))
         self.events.append(SignaledAtForkEvent(
-            timestamp, vehicle, signal, incoming_lane))
+            ruletime, vehicle, signal, incoming_lane))
 
     def on_enterLane(self, timestamp, vehicle, lane):
-        self.events.append(EnteredLaneEvent(timestamp, vehicle, lane))
+        ruletime = self.timestamp_to_ruletime(timestamp)
+        self.events.append(EnteredLaneEvent(ruletime, vehicle, lane))
 
     def on_exitLane(self, timestamp, vehicle, lane):
-        self.events.append(ExitedLaneEvent(timestamp, vehicle, lane))
+        ruletime = self.timestamp_to_ruletime(timestamp)
+        self.events.append(ExitedLaneEvent(ruletime, vehicle, lane))
 
     def on_entrance(self, timestamp, vehicle, incoming_lane):
+        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events.append(EnteredIntersectionEvent(
-            timestamp, vehicle, incoming_lane))
+            ruletime, vehicle, incoming_lane))
 
     def on_exit(self, timestamp, vehicle, outgoing_lane):
+        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events.append(ExitedIntersectionEvent(
-            timestamp, vehicle, outgoing_lane))
+            ruletime, vehicle, outgoing_lane))
 
     def violatesRightOf(self, name1, name2):
         from solver import Solver
