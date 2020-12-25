@@ -7,16 +7,7 @@ onSameHighway(Fork1, Fork2):-
   onSameHighway(Fork2, Fork1).
 
 %---------------Time domain------------
-eventTime(T):-
-  arrivedAtForkAtTime(_, _, T).
-eventTime(T):-
-  enteredForkAtTime(_, _, T).
-eventTime(T):-
-  enteredLaneAtTime(_, _, T).
-eventTime(T):-
-  leftLaneAtTime(_, _, T).
-eventTime(T):-
-  exitedFromAtTime(_, _, T).
+time(0..99).
 
 %-----------------Traffic--------------
 arrivedAtFork(Vehicle, Fork):-
@@ -27,12 +18,12 @@ arrivedAtTime(Vehicle, T):-
 
 arrivedByTime(Vehicle, T):-
   arrivedAtForkAtTime(Vehicle, _, T1),
-  eventTime(T),
+  time(T),
   T1 <= T.
 
 exitedByTime(Vehicle, T):-
   exitedFromAtTime(Vehicle, _, T1),
-  eventTime(T),
+  time(T),
   T1 <= T.
 
 inTheIntersectionAtTime(Vehicle, T):-
@@ -41,7 +32,7 @@ inTheIntersectionAtTime(Vehicle, T):-
 
 enteredByTime(Vehicle, T):-
   enteredForkAtTime(Vehicle, _, T1),
-  eventTime(T),
+  time(T),
   T1 <= T.
 
 atTheIntersectionAtTime(Vehicle, T):-
@@ -75,12 +66,12 @@ isOnRightOfAtTime(Vehicle1, Vehicle2, T):-
 
 leftLaneByTime(Vehicle, Lane, T):-
   leftLaneAtTime(Vehicle, Lane, T1),
-  eventTime(T),
+  time(T),
   T1 <= T.
 
 enteredLaneByTime(Vehicle, Lane, T):-
   enteredLaneAtTime(Vehicle, Lane, T1),
-  eventTime(T),
+  time(T),
   T1 <= T.
 
 % Does not handle re-entries.
@@ -180,7 +171,7 @@ mustYieldToForRuleAtTime(Vehicle1, Vehicle2, leftTurn, T):-
   requestedLane(Vehicle2, Lane2),
   overlaps(Lane1, Lane2),
   arrivedAtTime(Vehicle2, T1),
-  eventTime(T),
+  time(T),
   not enteredLaneByTime(Vehicle1, Lane2, T1),
   not leftLaneByTime(Vehicle2, Lane1, T).
 
