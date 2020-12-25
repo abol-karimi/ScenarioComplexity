@@ -91,12 +91,12 @@ class Monitor():
     """Record all the static and dynamic traffic predicates."""
     intersection = None
     geometry = []
-    events = []
+    events = {}
 
     def set_intersection(self, intersection):
         self.intersection = intersection
         self.geometry = []
-        self.events = []
+        self.events = {}
         for maneuver in intersection.maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
@@ -130,35 +130,48 @@ class Monitor():
         return int(timestamp.elapsed_seconds*2)
 
     def on_arrival(self, timestamp, vehicle, incoming_lane, signal):
+        if not (vehicle.name in self.events):
+            self.events[vehicle.name] = []
         ruletime = self.timestamp_to_ruletime(timestamp)
-        self.events.append(ArrivedAtIntersectionEvent(
+        self.events[vehicle.name].append(ArrivedAtIntersectionEvent(
             ruletime, vehicle, incoming_lane))
-        self.events.append(SignaledAtForkEvent(
+        self.events[vehicle.name].append(SignaledAtForkEvent(
             ruletime, vehicle, signal, incoming_lane))
 
     def on_enterLane(self, timestamp, vehicle, lane):
+        if not (vehicle.name in self.events):
+            self.events[vehicle.name] = []
         ruletime = self.timestamp_to_ruletime(timestamp)
-        self.events.append(EnteredLaneEvent(ruletime, vehicle, lane))
+        self.events[vehicle.name].append(
+            EnteredLaneEvent(ruletime, vehicle, lane))
 
     def on_exitLane(self, timestamp, vehicle, lane):
+        if not (vehicle.name in self.events):
+            self.events[vehicle.name] = []
         ruletime = self.timestamp_to_ruletime(timestamp)
-        self.events.append(ExitedLaneEvent(ruletime, vehicle, lane))
+        self.events[vehicle.name].append(
+            ExitedLaneEvent(ruletime, vehicle, lane))
 
     def on_entrance(self, timestamp, vehicle, incoming_lane):
+        if not (vehicle.name in self.events):
+            self.events[vehicle.name] = []
         ruletime = self.timestamp_to_ruletime(timestamp)
-        self.events.append(EnteredIntersectionEvent(
+        self.events[vehicle.name].append(EnteredIntersectionEvent(
             ruletime, vehicle, incoming_lane))
 
     def on_exit(self, timestamp, vehicle, outgoing_lane):
+        if not (vehicle.name in self.events):
+            self.events[vehicle.name] = []
         ruletime = self.timestamp_to_ruletime(timestamp)
-        self.events.append(ExitedIntersectionEvent(
+        self.events[vehicle.name].append(ExitedIntersectionEvent(
             ruletime, vehicle, outgoing_lane))
 
     def violatesRightOf(self, name1, name2):
         from solver import Solver
         solver = Solver("uncontrolled-4way.lp")
         solver.add_atoms(self.geometry)
-        solver.add_atoms(self.events)
+        solver.add_atoms([event for car in self.events.keys()
+                          for event in self.events[car]])
         violations = solver.solve()
         return (tuple([name1, name2]) in violations)
 
