@@ -59,10 +59,9 @@ behavior ViolatedBehavior(max_speed, trajectory):
 	blueprints[self.name] = self.blueprint
 	do SignalBehavior(trajectory)
 	while (distance from self to trajectory[2].centerline[-1]) > 5:
-		target_speed = Range(0, max_speed)
-		do FollowTrajectoryBehavior(target_speed, trajectory) for 10 steps
-		wait
-	require intersection_monitor.monitor.violatesRightOf('ego', self.name)
+		#target_speed = Range(0, max_speed)
+		do FollowTrajectoryBehavior(2, trajectory) #for 10 steps
+		#wait
 	take SetBrakeAction(0.5)
 
 cars = []
@@ -79,6 +78,7 @@ nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, 
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'car'+str(len(cars)),
 	with behavior ViolatedBehavior(MAX_SPEED, nonego_trajectory)
+intersection_monitor.monitor.nonego = nonego.name
 
 cars.append(nonego)
 ego = cars[0]

@@ -92,6 +92,7 @@ class Monitor():
     intersection = None
     geometry = []
     events = {}
+    nonego = None
 
     def set_intersection(self, intersection):
         self.intersection = intersection
@@ -174,6 +175,61 @@ class Monitor():
                           for event in self.events[car]])
         violations = solver.solve()
         return (tuple([name1, name2]) in violations)
+
+    def nonego_solution(self):
+        # Index events by their timestamps
+        time2events = {}
+        for event in self.events[self.nonego]:
+            print(event)
+            if not (event.timestamp in time2events):
+                time2events[event.timestamp] = [event]
+            else:
+                time2events[event.timestamp].append(event)
+
+        # Distinct time variables for nonego's events
+        events = self.events[self.nonego]
+        for i in range(len(events)):
+            events[i].timestamp = f'T{i}'
+
+        # Nonego's atoms
+        atoms = []
+
+        # Simultaneous events
+        for time in time2events.keys():
+            events = time2events[time]
+            for i in range(len(events)-1):
+                ti = events[i].timestamp
+                tii = events[i+1].timestamp
+                atoms += [f':- {events[i]}, {events[i+1]}, {ti} != {tii}']
+
+        # Non-simultaneous events
+        times = sorted(time2events.keys())
+        for i in range(len(times)-1):
+            ei = time2events[times[i]][0]
+            eii = time2events[times[i+1]][0]
+            ti = ei.timestamp
+            tii = eii.timestamp
+            atoms += [f':- {ei}, {eii}, {ti} >= {tii}']
+
+        # Generate events
+        for event in self.events[self.nonego]:
+            atoms += [f'{{ {event} : time({event.timestamp}) }} = 1']
+
+        from solver import Solver
+        solver = Solver("uncontrolled-4way.lp")
+        solver.add_atoms(self.geometry)
+        for car in self.events.keys():
+            if car != self.nonego:
+                solver.add_atoms(self.events[car])
+
+        # Nonego atoms
+        solver.add_atoms(atoms)
+
+        # Enforce ego's violation of nonego
+        solver.add_atoms([f':- not violatesRightOf(ego, {self.nonego})'])
+
+        solver.solve()
+        # print(model)
 
 
 monitor = Monitor()

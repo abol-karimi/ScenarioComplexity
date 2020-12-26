@@ -51,7 +51,7 @@ behavior ReActBehavior():
 		wait
 
 #CONSTANTS
-MAX_SPEED = 20
+MAX_SPEED = 2
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
