@@ -228,8 +228,13 @@ class Monitor():
         # Enforce ego's violation of nonego
         solver.add_atoms([f':- not violatesRightOf(ego, {self.nonego})'])
 
-        solver.solve()
-        # print(model)
+        model = solver.solve()
+
+        event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+                       'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
+        for atom in model:
+            if atom.name in event_names:
+                print(atom)
 
 
 monitor = Monitor()

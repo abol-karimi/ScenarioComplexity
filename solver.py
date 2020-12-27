@@ -16,25 +16,21 @@ class Solver():
         self.__ctl.add("base", [], program)
 
     def solve(self):
-        print("\n Solving...")
+        print("\nSolving...")
         self.__ctl.ground([("base", [])])
-        self.__ctl.solve(on_model=self.__on_model, on_finish=self.__on_finish)
+        self.__ctl.solve(on_model=self.__on_model,
+                         on_finish=self.__on_finish, async_=False)
+
         return self.__solution
 
     def __on_model(self, model):
-        self.__solution = model
-        self.__solution = set()
-        for atom in model.symbols(atoms=True):
-            if atom.match("violatesRightOf", 2):
-                cars = [arg.name for arg in atom.arguments]
-                self.__solution.add(tuple([cars[0], cars[1]]))
-                print(atom)
-            else:
-                print(atom)
+        print('Model found!')
+        self.__solution = model.symbols(atoms=True)
 
     def __on_finish(self, result):
-        print("Exhausted = " + str(result.exhausted))
-        print("Interrupted = " + str(result.interrupted))
-        print("Satisfiable = " + str(result.satisfiable))
-        print("Unknown = " + str(result.unknown))
-        print("Unsatisfiable = " + str(result.unsatisfiable))
+        if not result.satisfiable:
+            print(f'Exhausted = {result.exhausted}')
+            print(f'Interrupted = {result.interrupted}')
+            print(f'Satisfiable = {result.satisfiable}')
+            print(f'Unknown = {result.unknown}')
+            print(f'Unsatisfiable = {result.unsatisfiable}')
