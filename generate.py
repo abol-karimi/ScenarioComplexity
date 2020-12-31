@@ -1,7 +1,7 @@
 from intersection_monitor import monitor
 import scenic
 
-maxSteps = 600
+maxSteps = 400
 timestep = 0.05
 weather = 'ClearSunset'
 render = False
@@ -29,10 +29,10 @@ for i in range(1):
               'timestep': timestep,
               'weather': weather,
               'render': render}
-    scenario = scenic.scenarioFromFile('nonego.scenic', params=params)
+    scenario = scenic.scenarioFromFile('nonego_trajectory.scenic', params=params)
     scene, iterations = scenario.generate()
     simulator = scenario.getSimulator()
     sim_result = simulator.simulate(scene, maxSteps=maxSteps)
     blueprints = scene.params['blueprints']
 
-    monitor.nonego_solution()
+    monitor.nonego_solution(sim_result)
