@@ -51,7 +51,7 @@ behavior ReActBehavior():
 		wait
 
 #CONSTANTS
-MAX_SPEED = 2
+MAX_SPEED = 10
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
@@ -69,7 +69,7 @@ behavior LegalBehavior(max_speed, trajectory):
 	take SetBrakeAction(0.5)
 
 #Ego vehicle
-ego_maneuver = intersection.maneuvers[0]
+ego_maneuver = intersection.maneuvers[3]
 ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
 ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'ego',
