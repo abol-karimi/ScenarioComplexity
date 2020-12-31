@@ -32,6 +32,21 @@ if sim_trajectory:
 		vehicleLightState = setVehicleLightStateAction.vehicleLightState
 		turnSignal[actingCar.name] = signalType_from_vehicleLightState(vehicleLightState)
 
+behavior ReplayBehavior():
+	actingCars = sim_actions[0].keys()
+	thisCar = [ac for ac in actingCars if ac.name == self.name][0]
+	actions = sim_actions[0][thisCar]
+	setVehicleLightStateAction = [a for a in actions if isinstance(a, SetVehicleLightStateAction)][0]
+	take setVehicleLightStateAction
+
+	while True:
+		currentTime = simulation().currentTime
+		state = sim_trajectory[currentTime][self.name]
+		take SetTransformAction(state[0], state[1])
+		#state = sim_trajectory[max(currentTime-2, 1)][self.name]
+		#self.carlaActor.set_target_velocity(state[2])
+		wait
+
 behavior ReActBehavior():
 	while True:
 		currentTime = simulation().currentTime
@@ -46,7 +61,7 @@ behavior ReActBehavior():
 		wait
 
 #CONSTANTS
-MAX_SPEED = 20
+MAX_SPEED = 10
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 # meters
 
@@ -69,7 +84,8 @@ for carName, carState in sim_trajectory[0].items():
 	car = Car at carState[0], facing carState[1],
 		with name carName,
 		with blueprint blueprints[carName],
-		with behavior ReActBehavior()
+		with behavior ReplayBehavior(),
+		with physics False
 	cars.append(car)
 
 #PLACEMENT
