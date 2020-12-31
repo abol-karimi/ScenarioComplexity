@@ -2,17 +2,17 @@ import clingo
 
 
 class Solver():
-    def __init__(self, rules_path="uncontrolled-intersection.lp"):
-        self.__solution = set()
+    def __init__(self):
+        self.__solution = None
         self.__ctl = clingo.Control()
-        self.__ctl.load(rules_path)
+
+    def load(self, path):
+        self.__ctl.load(path)
 
     def add_atoms(self, atoms):
         program = ""
         for atom in atoms:
             program += f'{atom}.\n'
-        print('Adding atoms:')
-        print(program)
         self.__ctl.add("base", [], program)
 
     def solve(self):
