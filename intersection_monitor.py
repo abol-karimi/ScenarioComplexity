@@ -15,82 +15,104 @@ class CarState():
 class Event():
     """Abstract class for traffic monitor events."""
 
-    def __init__(self, ruletime, vehicle):
-        self.ruletime = ruletime
+    def __init__(self, timestamp, vehicle):
+        self.timestamp = timestamp
         self.vehicle = vehicle
+
+    @property
+    def ruletime(self):
+        return int(self.timestamp.elapsed_seconds*2)
 
 
 class ArrivedAtIntersectionEvent(Event):
     """Arrival of a vehicle at an intersection."""
-    name = 'arrivedAtForkAtTime'
+    name = 'arrivedAtForkAtTime'  # TODO declare as a property
 
-    def __init__(self, ruletime, vehicle, incoming_lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, incoming_lane):
+        super().__init__(timestamp, vehicle)
         self.incoming_lane = incoming_lane
 
     def __str__(self):
         return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.ruletime})'
+
+    def withTimeVar(self, timeVar):
+        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {timeVar})'
 
 
 class SignaledAtForkEvent(Event):
     """Using a turn signal when arriving at an intersection."""
     name = 'signaledAtForkAtTime'
 
-    def __init__(self, ruletime, vehicle, signal, incoming_lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, signal, incoming_lane):
+        super().__init__(timestamp, vehicle)
         self.signal = signal
         self.incoming_lane = incoming_lane
 
     def __str__(self):
         return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {self.ruletime})'
 
+    def withTimeVar(self, timeVar):
+        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {timeVar})'
+
 
 class EnteredLaneEvent(Event):
     """When part of a vehicle enters the lane."""
     name = 'enteredLaneAtTime'
 
-    def __init__(self, ruletime, vehicle, lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, lane):
+        super().__init__(timestamp, vehicle)
         self.lane = lane
 
     def __str__(self):
         return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {self.ruletime})'
+
+    def withTimeVar(self, timeVar):
+        return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {timeVar})'
 
 
 class ExitedLaneEvent(Event):
     """When the last part of a vehicle exits the lane."""
     name = 'leftLaneAtTime'
 
-    def __init__(self, ruletime, vehicle, lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, lane):
+        super().__init__(timestamp, vehicle)
         self.lane = lane
 
     def __str__(self):
         return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {self.ruletime})'
+
+    def withTimeVar(self, timeVar):
+        return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {timeVar})'
 
 
 class EnteredIntersectionEvent(Event):
     """When any part of a vehicle enters the intersection."""
     name = 'enteredForkAtTime'
 
-    def __init__(self, ruletime, vehicle, incoming_lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, incoming_lane):
+        super().__init__(timestamp, vehicle)
         self.incoming_lane = incoming_lane
 
     def __str__(self):
         return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.ruletime})'
+
+    def withTimeVar(self, timeVar):
+        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {timeVar})'
 
 
 class ExitedIntersectionEvent(Event):
     """When the last part of a vehicle exits the intersection."""
     name = 'exitedFromAtTime'
 
-    def __init__(self, ruletime, vehicle, outgoing_lane):
-        super().__init__(ruletime, vehicle)
+    def __init__(self, timestamp, vehicle, outgoing_lane):
+        super().__init__(timestamp, vehicle)
         self.outgoing_lane = outgoing_lane
 
     def __str__(self):
         return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {self.ruletime})'
+
+    def withTimeVar(self, timeVar):
+        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {timeVar})'
 
 
 class Monitor():
@@ -133,45 +155,37 @@ class Monitor():
             self.geometry += [
                 f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
 
-    def timestamp_to_ruletime(self, timestamp):
-        return int(timestamp.elapsed_seconds*2)
-
     def on_arrival(self, timestamp, vehicle, incoming_lane, signal):
         if not (vehicle.name in self.events):
             self.events[vehicle.name] = []
-        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events[vehicle.name].append(ArrivedAtIntersectionEvent(
-            ruletime, vehicle, incoming_lane))
+            timestamp, vehicle, incoming_lane))
         self.events[vehicle.name].append(SignaledAtForkEvent(
-            ruletime, vehicle, signal, incoming_lane))
+            timestamp, vehicle, signal, incoming_lane))
 
     def on_enterLane(self, timestamp, vehicle, lane):
         if not (vehicle.name in self.events):
             self.events[vehicle.name] = []
-        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events[vehicle.name].append(
-            EnteredLaneEvent(ruletime, vehicle, lane))
+            EnteredLaneEvent(timestamp, vehicle, lane))
 
     def on_exitLane(self, timestamp, vehicle, lane):
         if not (vehicle.name in self.events):
             self.events[vehicle.name] = []
-        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events[vehicle.name].append(
-            ExitedLaneEvent(ruletime, vehicle, lane))
+            ExitedLaneEvent(timestamp, vehicle, lane))
 
     def on_entrance(self, timestamp, vehicle, incoming_lane):
         if not (vehicle.name in self.events):
             self.events[vehicle.name] = []
-        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events[vehicle.name].append(EnteredIntersectionEvent(
-            ruletime, vehicle, incoming_lane))
+            timestamp, vehicle, incoming_lane))
 
     def on_exit(self, timestamp, vehicle, outgoing_lane):
         if not (vehicle.name in self.events):
             self.events[vehicle.name] = []
-        ruletime = self.timestamp_to_ruletime(timestamp)
         self.events[vehicle.name].append(ExitedIntersectionEvent(
-            ruletime, vehicle, outgoing_lane))
+            timestamp, vehicle, outgoing_lane))
 
     def nonego_solution(self, sim_result):
         # Index nonego's events by their timestamps
@@ -185,8 +199,7 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         events = self.events[self.nonego]
-        for i in range(len(events)):
-            events[i].ruletime = f'T{i}'
+        timeVar = {events[i]: f'T{i}' for i in range(len(events))}
 
         # Nonego's atoms
         atoms = []
@@ -195,22 +208,24 @@ class Monitor():
         for time in time2events.keys():
             events = time2events[time]
             for i in range(len(events)-1):
-                ti = events[i].ruletime
-                tii = events[i+1].ruletime
-                atoms += [f':- {events[i]}, {events[i+1]}, {ti} != {tii}']
+                ti = timeVar[events[i]]
+                tii = timeVar[events[i+1]]
+                atoms.append(
+                    f':- {events[i].withTimeVar(ti)}, {events[i+1].withTimeVar(tii)}, {ti} != {tii}')
 
         # Nonego's non-simultaneous events
         times = sorted(time2events.keys())
         for i in range(len(times)-1):
             ei = time2events[times[i]][0]
             eii = time2events[times[i+1]][0]
-            ti = ei.ruletime
-            tii = eii.ruletime
-            atoms += [f':- {ei}, {eii}, {ti} >= {tii}']
+            ti = timeVar[ei]
+            tii = timeVar[eii]
+            atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} >= {tii}']
 
         # Generate nonego events
         for event in self.events[self.nonego]:
-            atoms += [f'{{ {event} : time({event.ruletime}) }} = 1']
+            t = timeVar[event]
+            atoms += [f'{{ {event.withTimeVar(t)} : time({t}) }} = 1']
 
         # Instantiate nonego's time variables such that
         #  ego violates nonego's right-of-way.
@@ -230,13 +245,16 @@ class Monitor():
 
         model = solver.solve()
 
-        # Change nonego's event timings to the solution
-        eventTime = {atom.name: atom.arguments[-1] for atom in model}
-        for event in self.events[self.nonego]:
-            event.ruletime = eventTime[event.name]
+        trajectory = sim_result.trajectory
+        distances = [0]*len(trajectory)
+        for i in range(len(trajectory)-1):
+            pi = trajectory[i][self.nonego][0]
+            pii = trajectory[i+1][self.nonego][0]
+            distances[i+1] = distances[i] + pi.distanceTo(pii)
 
-        for e in self.events[self.nonego]:
-            print(e)
+        for event in self.events[self.nonego]:
+            print(event)
+            print(event.withTimeVar(timeVar[event]))
 
         # Remember only the order of nonego events relative to ego's
         # import portion as P
