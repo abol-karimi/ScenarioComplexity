@@ -187,8 +187,8 @@ class Monitor():
         self.events[vehicle.name].append(ExitedIntersectionEvent(
             timestamp, vehicle, outgoing_lane))
 
-    def nonego_solution(self, sim_result):
-        # Index nonego's events by their timestamps
+    def nonego_logical_solution(self):
+        # Index nonego's events by their ruletime
         time2events = {}
         for event in self.events[self.nonego]:
             print(event)
@@ -198,8 +198,8 @@ class Monitor():
                 time2events[event.ruletime].append(event)
 
         # Distinct time variables for nonego's events
-        events = self.events[self.nonego]
-        timeVar = {events[i]: f'T{i}' for i in range(len(events))}
+        nonego_events = self.events[self.nonego]
+        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -243,7 +243,33 @@ class Monitor():
         # Enforce ego's violation of nonego
         solver.add_atoms([f':- not violatesRightOf(ego, {self.nonego})'])
 
-        model = solver.solve()
+        return solver.solve()
+
+    def nonego_solution(self, sim_result):
+        model = self.nonego_logical_solution()
+
+        event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+                       'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
+        event_atoms = [atom for atom in model if atom.name in event_names]
+        nonego_times = sorted(set([atom.arguments[-1] for atom in event_atoms
+                                   if str(atom.arguments[0]) == self.nonego]))
+        print(nonego_times)
+
+        nonego_events = self.events[self.nonego]
+        timeless2timed = {event.withTimeVar(
+            ''): event for event in nonego_events}
+
+        atom2event = {}
+        for atom in model:
+            name = atom.name
+            args = atom.arguments
+            if not (str(args[0]) == self.nonego and name in event_names):
+                continue
+            if len(args) == 3:
+                timeless = f'{name}({args[0]}, {args[1]}, )'
+            else:
+                timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
+            atom2event[atom] = timeless2timed[timeless]
 
         trajectory = sim_result.trajectory
         distances = [0]*len(trajectory)
@@ -252,9 +278,14 @@ class Monitor():
             pii = trajectory[i+1][self.nonego][0]
             distances[i+1] = distances[i] + pi.distanceTo(pii)
 
-        for event in self.events[self.nonego]:
-            print(event)
-            print(event.withTimeVar(timeVar[event]))
+        for atom, event in atom2event.items():
+            print(f'Distance of {atom}: {distances[event.timestamp.frame]}')
+
+        # print(f'Total frames: {len(trajectory)}')
+        # for event in self.events[self.nonego]:
+        #     print(event)
+        #     print(f'Distance at frame {event.timestamp.frame}:')
+        #     print(f'{distances[event.timestamp.frame]}\n')
 
         # Remember only the order of nonego events relative to ego's
         # import portion as P
