@@ -1,3 +1,5 @@
+#program boundedtime(maxtime).
+
 %-----------Geometry (4-way)-----------
 onSameHighway(Fork1, Fork2):-
   isOnRightOf(Fork1, F),
@@ -7,7 +9,7 @@ onSameHighway(Fork1, Fork2):-
   onSameHighway(Fork2, Fork1).
 
 %---------------Time domain------------
-time(0..99).
+time(0..maxtime).
 
 %-----------------Traffic--------------
 arrivedAtFork(Vehicle, Fork):-

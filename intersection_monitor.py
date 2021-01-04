@@ -129,6 +129,7 @@ class Monitor():
     geometry = []
     events = {}
     nonego = None
+    max_realtime = None
 
     def set_intersection(self, intersection):
         self.intersection = intersection
@@ -199,7 +200,6 @@ class Monitor():
         # Index nonego's events by their ruletime
         time2events = {}
         for event in self.events[self.nonego]:
-            print(event)
             if not (event.ruletime in time2events):
                 time2events[event.ruletime] = [event]
             else:
@@ -207,7 +207,8 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
+        timeVar = {nonego_events[i]
+            : f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -238,7 +239,8 @@ class Monitor():
         # Instantiate nonego's time variables such that
         #  ego violates nonego's right-of-way.
         from solver import Solver
-        solver = Solver()
+        max_ruletime = realtime_to_ruletime(self.max_realtime)
+        solver = Solver(max_ruletime)
         solver.load('uncontrolled-4way.lp')
         solver.add_atoms(self.geometry)
         for car in self.events.keys():
@@ -272,7 +274,7 @@ class Monitor():
                 timeless = f'{name}({args[0]}, {args[1]}, )'
             else:
                 timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
-            ruletime = str(args[-1])
+            ruletime = int(str(args[-1]))
             if not ruletime in ruletime2events:
                 ruletime2events[ruletime] = [timeless2event[timeless]]
             else:
@@ -280,6 +282,10 @@ class Monitor():
 
         trajectory = sim_result.trajectory
         frame2distance = [0]*len(trajectory)
+
+        for event in self.events[self.nonego]:
+            print(f'{event} at frame {event.timestamp.frame}')
+
         for i in range(len(trajectory)-1):
             pi = trajectory[i][self.nonego][0]
             pii = trajectory[i+1][self.nonego][0]
@@ -297,9 +303,6 @@ class Monitor():
         for ruletime, distances in ruletime2distances.items():
             ruletime2realtimes[ruletime] = [
                 z3.Real(f'T{ruletime}_{i}') for i in range(len(distances))]
-
-        print(ruletime2distances)
-        print(ruletime2realtimes)
 
         # Z3 constraints
         constraints = []
@@ -330,7 +333,47 @@ class Monitor():
 
         constraints += valid_concretization
 
-        print(constraints)
+        # Preserve logical solution (ego violating nonego's right-of-way)
+        logical_sol = []
+        max_ruletime = realtime_to_ruletime(self.max_realtime)
+        ego_ruletimes = sorted(set(
+            [event.ruletime for event in self.events['ego']]))
+        import portion as P
+        ego_intervals = [P.closedopen(0, ego_ruletimes[0])]
+        for i in range(len(ego_ruletimes)-1):
+            ti = ego_ruletimes[i]
+            tii = ego_ruletimes[i+1]
+            ego_intervals.append(P.singleton(ti))
+            ego_intervals.append(P.open(ti, tii))
+        ego_intervals.append(P.singleton(ego_ruletimes[-1]))
+        ego_intervals.append(P.openclosed(ego_ruletimes[-1], max_ruletime))
+
+        for t in ruletimes:
+            for I in ego_intervals:
+                if t in I:
+                    T = realtime_to_ruletime(ruletime2realtimes[t][0])
+                    if I.lower == I.upper:
+                        logical_sol += [T == t]
+                    elif I.left is P.OPEN and I.right is P.OPEN:
+                        logical_sol += [I.lower < T, T < I.upper]
+                    elif I.left is P.CLOSED and I.right is P.OPEN:
+                        logical_sol += [I.lower <= T, T < I.upper]
+                    elif I.left is P.OPEN and I.right is P.CLOSED:
+                        logical_sol += [I.lower < T, T <= I.upper]
+                    break
+
+        constraints += logical_sol
+
+        s = z3.Solver()
+        s.add(constraints)
+        print(s.check())
+
+        # To convert Z3 rational numbers to Python's floating point reals
+        def rat2fp(num):
+            return float(num.numerator_as_long())/float(num.denominator_as_long())
+        m = s.model()
+        concrete_realtimes = [rat2fp(m.eval(T)) for T in realtimes]
+        print(concrete_realtimes)
 
 
 monitor = Monitor()

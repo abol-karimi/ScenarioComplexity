@@ -25,7 +25,7 @@ import carla
 from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState
 
 #CONSTANTS
-SPEED = 5
+SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
 SPAWN_DISTANCE = 20 + Uniform(10) # meters
 
