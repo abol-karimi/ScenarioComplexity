@@ -12,6 +12,14 @@ class CarState():
         self.lanes = set()
 
 
+def realtime_to_ruletime(T):
+    import z3
+    if isinstance(T, z3.z3.ArithRef):
+        return z3.ToInt(T*2)
+    else:
+        return int(T*2)
+
+
 class Event():
     """Abstract class for traffic monitor events."""
 
@@ -21,7 +29,7 @@ class Event():
 
     @property
     def ruletime(self):
-        return int(self.timestamp.elapsed_seconds*2)
+        return realtime_to_ruletime(self.timestamp.elapsed_seconds)
 
 
 class ArrivedAtIntersectionEvent(Event):
@@ -250,16 +258,11 @@ class Monitor():
 
         event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                        'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-        event_atoms = [atom for atom in model if atom.name in event_names]
-        nonego_times = sorted(set([atom.arguments[-1] for atom in event_atoms
-                                   if str(atom.arguments[0]) == self.nonego]))
-        print(nonego_times)
 
-        nonego_events = self.events[self.nonego]
-        timeless2timed = {event.withTimeVar(
-            ''): event for event in nonego_events}
+        timeless2event = {event.withTimeVar(
+            ''): event for event in self.events[self.nonego]}
 
-        atom2event = {}
+        ruletime2events = {}
         for atom in model:
             name = atom.name
             args = atom.arguments
@@ -269,29 +272,65 @@ class Monitor():
                 timeless = f'{name}({args[0]}, {args[1]}, )'
             else:
                 timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
-            atom2event[atom] = timeless2timed[timeless]
+            ruletime = str(args[-1])
+            if not ruletime in ruletime2events:
+                ruletime2events[ruletime] = [timeless2event[timeless]]
+            else:
+                ruletime2events[ruletime] += [timeless2event[timeless]]
 
         trajectory = sim_result.trajectory
-        distances = [0]*len(trajectory)
+        frame2distance = [0]*len(trajectory)
         for i in range(len(trajectory)-1):
             pi = trajectory[i][self.nonego][0]
             pii = trajectory[i+1][self.nonego][0]
-            distances[i+1] = distances[i] + pi.distanceTo(pii)
+            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
 
-        for atom, event in atom2event.items():
-            print(f'Distance of {atom}: {distances[event.timestamp.frame]}')
+        ruletime2distances = {}
+        for ruletime, events in ruletime2events.items():
+            distances = [frame2distance[event.timestamp.frame]
+                         for event in events]
+            distances_sorted = sorted(set(distances))
+            ruletime2distances[ruletime] = distances_sorted
 
-        # print(f'Total frames: {len(trajectory)}')
-        # for event in self.events[self.nonego]:
-        #     print(event)
-        #     print(f'Distance at frame {event.timestamp.frame}:')
-        #     print(f'{distances[event.timestamp.frame]}\n')
+        import z3
+        ruletime2realtimes = {}
+        for ruletime, distances in ruletime2distances.items():
+            ruletime2realtimes[ruletime] = [
+                z3.Real(f'T{ruletime}_{i}') for i in range(len(distances))]
 
-        # Remember only the order of nonego events relative to ego's
-        # import portion as P
-        # ego_times = sorted([event.ruletime for event in self.events['ego']])
-        # ego_intervals = []
-        # for i in range(len(ego_times)):
+        print(ruletime2distances)
+        print(ruletime2realtimes)
+
+        # Z3 constraints
+        constraints = []
+
+        # Valid concretization
+        valid_concretization = []
+
+        ruletimes = sorted(ruletime2realtimes.keys())
+        realtimes = [realtime for ruletime in ruletimes
+                     for realtime in ruletime2realtimes[ruletime]]
+        # Shorter distances have earlier realtimes
+        valid_concretization += [realtimes[i] < realtimes[i+1]
+                                 for i in range(len(realtimes)-1)]
+        # Concretizations of a ruletime preserves the ruletime
+        for ruletime, realtimes in ruletime2realtimes.items():
+            for i in range(len(realtimes)-1):
+                Ti = realtime_to_ruletime(realtimes[i])
+                Tii = realtime_to_ruletime(realtimes[i+1])
+                valid_concretization += [Ti == Tii]
+
+        # Order of ruletimes is preserved by the concretization
+        for i in range(len(ruletimes)-1):
+            ti = ruletimes[i]
+            tii = ruletimes[i+1]
+            Ti = realtime_to_ruletime(ruletime2realtimes[ti][0])
+            Tii = realtime_to_ruletime(ruletime2realtimes[tii][0])
+            valid_concretization += [Ti < Tii]
+
+        constraints += valid_concretization
+
+        print(constraints)
 
 
 monitor = Monitor()
