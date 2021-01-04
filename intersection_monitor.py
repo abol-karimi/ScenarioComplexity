@@ -198,12 +198,12 @@ class Monitor():
 
     def nonego_logical_solution(self):
         # Index nonego's events by their ruletime
-        time2events = {}
+        frame2events = {}
         for event in self.events[self.nonego]:
-            if not (event.ruletime in time2events):
-                time2events[event.ruletime] = [event]
+            if not (event.timestamp.frame in frame2events):
+                frame2events[event.timestamp.frame] = [event]
             else:
-                time2events[event.ruletime].append(event)
+                frame2events[event.timestamp.frame].append(event)
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
@@ -214,8 +214,8 @@ class Monitor():
         atoms = []
 
         # Nonego's simultaneous events
-        for time in time2events.keys():
-            events = time2events[time]
+        for frame in frame2events.keys():
+            events = frame2events[frame]
             for i in range(len(events)-1):
                 ti = timeVar[events[i]]
                 tii = timeVar[events[i+1]]
@@ -223,13 +223,14 @@ class Monitor():
                     f':- {events[i].withTimeVar(ti)}, {events[i+1].withTimeVar(tii)}, {ti} != {tii}')
 
         # Nonego's non-simultaneous events
-        times = sorted(time2events.keys())
-        for i in range(len(times)-1):
-            ei = time2events[times[i]][0]
-            eii = time2events[times[i+1]][0]
+        # Two non-simultaneous events may have the same ruletime (logical time)
+        frames = sorted(frame2events.keys())
+        for i in range(len(frames)-1):
+            ei = frame2events[frames[i]][0]
+            eii = frame2events[frames[i+1]][0]
             ti = timeVar[ei]
             tii = timeVar[eii]
-            atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} >= {tii}']
+            atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} > {tii}']
 
         # Generate nonego events
         for event in self.events[self.nonego]:

@@ -25,7 +25,7 @@ class Solver():
         return self.__solution
 
     def __on_model(self, model):
-        print('Model found!')
+        print('ASP model found!')
         self.__solution = model.symbols(atoms=True)
 
     def __on_finish(self, result):
