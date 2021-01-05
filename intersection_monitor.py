@@ -207,8 +207,7 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]
-            : f'T{i}' for i in range(len(nonego_events))}
+        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -254,7 +253,16 @@ class Monitor():
         # Enforce ego's violation of nonego
         solver.add_atoms([f':- not violatesRightOf(ego, {self.nonego})'])
 
-        return solver.solve()
+        m = solver.solve()
+
+        sol_names = {'violatesRightOf', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+                     'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
+        print("Logical solution: ")
+        for atom in m:
+            if atom.name in sol_names:
+                print(atom)
+
+        return m
 
     def nonego_solution(self, sim_result):
         model = self.nonego_logical_solution()
@@ -284,14 +292,12 @@ class Monitor():
         trajectory = sim_result.trajectory
         frame2distance = [0]*len(trajectory)
 
-        for event in self.events[self.nonego]:
-            print(f'{event} at frame {event.timestamp.frame}')
-
         for i in range(len(trajectory)-1):
             pi = trajectory[i][self.nonego][0]
             pii = trajectory[i+1][self.nonego][0]
             frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
 
+        # Distances of events of a ruletime in increasing order
         ruletime2distances = {}
         for ruletime, events in ruletime2events.items():
             distances = [frame2distance[event.timestamp.frame]
@@ -312,11 +318,12 @@ class Monitor():
         valid_concretization = []
 
         ruletimes = sorted(ruletime2realtimes.keys())
-        realtimes = [realtime for ruletime in ruletimes
-                     for realtime in ruletime2realtimes[ruletime]]
+        # All the realtime variables in increasing order
+        realtimes_all = [realtime for ruletime in ruletimes
+                         for realtime in ruletime2realtimes[ruletime]]
         # Shorter distances have earlier realtimes
-        valid_concretization += [realtimes[i] < realtimes[i+1]
-                                 for i in range(len(realtimes)-1)]
+        valid_concretization += [realtimes_all[i] < realtimes_all[i+1]
+                                 for i in range(len(realtimes_all)-1)]
         # Concretizations of a ruletime preserves the ruletime
         for ruletime, realtimes in ruletime2realtimes.items():
             for i in range(len(realtimes)-1):
@@ -365,6 +372,13 @@ class Monitor():
 
         constraints += logical_sol
 
+        # Smooth speed interpolation with bounded acceleration
+        # All the distances of events in increasing order
+        distances = [distance for ruletime in ruletimes
+                     for distance in ruletime2distances[ruletime]]
+        for i in range(len(realtimes_all)):
+            print(f'{realtimes_all[i]}, {distances[i]}')
+
         s = z3.Solver()
         s.add(constraints)
         print(s.check())
@@ -373,7 +387,7 @@ class Monitor():
         def rat2fp(num):
             return float(num.numerator_as_long())/float(num.denominator_as_long())
         m = s.model()
-        concrete_realtimes = [rat2fp(m.eval(T)) for T in realtimes]
+        concrete_realtimes = [rat2fp(m.eval(T)) for T in realtimes_all]
         print(concrete_realtimes)
 
 
