@@ -447,7 +447,7 @@ class Monitor():
 
         new_traj = []
         for frame in range(len(trajectory)):
-            new_traj += trajectory[new2old[frame]][self.nonego]
+            new_traj += [trajectory[new2old[frame]][self.nonego]]
         for frame in range(len(trajectory)):
             trajectory[frame][self.nonego] = new_traj[frame]
 
