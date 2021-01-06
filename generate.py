@@ -8,6 +8,7 @@ render = False
 blueprints = {'ego': 'vehicle.tesla.model3'}
 sim_result = None
 monitor.max_realtime = maxSteps*timestep
+monitor.timestep = timestep
 
 for i in range(1):
     params = {'map': './maps/Town05.xodr',

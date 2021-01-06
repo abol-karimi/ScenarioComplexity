@@ -130,6 +130,7 @@ class Monitor():
     events = {}
     nonego = None
     max_realtime = None
+    timestep = None
 
     def set_intersection(self, intersection):
         self.intersection = intersection
@@ -373,27 +374,30 @@ class Monitor():
 
         constraints += logical_sol
 
+        # Interpolated points (ti, di)
+        event_distances = [distance for ruletime in ruletimes
+                           for distance in ruletime2distances[ruletime]]
+        interp_d = [0] + event_distances + [frame2distance[-1]]
+        interp_t = [0] + realtimes_all + [self.max_realtime]
         # Smooth speed interpolation with bounded acceleration
         # All the distances of events in increasing order
-        distances = [distance for ruletime in ruletimes
-                     for distance in ruletime2distances[ruletime]]
         coeffs = [z3.Reals(f'a{i}_0 a{i}_1 a{i}_2')
-                  for i in range(len(realtimes_all)-1)]
+                  for i in range(len(interp_t)-1)]
         interp = []
         # The interpolation passes through each (ti, di).
         # Non-negative speed at each ti so that
         #  di <= d(t) <= dii for ti <= t <= tii.
-        for i in range(len(realtimes_all)):
-            ti = realtimes_all[i]
-            di = distances[i]
+        for i in range(len(interp_t)):
+            ti = interp_t[i]
+            di = interp_d[i]
             a0, a1, a2 = coeffs[i if i < len(coeffs) else -1]
             interp += [a2*ti**2 + a1*ti + a0 == di]
-            interp += [2*a2*ti + a1*ti >= 0]
+            interp += [2*a2*ti + a1 >= 0]
         # Continuously differentiable
         max_acceleration = 2
         for i in range(len(coeffs)-1):
-            ti = realtimes_all[i]
-            tii = realtimes_all[i+1]
+            ti = interp_t[i]
+            tii = interp_t[i+1]
             _, a1, a2 = coeffs[i]
             _, b1, b2 = coeffs[i+1]
             interp += [2*a2*ti + a1 == 2*b2*tii + b1]
@@ -411,11 +415,41 @@ class Monitor():
         def rat2fp(num):
             return float(num.numerator_as_long())/float(num.denominator_as_long())
         m = s.model()
-        concrete_realtimes = [rat2fp(m.eval(T)) for T in realtimes_all]
+        concrete_realtimes = [
+            interp_t[0]] + [rat2fp(m.eval(T)) for T in interp_t[1:-1]] + [interp_t[-1]]
         concrete_coeffs = [(rat2fp(m.eval(c[0])), rat2fp(m.eval(c[1])), rat2fp(m.eval(c[2])))
                            for c in coeffs]
         print(concrete_realtimes)
         print(concrete_coeffs)
+
+        nonego_intervals = []
+        for i in range(len(concrete_realtimes)-1):
+            ti = concrete_realtimes[i]
+            tii = concrete_realtimes[i+1]
+            nonego_intervals += [P.closed(ti, tii)]
+
+        interval_index = 0
+        new2distance = []
+        for frame in range(len(trajectory)):
+            t = frame * self.timestep
+            while not t in nonego_intervals[interval_index]:
+                interval_index += 1
+            a0, a1, a2 = concrete_coeffs[interval_index]
+            d = a2*t**2 + a1*t + a0
+            new2distance += [d]
+
+        new2old = []
+        old = 0
+        for new in range(len(trajectory)):
+            while old < len(trajectory)-1 and frame2distance[old] < new2distance[new]:
+                old += 1
+            new2old += [old]
+
+        new_traj = []
+        for frame in range(len(trajectory)):
+            new_traj += trajectory[new2old[frame]][self.nonego]
+        for frame in range(len(trajectory)):
+            trajectory[frame][self.nonego] = new_traj[frame]
 
 
 monitor = Monitor()
