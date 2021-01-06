@@ -207,7 +207,8 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
+        timeVar = {nonego_events[i]
+            : f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -376,8 +377,28 @@ class Monitor():
         # All the distances of events in increasing order
         distances = [distance for ruletime in ruletimes
                      for distance in ruletime2distances[ruletime]]
+        coeffs = [z3.Reals(f'a{i}_0 a{i}_1 a{i}_2')
+                  for i in range(len(realtimes_all)-1)]
+        interp = []
+        # The interpolation passes through each (ti, di)
         for i in range(len(realtimes_all)):
-            print(f'{realtimes_all[i]}, {distances[i]}')
+            ti = realtimes_all[i]
+            di = distances[i]
+            a0, a1, a2 = coeffs[i if i < len(coeffs) else -1]
+            interp += [a2*ti**2 + a1*ti + a0 == di]
+        # Continuously differentiable
+        max_acceleration = 2
+        for i in range(len(coeffs)-1):
+            ti = realtimes_all[i]
+            tii = realtimes_all[i+1]
+            _, a1, a2 = coeffs[i]
+            _, b1, b2 = coeffs[i+1]
+            interp += [2*a2*ti + a1 == 2*b2*tii + b1]
+        # Bound on acceleration (second derivative)
+        for _, _, a2 in coeffs:
+            interp += [2*a2 <= max_acceleration]
+
+        constraints += interp
 
         s = z3.Solver()
         s.add(constraints)
@@ -388,7 +409,10 @@ class Monitor():
             return float(num.numerator_as_long())/float(num.denominator_as_long())
         m = s.model()
         concrete_realtimes = [rat2fp(m.eval(T)) for T in realtimes_all]
+        concrete_coeffs = [(rat2fp(m.eval(c[0])), rat2fp(m.eval(c[1])), rat2fp(m.eval(c[2])))
+                           for c in coeffs]
         print(concrete_realtimes)
+        print(concrete_coeffs)
 
 
 monitor = Monitor()
