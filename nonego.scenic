@@ -43,8 +43,6 @@ behavior ReplayBehavior():
 		currentTime = simulation().currentTime
 		state = sim_trajectory[currentTime][self.name]
 		take SetTransformAction(state[0], state[1])
-		#state = sim_trajectory[max(currentTime-2, 1)][self.name]
-		#self.carlaActor.set_target_velocity(state[2])
 		wait
 
 behavior ReActBehavior():

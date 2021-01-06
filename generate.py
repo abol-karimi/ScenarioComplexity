@@ -10,7 +10,7 @@ sim_result = None
 monitor.max_realtime = maxSteps*timestep
 monitor.timestep = timestep
 
-for i in range(1):
+for i in range(2):
     params = {'map': './maps/Town05.xodr',
               'carla_map': 'Town05',
               'sim_result': sim_result,

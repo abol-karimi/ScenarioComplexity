@@ -37,17 +37,17 @@ if sim_trajectory:
 		vehicleLightState = setVehicleLightStateAction.vehicleLightState
 		turnSignal[actingCar.name] = signalType_from_vehicleLightState(vehicleLightState)
 		
-behavior ReActBehavior():
+behavior ReplayBehavior():
+	actingCars = sim_actions[0].keys()
+	thisCar = [ac for ac in actingCars if ac.name == self.name][0]
+	actions = sim_actions[0][thisCar]
+	setVehicleLightStateAction = [a for a in actions if isinstance(a, SetVehicleLightStateAction)][0]
+	take setVehicleLightStateAction
+
 	while True:
 		currentTime = simulation().currentTime
-		myActions = None
-		for agent, actions in sim_actions[currentTime].items():
-			if agent.name != self.name:
-				continue
-			myActions = actions
-			break
-		for act in myActions:
-			take act
+		state = sim_trajectory[currentTime][self.name]
+		take SetTransformAction(state[0], state[1])
 		wait
 
 #CONSTANTS
@@ -85,7 +85,8 @@ if sim_trajectory:
 		car = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
-			with behavior ReActBehavior()
+			with behavior ReplayBehavior(),
+			with physics False
 		cars.append(car)
 		
 monitor carEvents:
