@@ -380,12 +380,15 @@ class Monitor():
         coeffs = [z3.Reals(f'a{i}_0 a{i}_1 a{i}_2')
                   for i in range(len(realtimes_all)-1)]
         interp = []
-        # The interpolation passes through each (ti, di)
+        # The interpolation passes through each (ti, di).
+        # Non-negative speed at each ti so that
+        #  di <= d(t) <= dii for ti <= t <= tii.
         for i in range(len(realtimes_all)):
             ti = realtimes_all[i]
             di = distances[i]
             a0, a1, a2 = coeffs[i if i < len(coeffs) else -1]
             interp += [a2*ti**2 + a1*ti + a0 == di]
+            interp += [2*a2*ti + a1*ti >= 0]
         # Continuously differentiable
         max_acceleration = 2
         for i in range(len(coeffs)-1):
