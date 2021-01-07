@@ -92,6 +92,8 @@ if sim_trajectory:
 monitor carEvents:
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
+	if sim_trajectory:
+		visualization.draw_trajectories(carla_world, sim_trajectory)
 	maneuvers = intersection.maneuvers
 	carState = {car:CarState() for car in cars}
 	while True:
