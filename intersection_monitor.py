@@ -20,6 +20,10 @@ def realtime_to_ruletime(T):
         return int(T*2)
 
 
+def realtime_to_frame(T, timestep):
+    return int(T/timestep)
+
+
 class Event():
     """Abstract class for traffic monitor events."""
 
@@ -208,8 +212,7 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]
-            : f'T{i}' for i in range(len(nonego_events))}
+        timeVar = {nonego_events[i]: f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -375,10 +378,16 @@ class Monitor():
         constraints += logical_sol
 
         # Interpolated points (ti, di)
-        event_distances = [distance for ruletime in ruletimes
-                           for distance in ruletime2distances[ruletime]]
+        event_distances = []
+        for ruletime in ruletimes:
+            for distance in ruletime2distances[ruletime]:
+                event_distances.append(distance)
+        print(event_distances)
+
         interp_d = [0] + event_distances + [frame2distance[-1]]
         interp_t = [0] + realtimes_all + [self.max_realtime]
+        print(interp_t)
+        print(interp_d)
         # Smooth speed interpolation with bounded acceleration
         # All the distances of events in increasing order
         coeffs = [z3.Reals(f'a{i}_0 a{i}_1 a{i}_2')
@@ -387,23 +396,27 @@ class Monitor():
         # The interpolation passes through each (ti, di).
         # Non-negative speed at each ti so that
         #  di <= d(t) <= dii for ti <= t <= tii.
-        for i in range(len(interp_t)):
+        for i in range(len(coeffs)):
             ti = interp_t[i]
             di = interp_d[i]
-            a0, a1, a2 = coeffs[i if i < len(coeffs) else -1]
+            tii = interp_t[i+1]
+            dii = interp_d[i+1]
+            a0, a1, a2 = coeffs[i]
             interp += [a2*ti**2 + a1*ti + a0 == di]
+            interp += [a2*tii**2 + a1*tii + a0 == dii]
             interp += [2*a2*ti + a1 >= 0]
         # Continuously differentiable
-        max_acceleration = 2
         for i in range(len(coeffs)-1):
-            ti = interp_t[i]
             tii = interp_t[i+1]
             _, a1, a2 = coeffs[i]
             _, b1, b2 = coeffs[i+1]
-            interp += [2*a2*ti + a1 == 2*b2*tii + b1]
+            interp += [2*a2*tii + a1 == 2*b2*tii + b1]
         # Bound on acceleration (second derivative)
+        min_acceleration = -2
+        max_acceleration = 2
         for _, _, a2 in coeffs:
             interp += [2*a2 <= max_acceleration]
+            interp += [min_acceleration <= 2*a2]
 
         constraints += interp
 
@@ -419,8 +432,8 @@ class Monitor():
             interp_t[0]] + [rat2fp(m.eval(T)) for T in interp_t[1:-1]] + [interp_t[-1]]
         concrete_coeffs = [(rat2fp(m.eval(c[0])), rat2fp(m.eval(c[1])), rat2fp(m.eval(c[2])))
                            for c in coeffs]
-        print(concrete_realtimes)
-        print(concrete_coeffs)
+        # print(concrete_realtimes)
+        # print(concrete_coeffs)
 
         nonego_intervals = []
         for i in range(len(concrete_realtimes)-1):
@@ -435,8 +448,32 @@ class Monitor():
             while not t in nonego_intervals[interval_index]:
                 interval_index += 1
             a0, a1, a2 = concrete_coeffs[interval_index]
-            d = a2*t**2 + a1*t + a0
+            d = a2*(t**2) + a1*t + a0
             new2distance += [d]
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+
+        fs = []
+        ds = []
+        for i in range(len(nonego_intervals)):
+            I = nonego_intervals[i]
+            a0, a1, a2 = concrete_coeffs[i]
+            f = np.arange(I.lower, I.upper, self.timestep)
+            fs += [t/self.timestep for t in f]
+            ds += [a2*t**2 + a1*t + a0 for t in f]
+
+        plt.plot(fs, ds, '+')
+        plt.plot(frame2distance, '.')
+        plt.plot(new2distance, '.')
+
+        eventframe2distance = [[event.timestamp.frame, frame2distance[event.timestamp.frame]]
+                               for event in self.events[self.nonego]]
+        plt.plot([p[0] for p in eventframe2distance], [p[1]
+                                                       for p in eventframe2distance], 'o')
+        plt.xlabel('frame')
+        plt.ylabel('distance')
+        plt.show()
 
         new2old = []
         old = 0
