@@ -17,6 +17,9 @@ sim_actions = sim_result.actions
 param blueprints = None
 blueprints = globalParameters.blueprints
 
+param vehicleLightStates = None
+vehicleLightStates = globalParameters.vehicleLightStates
+
 import intersection_monitor
 
 import visualization
@@ -33,6 +36,7 @@ behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
+	vehicleLightStates[self.name] = lights
 
 behavior PassBehavior(speed, trajectory):
 	blueprints[self.name] = self.blueprint

@@ -19,6 +19,9 @@ if sim_result:
 param blueprints = {'ego': 'vehicle.tesla.model3'}
 blueprints = globalParameters.blueprints
 
+param vehicleLightStates = None
+vehicleLightStates = globalParameters.vehicleLightStates
+
 import intersection_monitor
 intersection_monitor.monitor.set_intersection(intersection)
 
@@ -59,6 +62,7 @@ behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
+	vehicleLightStates[self.name] = lights
 
 behavior LegalBehavior(max_speed, trajectory):
 	do SignalBehavior(trajectory)
@@ -92,8 +96,6 @@ if sim_trajectory:
 monitor carEvents:
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
-	if sim_trajectory:
-		visualization.draw_trajectories(carla_world, sim_trajectory)
 	maneuvers = intersection.maneuvers
 	carState = {car:CarState() for car in cars}
 	while True:
