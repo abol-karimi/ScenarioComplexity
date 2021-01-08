@@ -201,7 +201,7 @@ class Monitor():
         self.events[vehicle.name].append(ExitedIntersectionEvent(
             timestamp, vehicle, outgoing_lane))
 
-    def nonego_logical_solution(self):
+    def nonego_logical_solution(self, frame2distance):
         # Index nonego's events by their ruletime
         frame2events = {}
         for event in self.events[self.nonego]:
@@ -212,7 +212,7 @@ class Monitor():
 
         # Distinct time variables for nonego's events
         nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]: f'T{i}' for i in range(len(nonego_events))}
+        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
 
         # Nonego's atoms
         atoms = []
@@ -235,6 +235,19 @@ class Monitor():
             ti = timeVar[ei]
             tii = timeVar[eii]
             atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} > {tii}']
+
+        max_speed = 10  # m/s
+        for i in range(len(frames)):
+            ei = frame2events[frames[i]][0]
+            di = frame2distance[frames[i]]
+            ti = timeVar[ei]
+            for j in range(i+1, len(frames)):
+                ej = frame2events[frames[j]][0]
+                dj = frame2distance[frames[j]]
+                tj = timeVar[ej]
+                delta = int(2*(dj-di)/max_speed)+1
+                atoms += [
+                    f':- {ei.withTimeVar(ti)}, {ej.withTimeVar(tj)}, {delta} >= {tj} - {ti}']
 
         # Generate nonego events
         for event in self.events[self.nonego]:
@@ -270,7 +283,15 @@ class Monitor():
         return m
 
     def nonego_solution(self, sim_result):
-        model = self.nonego_logical_solution()
+        trajectory = sim_result.trajectory
+        frame2distance = [0]*len(trajectory)
+
+        for i in range(len(trajectory)-1):
+            pi = trajectory[i][self.nonego][0]
+            pii = trajectory[i+1][self.nonego][0]
+            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
+
+        model = self.nonego_logical_solution(frame2distance)
 
         event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                        'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
@@ -293,14 +314,6 @@ class Monitor():
                 ruletime2events[ruletime] = [timeless2event[timeless]]
             else:
                 ruletime2events[ruletime] += [timeless2event[timeless]]
-
-        trajectory = sim_result.trajectory
-        frame2distance = [0]*len(trajectory)
-
-        for i in range(len(trajectory)-1):
-            pi = trajectory[i][self.nonego][0]
-            pii = trajectory[i+1][self.nonego][0]
-            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
 
         # Distances of events of a ruletime in increasing order
         ruletime2distances = {}
