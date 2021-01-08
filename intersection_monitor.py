@@ -288,7 +288,7 @@ class Monitor():
 
         m = solver.solve()
 
-        sol_names = {'violatesRightOf', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+        sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                      'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
         print("Logical solution: ")
         for atom in m:

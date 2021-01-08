@@ -128,7 +128,7 @@ mustYieldToForRuleAtTime(Vehicle1, Vehicle2, yieldToInside, T):-
   requestedLane(Vehicle1, Lane),
   reservedLaneAtTime(Vehicle2, Lane, T).
 
-violatesRightOf(V1, V2):-
+violatesRightOfForRule(V1, V2, yieldToInside):-
   mustYieldToForRuleAtTime(V1, V2, yieldToInside, T),
   requestedLane(V1, Lane),
   reservedLaneAtTime(V2, Lane, T),
@@ -142,7 +142,7 @@ mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
   atTheIntersectionAtTime(Vehicle2, T),
   arrivedEarlierThan(Vehicle2, Vehicle1).
 
-violatesRightOf(V1, V2):-
+violatesRightOfForRule(V1, V2, firstAtFirstIn):-
   mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
   enteredSameOrEarlierThan(V1, V2).
 
@@ -156,7 +156,7 @@ mustYieldToForRuleAtTime(Vehicle1, Vehicle2, yieldToRight, T):-
   arrivedSameTime(Vehicle1, Vehicle2),
   isOnRightOfAtTime(Vehicle2, Vehicle1, T).
 
-violatesRightOf(V1, V2):-
+violatesRightOfForRule(V1, V2, yieldToRight):-
   mustYieldToForRuleAtTime(V1, V2, yieldToRight, T),
   enteredSameOrEarlierThan(V2, V1).
 
@@ -177,11 +177,14 @@ mustYieldToForRuleAtTime(Vehicle1, Vehicle2, leftTurn, T):-
   not enteredLaneByTime(Vehicle1, Lane2, T1),
   not leftLaneByTime(Vehicle2, Lane1, T).
 
-violatesRightOf(V1, V2):-
+violatesRightOfForRule(V1, V2, leftTurn):-
   mustYieldToForRuleAtTime(V1, V2, leftTurn, T),
   requestedLane(V2, L2),
   enteredLaneByTime(V1, L2, T).
 %-------------------------------------------------
+violatesRightOf(V1, V2):-
+  violatesRightOfForRule(V1, V2, _).
 
 #show violatesRightOf/2.
+#show violatesRightOfForRule/3.
 #show mustYieldToForRuleAtTime/4.
