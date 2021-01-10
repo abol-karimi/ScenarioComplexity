@@ -12,6 +12,7 @@ monitor.max_realtime = maxSteps*timestep
 monitor.timestep = timestep
 
 for i in range(2):
+    print('Finding a solution for the ego...')
     params = {'map': './maps/Town05.xodr',
               'carla_map': 'Town05',
               'sim_result': sim_result,
@@ -27,6 +28,7 @@ for i in range(2):
     blueprints = scene.params['blueprints']
     vehicleLightStates = scene.params['vehicleLightStates']
 
+    print('Finding a new nonego whose right is violated...')
     params = {'map': './maps/Town05.xodr',
               'carla_map': 'Town05',
               'sim_result': sim_result,
@@ -43,6 +45,9 @@ for i in range(2):
     blueprints = scene.params['blueprints']
     vehicleLightStates = scene.params['vehicleLightStates']
 
+    monitor.nonego_solution(sim_result)
+
+    print('Play the solution for the nonego...')
     params = {'map': './maps/Town05.xodr',
               'carla_map': 'Town05',
               'sim_result': sim_result,
@@ -56,5 +61,3 @@ for i in range(2):
     scene, iterations = scenario.generate()
     simulator = scenario.getSimulator()
     sim_result = simulator.simulate(scene, maxSteps=maxSteps)
-
-    monitor.nonego_solution(sim_result)
