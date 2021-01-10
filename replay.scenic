@@ -11,15 +11,12 @@ intersection = globalParameters.intersection
 param sim_result = None
 sim_result = globalParameters.sim_result
 sim_trajectory = sim_result.trajectory
-sim_actions = sim_result.actions
 blueprints = globalParameters.blueprints
 
 param vehicleLightStates = None
 vehicleLightStates = globalParameters.vehicleLightStates
 
 import visualization
-from intersection_monitor import CarState, SignalType
-import carla
 
 behavior ReplayBehavior():
 	lights = vehicleLightStates[self.name]
@@ -44,8 +41,7 @@ for carName, carState in sim_trajectory[0].items():
 
 ego = cars[0]
 
-
-
-
-
-
+monitor showIntersection:
+	carla_world = simulation().world
+	visualization.draw_intersection(carla_world, intersection)
+	wait
