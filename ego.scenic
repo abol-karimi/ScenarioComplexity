@@ -32,25 +32,21 @@ from signals import vehicleLightState_from_maneuverType, signalType_from_vehicle
 
 turnSignal = {}
 if sim_trajectory:
-	for actingCar, actions in sim_actions[0].items():
-		if actingCar.name == 'ego':
+	for carName, lights in vehicleLightStates.items():
+		if carName == 'ego':
 			continue
-		setVehicleLightStateAction = [a for a in actions
-																	if isinstance(a, SetVehicleLightStateAction)][0]
-		vehicleLightState = setVehicleLightStateAction.vehicleLightState
-		turnSignal[actingCar.name] = signalType_from_vehicleLightState(vehicleLightState)
+		turnSignal[carName] = signalType_from_vehicleLightState(lights)
 		
 behavior ReplayBehavior():
-	actingCars = sim_actions[0].keys()
-	thisCar = [ac for ac in actingCars if ac.name == self.name][0]
-	actions = sim_actions[0][thisCar]
-	setVehicleLightStateAction = [a for a in actions if isinstance(a, SetVehicleLightStateAction)][0]
-	take setVehicleLightStateAction
+	lights = vehicleLightStates[self.name]
+	take SetVehicleLightStateAction(lights)
+	carla_world = simulation().world
 
 	while True:
 		currentTime = simulation().currentTime
 		state = sim_trajectory[currentTime][self.name]
 		take SetTransformAction(state[0], state[1])
+		visualization.label_car(carla_world, self)
 		wait
 
 #CONSTANTS
@@ -101,7 +97,6 @@ monitor carEvents:
 	while True:
 		timestamp = carla_world.get_snapshot().timestamp
 		for car in cars:
-			visualization.label_car(carla_world, car)
 			state = carState[car]
 			arrived = state.arrived
 			entered = state.entered

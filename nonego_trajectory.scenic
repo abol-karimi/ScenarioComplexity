@@ -12,7 +12,6 @@ intersection = globalParameters.intersection
 param sim_result = None
 sim_result = globalParameters.sim_result
 sim_trajectory = sim_result.trajectory
-sim_actions = sim_result.actions
 
 param blueprints = None
 blueprints = globalParameters.blueprints
