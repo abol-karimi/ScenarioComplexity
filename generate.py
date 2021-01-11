@@ -17,16 +17,16 @@ sim_result = None
 blueprints = {'ego': 'vehicle.tesla.model3'}
 vehicleLightStates = {}
 
-for i in range(2):
-    print('Finding a solution for the ego...')
-    params['sim_result'] = sim_result
-    params['blueprints'] = blueprints
-    params['vehicleLightStates'] = vehicleLightStates
-    scenario = scenic.scenarioFromFile('ego.scenic', params=params)
-    scene, iterations = scenario.generate()
-    simulator = scenario.getSimulator()
-    sim_result_ego = simulator.simulate(scene, maxSteps=maxSteps)
+print('Finding a solution for the ego...')
+params['sim_result'] = sim_result
+params['blueprints'] = blueprints
+params['vehicleLightStates'] = vehicleLightStates
+scenario = scenic.scenarioFromFile('ego.scenic', params=params)
+scene, iterations = scenario.generate()
+simulator = scenario.getSimulator()
+sim_result_ego = simulator.simulate(scene, maxSteps=maxSteps)
 
+for i in range(2):
     print('Finding a new nonego whose right is violated...')
     params['sim_result'] = sim_result_ego
     params['blueprints'] = scene.params['blueprints']
