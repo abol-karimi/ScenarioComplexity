@@ -4,54 +4,12 @@ import carla
 from signals import SignalType
 
 
-class CarState():
-    def __init__(self):
-        self.arrived = False
-        self.entered = False
-        self.exited = False
-        self.lanes = set()
-
-
-def realtime_to_ruletime(T):
-    return int(T*2)
-
-
-def ruletime_to_realtime(T):
-    return T/2
-
-
-def realtime_to_frame(T):
-    global monitor
-    timestep = monitor.timestep
-    return int(T/timestep)
-
-
-def ruletime_to_frame(T):
-    global monitor
-    realtime = realtime_to_frame(T)
-    return ruletime_to_realtime(realtime)
-
-
-def frame_to_realtime(T, timestep):
-    return T*timestep
-
-
-def frame_to_ruletime(frame):
-    global monitor
-    timestep = monitor.timestep
-    realtime = frame_to_realtime(frame, timestep)
-    return realtime_to_ruletime(realtime)
-
 class Event():
     """Abstract class for traffic monitor events."""
 
     def __init__(self, frame, vehicle):
         self.frame = frame
         self.vehicle = vehicle
-
-    @property
-    def ruletime(self):
-        return frame_to_ruletime(self.frame)
 
 
 class ArrivedAtIntersectionEvent(Event):
@@ -62,11 +20,8 @@ class ArrivedAtIntersectionEvent(Event):
         super().__init__(frame, vehicle)
         self.incoming_lane = incoming_lane
 
-    def __str__(self):
-        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {t})'
 
 
 class SignaledAtForkEvent(Event):
@@ -78,11 +33,8 @@ class SignaledAtForkEvent(Event):
         self.signal = signal
         self.incoming_lane = incoming_lane
 
-    def __str__(self):
-        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {t})'
 
 
 class EnteredLaneEvent(Event):
@@ -93,11 +45,8 @@ class EnteredLaneEvent(Event):
         super().__init__(frame, vehicle)
         self.lane = lane
 
-    def __str__(self):
-        return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {t})'
 
 
 class ExitedLaneEvent(Event):
@@ -108,11 +57,8 @@ class ExitedLaneEvent(Event):
         super().__init__(frame, vehicle)
         self.lane = lane
 
-    def __str__(self):
-        return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {t})'
 
 
 class EnteredIntersectionEvent(Event):
@@ -123,11 +69,8 @@ class EnteredIntersectionEvent(Event):
         super().__init__(frame, vehicle)
         self.incoming_lane = incoming_lane
 
-    def __str__(self):
-        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {t})'
 
 
 class ExitedIntersectionEvent(Event):
@@ -138,11 +81,8 @@ class ExitedIntersectionEvent(Event):
         super().__init__(frame, vehicle)
         self.outgoing_lane = outgoing_lane
 
-    def __str__(self):
-        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {self.ruletime})'
-
-    def withTimeVar(self, timeVar):
-        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {timeVar})'
+    def withTime(self, t):
+        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {t})'
 
 
 class Monitor():
@@ -153,12 +93,34 @@ class Monitor():
     nonego = None
     timestep = None
     maxSteps = None
-    frame2distance_ego = None
 
-    def set_intersection(self, intersection):
-        self.intersection = intersection
+    def realtime_to_ruletime(self, t):
+        return int(t*2)
+
+    def ruletime_to_realtime(self, T):
+        return T/2
+
+    def realtime_to_frame(self, t):
+        return int(t/self.timestep)
+
+    def frame_to_realtime(self, frame):
+        return frame*self.timestep
+
+    def ruletime_to_frame(self, T):
+        realtime = self.ruletime_to_realtime(T)
+        return self.realtime_to_frame(realtime)
+
+    def frame_to_ruletime(self, frame):
+        realtime = self.frame_to_realtime(frame)
+        return self.realtime_to_ruletime(realtime)
+
+    def set_intersection(self, map_path, intersection_id):
+        from scenic.domains.driving.roads import Network
+        network = Network.fromFile(map_path)
+        self.intersection = network.intersections[intersection_id]
         self.geometry = []
         self.events = {}
+        intersection = self.intersection
         for maneuver in intersection.maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
@@ -244,32 +206,33 @@ class Monitor():
                 ti = timeVar[events[i]]
                 tii = timeVar[events[i+1]]
                 atoms.append(
-                    f':- {events[i].withTimeVar(ti)}, {events[i+1].withTimeVar(tii)}, {ti} != {tii}')
+                    f':- {events[i].withTime(ti)}, {events[i+1].withTime(tii)}, {ti} != {tii}')
 
         # Nonego's non-simultaneous events
-        # Two non-simultaneous events may have the same ruletime (logical time)
+        # An event with earlier frame cannot have a later ruletime
         frames = sorted(frame2events.keys())
-        print(f'frames: {frames}')
-        print(f'frame2events.keys(): {frame2events.keys()}')
-        print(f'len(frame2distance): {len(frame2distance)}')
         for i in range(len(frames)-1):
             ei = frame2events[frames[i]][0]
             eii = frame2events[frames[i+1]][0]
             ti = timeVar[ei]
             tii = timeVar[eii]
-            atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} > {tii}']
+            atoms += [f':- {ei.withTime(ti)}, {eii.withTime(tii)}, {ti} > {tii}']
 
+        # Speed is bounded between any two events
         max_speed = 10  # m/s
         for i in range(len(frames)):
             ei = frame2events[frames[i]][0]
             di = frame2distance[frames[i]]
             ti = timeVar[ei]
+            # Average speed from begining to ti            
             atoms += [
-                f':- {ei.withTimeVar(ti)}, {int(2*di/max_speed)+1} > {ti}']
-            dinf = frame2distance[frames[-1]]
-            tinf = frame_to_ruletime(self.maxSteps)
+                f':- {ei.withTime(ti)}, {int(2*di/max_speed)+1} > {ti}']
+            dinf = frame2distance[-1]
+            tinf = self.frame_to_ruletime(self.maxSteps)
+            # Average speed from ti to the end            
             atoms += [
-                f':- {ei.withTimeVar(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
+                f':- {ei.withTime(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
+            # Average speed from ti to later events
             for j in range(i+1, len(frames)):
                 ej = frame2events[frames[j]][0]
                 dj = frame2distance[frames[j]]
@@ -277,22 +240,23 @@ class Monitor():
                 delta = int(2*(dj-di)/max_speed)+1
                 # 0 < delta <= tj - ti
                 atoms += [
-                    f':- {ei.withTimeVar(ti)}, {ej.withTimeVar(tj)}, {delta} > {tj} - {ti}']
+                    f':- {ei.withTime(ti)}, {ej.withTime(tj)}, {delta} > {tj} - {ti}']
 
         # Generate nonego events
         for event in self.events[self.nonego]:
             t = timeVar[event]
-            atoms += [f'{{ {event.withTimeVar(t)} : time({t}) }} = 1']
+            atoms += [f'{{ {event.withTime(t)} : time({t}) }} = 1']
 
         # Instantiate nonego's time variables such that
         #  ego violates nonego's right-of-way.
         from solver import Solver
-        solver = Solver(self.maxSteps)
+        max_ruletime = self.frame_to_ruletime(self.maxSteps)
+        solver = Solver(max_ruletime)
         solver.load('uncontrolled-4way.lp')
         solver.add_atoms(self.geometry)
-        for car in self.events.keys():
-            if car != self.nonego:
-                solver.add_atoms(self.events[car])
+        
+        # Ego atoms
+        solver.add_atoms([event.withTime(self.frame_to_ruletime(event.frame)) for event in self.events['ego']])
 
         # Nonego atoms
         solver.add_atoms(atoms)
@@ -304,10 +268,10 @@ class Monitor():
 
         sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                      'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-        print("Logical solution: ")
+        print("Nonego's logical solution: ")
         for atom in m:
             if atom.name in sol_names:
-                print(atom)
+                print(f'\t{atom}')
 
         return m
 
@@ -326,7 +290,7 @@ class Monitor():
                        'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
 
         # To connect logic solution with monitor events
-        timeless2event = {event.withTimeVar(
+        timeless2event = {event.withTime(
             ''): event for event in self.events[self.nonego]}
 
         # A mapping from new ruletimes to old events
@@ -354,15 +318,25 @@ class Monitor():
             distances_sorted = sorted(set(distances))
             ruletime2distances[ruletime] = distances_sorted
 
-        # (frame, distance) points for nonego's events
+        # Update timing of nonego's events
+        for ruletime, events in ruletime2events.items():
+            ds = ruletime2distances[ruletime]
+            for event in events:
+                d = frame2distance[event.frame]
+                fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
+                frame = self.ruletime_to_frame(ruletime + fraction)
+                event.frame = frame
+
+        # Update the trajectory of nonego.
+        # (frame, distance) points for nonego's events:
         p_f = [0]
         p_d = [0]
-        ruletimes = sorted(ruletime2distances.keys())
+        ruletimes = sorted(ruletime2distances.keys()) # for np.interp()
         for ruletime in ruletimes:
             ds = ruletime2distances[ruletime]
             for d in ds:
                 fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-                frame = ruletime_to_frame(ruletime + fraction)
+                frame = self.ruletime_to_frame(ruletime + fraction)
                 p_f += [frame]
                 p_d += [d]
         p_f += [len(frame2distance)-1]
@@ -393,9 +367,7 @@ class Monitor():
         for frame in range(len(trajectory)):
             trajectory[frame][self.nonego] = new_traj[frame]
 
-    def ego_logical_solution(self):
-        frame2distance = self.frame2distance_ego
-
+    def ego_logical_solution(self, frame2distance):
         # Index ego's events by their ruletime
         frame2events = {}
         for event in self.events['ego']:
@@ -418,7 +390,7 @@ class Monitor():
                 ti = timeVar[events[i]]
                 tii = timeVar[events[i+1]]
                 atoms.append(
-                    f':- {events[i].withTimeVar(ti)}, {events[i+1].withTimeVar(tii)}, {ti} != {tii}')
+                    f':- {events[i].withTime(ti)}, {events[i+1].withTime(tii)}, {ti} != {tii}')
 
         # Ego's non-simultaneous events
         # Two non-simultaneous events may have the same ruletime (logical time)
@@ -428,19 +400,22 @@ class Monitor():
             eii = frame2events[frames[i+1]][0]
             ti = timeVar[ei]
             tii = timeVar[eii]
-            atoms += [f':- {ei.withTimeVar(ti)}, {eii.withTimeVar(tii)}, {ti} > {tii}']
+            atoms += [f':- {ei.withTime(ti)}, {eii.withTime(tii)}, {ti} > {tii}']
 
-        max_speed = 10  # m/s
+        max_speed = 5  # m/s
         for i in range(len(frames)):
             ei = frame2events[frames[i]][0]
             di = frame2distance[frames[i]]
             ti = timeVar[ei]
+            # Average speed from begining to ti
             atoms += [
-                f':- {ei.withTimeVar(ti)}, {int(2*di/max_speed)+1} > {ti}']
-            dinf = frame2distance[frames[-1]]
-            tinf = frame_to_ruletime(self.maxSteps)
+                f':- {ei.withTime(ti)}, {int(2*di/max_speed)+1} > {ti}']
+            dinf = frame2distance[-1]
+            tinf = self.frame_to_ruletime(self.maxSteps)
+            # Average speed from ti to the end
             atoms += [
-                f':- {ei.withTimeVar(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
+                f':- {ei.withTime(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
+            # Average speed from ti to later events
             for j in range(i+1, len(frames)):
                 ej = frame2events[frames[j]][0]
                 dj = frame2distance[frames[j]]
@@ -448,24 +423,23 @@ class Monitor():
                 delta = int(2*(dj-di)/max_speed)+1
                 # 0 < delta <= tj - ti
                 atoms += [
-                    f':- {ei.withTimeVar(ti)}, {ej.withTimeVar(tj)}, {delta} > {tj} - {ti}']
+                    f':- {ei.withTime(ti)}, {ej.withTime(tj)}, {delta} > {tj} - {ti}']
 
         # Generate ego events
         for event in self.events['ego']:
             t = timeVar[event]
-            atoms += [f'{{ {event.withTimeVar(t)} : time({t}) }} = 1']
+            atoms += [f'{{ {event.withTime(t)} : time({t}) }} = 1']
 
         # Instantiate ego's time variables such that
         #  ego does not violate any nonego's right-of-way.
         from solver import Solver
-        max_ruletime = frame_to_ruletime(self.maxSteps)
+        max_ruletime = self.frame_to_ruletime(self.maxSteps)
         solver = Solver(max_ruletime)
         solver.load('uncontrolled-4way.lp')
         solver.add_atoms(self.geometry)
-        # TODO When a nonego's solution is found, its events' must be updated
         for car in self.events.keys():
             if car != 'ego':
-                solver.add_atoms(self.events[car])
+                solver.add_atoms([event.withTime(self.frame_to_ruletime(event.frame)) for event in self.events[car]])
 
         # Ego atoms
         solver.add_atoms(atoms)
@@ -477,25 +451,101 @@ class Monitor():
 
         sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                      'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-        print("Logical solution: ")
+        print("Ego's logical solution: ")
         for atom in m:
             if atom.name in sol_names:
-                print(atom)
+                print(f'\t{atom}')
 
         return m
 
     def ego_solution(self, sim_result):
         trajectory = sim_result.trajectory
-        if self.frame2distance_ego is None:
-            self.frame2distance = [0]*len(trajectory)
-            for i in range(len(trajectory)-1):
-                pi = trajectory[i]['ego'][0]
-                pii = trajectory[i+1]['ego'][0]
-                di = self.frame2distance[i]
-                self.frame2distance[i+1] = di + pi.distanceTo(pii)
-        frame2distance = self.frame2distance_ego
+        frame2distance = [0]*len(trajectory)
 
-        model = self.ego_logical_solution()
+        for i in range(len(trajectory)-1):
+            pi = trajectory[i]['ego'][0]
+            pii = trajectory[i+1]['ego'][0]
+            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
 
+        model = self.ego_logical_solution(frame2distance)
 
-monitor = Monitor()
+        event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+                       'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
+
+        # To connect logic solution with monitor events
+        timeless2event = {event.withTime(
+            ''): event for event in self.events['ego']}
+
+        # A mapping from new ruletimes to old events
+        ruletime2events = {}
+        for atom in model:
+            name = atom.name
+            args = atom.arguments
+            if not (str(args[0]) == 'ego' and name in event_names):
+                continue
+            if len(args) == 3:
+                timeless = f'{name}({args[0]}, {args[1]}, )'
+            else:
+                timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
+            ruletime = int(str(args[-1]))
+            if not ruletime in ruletime2events:
+                ruletime2events[ruletime] = [timeless2event[timeless]]
+            else:
+                ruletime2events[ruletime] += [timeless2event[timeless]]
+
+        # Distances of events of a ruletime in increasing order
+        ruletime2distances = {}
+        for ruletime, events in ruletime2events.items():
+            distances = [frame2distance[event.frame]
+                         for event in events]
+            distances_sorted = sorted(set(distances))
+            ruletime2distances[ruletime] = distances_sorted
+
+        # Update timing of ego's events
+        for ruletime, events in ruletime2events.items():
+            ds = ruletime2distances[ruletime]
+            for event in events:
+                d = frame2distance[event.frame]
+                fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
+                frame = self.ruletime_to_frame(ruletime + fraction)
+                event.frame = frame
+
+        # Update the trajectory of ego.
+        # (frame, distance) points for ego's events:
+        p_f = [0]
+        p_d = [0]
+        ruletimes = sorted(ruletime2distances.keys()) # for np.interp()
+        for ruletime in ruletimes:
+            ds = ruletime2distances[ruletime]
+            for d in ds:
+                fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
+                frame = self.ruletime_to_frame(ruletime + fraction)
+                p_f += [frame]
+                p_d += [d]
+        p_f += [len(frame2distance)-1]
+        p_d += [frame2distance[-1]]
+
+        # Linearly interpolate the (frame, distance) points
+        import numpy as np
+        new2distance = np.interp(range(len(trajectory)), p_f, p_d)
+
+        import matplotlib.pyplot as plt
+        plt.plot(frame2distance, 'g')
+        plt.plot(p_f, p_d, 'ro')
+        plt.plot(new2distance)
+
+        plt.show()
+
+        # Update the trajectory
+        new2old = []
+        old = 0
+        for new in range(len(trajectory)):
+            while old < len(trajectory)-1 and frame2distance[old] < new2distance[new]:
+                old += 1
+            new2old += [old]
+
+        new_traj = []
+        for frame in range(len(trajectory)):
+            new_traj += [trajectory[new2old[frame]]['ego']]
+        for frame in range(len(trajectory)):
+            trajectory[frame]['ego'] = new_traj[frame]

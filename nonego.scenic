@@ -6,8 +6,8 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection = network.intersections[3] # unsignalized four-way intersection in Town05
-intersection = globalParameters.intersection
+param intersection_id = None
+intersection = network.intersections[globalParameters.intersection_id]
 
 param sim_result = None
 sim_result = globalParameters.sim_result
@@ -19,7 +19,8 @@ blueprints = globalParameters.blueprints
 param vehicleLightStates = None
 vehicleLightStates = globalParameters.vehicleLightStates
 
-import intersection_monitor
+param event_monitor = None
+event_monitor = globalParameters.event_monitor
 
 import visualization
 from intersection_monitor import SignalType
@@ -55,7 +56,7 @@ nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, 
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'car'+str(len(sim_trajectory[0].keys())),
 	with behavior PassBehavior(SPEED, nonego_trajectory)
-intersection_monitor.monitor.nonego = nonego.name
+event_monitor.nonego = nonego.name
 
 monitor nonegoEvents:
 	signal = SignalType.from_maneuver(nonego_maneuver)
@@ -73,13 +74,13 @@ monitor nonegoEvents:
 		
 		if (not arrived) and (distance from (front of nonego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
-			intersection_monitor.monitor.on_arrival(currentTime, nonego, nonego.lane, signal)
+			event_monitor.on_arrival(currentTime, nonego, nonego.lane, signal)
 		if inIntersection and not entered:
 			entered = True
-			intersection_monitor.monitor.on_entrance(currentTime, nonego, nonego.lane)
+			event_monitor.on_entrance(currentTime, nonego, nonego.lane)
 		if entered and (not exited) and not inIntersection:
 			exited = True
-			intersection_monitor.monitor.on_exit(currentTime, nonego, nonego.lane)
+			event_monitor.on_exit(currentTime, nonego, nonego.lane)
 
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane
@@ -87,9 +88,9 @@ monitor nonegoEvents:
 			isOnLane = lane.intersects(nonego)
 			if isOnLane and not wasOnLane:
 				lanes.add(lane)
-				intersection_monitor.monitor.on_enterLane(currentTime, nonego, lane)
+				event_monitor.on_enterLane(currentTime, nonego, lane)
 			elif wasOnLane and not isOnLane:
 				lanes.remove(lane)
-				intersection_monitor.monitor.on_exitLane(currentTime, nonego, lane)
+				event_monitor.on_exitLane(currentTime, nonego, lane)
 		wait
 

@@ -5,8 +5,8 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection = network.intersections[3] # unsignalized four-way intersection in Town05
-intersection = globalParameters.intersection
+param intersection_id = None
+intersection = network.intersections[globalParameters.intersection_id]
 
 param sim_result = None
 sim_result = globalParameters.sim_result
