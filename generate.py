@@ -7,6 +7,7 @@ weather = 'ClearSunset'
 render = False
 monitor.max_realtime = maxSteps*timestep
 monitor.timestep = timestep
+monitor.maxSteps = maxSteps
 
 params = {'map': './maps/Town05.xodr',
           'carla_map': 'Town05',
@@ -31,8 +32,7 @@ for i in range(2):
     params['sim_result'] = sim_result_ego
     params['blueprints'] = scene.params['blueprints']
     params['vehicleLightStates'] = scene.params['vehicleLightStates']
-    scenario = scenic.scenarioFromFile(
-        'nonego_trajectory.scenic', params=params)
+    scenario = scenic.scenarioFromFile('nonego.scenic', params=params)
     scene, iterations = scenario.generate()
     simulator = scenario.getSimulator()
     sim_result_nonego = simulator.simulate(scene, maxSteps=maxSteps)

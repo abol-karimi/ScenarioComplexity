@@ -67,19 +67,19 @@ monitor nonegoEvents:
 	exited = False
 	lanes = set()
 	while True:
-		timestamp = carla_world.get_snapshot().timestamp
+		currentTime = simulation().currentTime
 		visualization.label_car(carla_world, nonego)
 		inIntersection = intersection.intersects(nonego)
 		
 		if (not arrived) and (distance from (front of nonego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
-			intersection_monitor.monitor.on_arrival(timestamp, nonego, nonego.lane, signal)
+			intersection_monitor.monitor.on_arrival(currentTime, nonego, nonego.lane, signal)
 		if inIntersection and not entered:
 			entered = True
-			intersection_monitor.monitor.on_entrance(timestamp, nonego, nonego.lane)
+			intersection_monitor.monitor.on_entrance(currentTime, nonego, nonego.lane)
 		if entered and (not exited) and not inIntersection:
 			exited = True
-			intersection_monitor.monitor.on_exit(timestamp, nonego, nonego.lane)
+			intersection_monitor.monitor.on_exit(currentTime, nonego, nonego.lane)
 
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane
@@ -87,9 +87,9 @@ monitor nonegoEvents:
 			isOnLane = lane.intersects(nonego)
 			if isOnLane and not wasOnLane:
 				lanes.add(lane)
-				intersection_monitor.monitor.on_enterLane(timestamp, nonego, lane)
+				intersection_monitor.monitor.on_enterLane(currentTime, nonego, lane)
 			elif wasOnLane and not isOnLane:
 				lanes.remove(lane)
-				intersection_monitor.monitor.on_exitLane(timestamp, nonego, lane)
+				intersection_monitor.monitor.on_exitLane(currentTime, nonego, lane)
 		wait
 

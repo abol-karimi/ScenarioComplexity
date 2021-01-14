@@ -95,7 +95,7 @@ monitor carEvents:
 	maneuvers = intersection.maneuvers
 	carState = {car:CarState() for car in cars}
 	while True:
-		timestamp = carla_world.get_snapshot().timestamp
+		currentTime = simulation().currentTime
 		for car in cars:
 			state = carState[car]
 			arrived = state.arrived
@@ -106,13 +106,13 @@ monitor carEvents:
 			
 			if (not arrived) and (distance from (front of car) to intersection) < ARRIVAL_DISTANCE:
 				carState[car].arrived = True
-				intersection_monitor.monitor.on_arrival(timestamp, car, car.lane, signal)
+				intersection_monitor.monitor.on_arrival(currentTime, car, car.lane, signal)
 			if inIntersection and not entered:
 				carState[car].entered = True
-				intersection_monitor.monitor.on_entrance(timestamp, car, car.lane)
+				intersection_monitor.monitor.on_entrance(currentTime, car, car.lane)
 			if entered and (not exited) and not inIntersection:
 				carState[car].exited = True
-				intersection_monitor.monitor.on_exit(timestamp, car, car.lane)
+				intersection_monitor.monitor.on_exit(currentTime, car, car.lane)
 
 			for maneuver in maneuvers:
 				lane = maneuver.connectingLane
@@ -120,9 +120,9 @@ monitor carEvents:
 				isOnLane = lane.intersects(car)
 				if isOnLane and not wasOnLane:
 					carState[car].lanes.add(lane)
-					intersection_monitor.monitor.on_enterLane(timestamp, car, lane)
+					intersection_monitor.monitor.on_enterLane(currentTime, car, lane)
 				elif wasOnLane and not isOnLane:
 					carState[car].lanes.remove(lane)
-					intersection_monitor.monitor.on_exitLane(timestamp, car, lane)
+					intersection_monitor.monitor.on_exitLane(currentTime, car, lane)
 		wait
 
