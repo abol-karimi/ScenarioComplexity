@@ -25,6 +25,7 @@ vehicleLightStates = {}
 monitor.set_intersection(params['map'], params['intersection_id'])
 
 for i in range(2):
+    monitor.events['ego'] = []
     print('Finding a solution for the ego...')
     params['sim_result'] = sim_result
     params['blueprints'] = blueprints
