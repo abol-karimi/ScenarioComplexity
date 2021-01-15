@@ -3,7 +3,7 @@ import scenic
 import intersection_monitor
 monitor = intersection_monitor.Monitor()
 
-maxSteps = 1000
+maxSteps = 700
 timestep = 0.05
 weather = 'ClearSunset'
 render = False
@@ -63,8 +63,8 @@ for i in range(2):
 
     print('Play the solution for the nonego...')
     for i in range(maxSteps+1):
-        sim_result_nonego.trajectory[i]['ego'] = sim_result_ego.trajectory[i]['ego']
-    params['sim_result'] = sim_result_nonego
+        sim_result_replay.trajectory[i][monitor.nonego] = sim_result_nonego.trajectory[i][monitor.nonego]
+    params['sim_result'] = sim_result_replay
     params['blueprints'] = scene.params['blueprints']
     params['vehicleLightStates'] = scene.params['vehicleLightStates']
     scenario = scenic.scenarioFromFile(
