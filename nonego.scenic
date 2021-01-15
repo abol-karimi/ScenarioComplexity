@@ -10,8 +10,6 @@ param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
 param sim_result = None
-sim_result = globalParameters.sim_result
-sim_trajectory = sim_result.trajectory
 
 param blueprints = None
 blueprints = globalParameters.blueprints
@@ -21,6 +19,9 @@ vehicleLightStates = globalParameters.vehicleLightStates
 
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
+
+param carName = None
+carName = globalParameters.carName
 
 import visualization
 from intersection_monitor import SignalType
@@ -45,18 +46,16 @@ behavior PassBehavior(speed, trajectory):
 		do FollowTrajectoryBehavior(speed, trajectory)
 	take SetBrakeAction(1)
 
-egoState = sim_trajectory[0]['ego']
-ego = Car at egoState[0], facing egoState[1],
-	with name 'ego',
-	with blueprint blueprints['ego']
-
 #PLACEMENT
 nonego_maneuver = Uniform(*(intersection.maneuvers))
+#nonego_maneuver = intersection.maneuvers[4]
 nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, nonego_maneuver.endLane]
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
-	with name 'car'+str(len(sim_trajectory[0].keys())),
+	with name carName,
 	with behavior PassBehavior(SPEED, nonego_trajectory)
 event_monitor.nonego = nonego.name
+
+ego = nonego
 
 monitor nonegoEvents:
 	signal = SignalType.from_maneuver(nonego_maneuver)
