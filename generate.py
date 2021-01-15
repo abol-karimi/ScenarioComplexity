@@ -13,7 +13,7 @@ monitor.maxSteps = maxSteps
 
 params = {'map': './maps/Town05.xodr',
           'carla_map': 'Town05',
-          'intersection_id': 3, # unsignalized four-way intersection in Town05
+          'intersection_id': 3,  # unsignalized four-way intersection in Town05
           'timestep': timestep,
           'weather': weather,
           'render': render,
@@ -23,6 +23,8 @@ blueprints = {'ego': 'vehicle.tesla.model3'}
 vehicleLightStates = {}
 
 monitor.set_intersection(params['map'], params['intersection_id'])
+
+nonegos = set()
 
 for i in range(2):
     monitor.events['ego'] = []
@@ -49,9 +51,11 @@ for i in range(2):
         'replay.scenic', params=params)
     scene, iterations = scenario.generate()
     simulator = scenario.getSimulator()
-    sim_result_replay = simulator.simulate(scene, maxSteps=maxSteps)    
+    sim_result_replay = simulator.simulate(scene, maxSteps=maxSteps)
 
     print('Finding a new nonego whose right is violated...')
+    params['carName'] = f'car{len(nonegos)}'
+    nonegos.add(params['carName'])
     params['sim_result'] = sim_result_replay
     params['blueprints'] = scene.params['blueprints']
     params['vehicleLightStates'] = scene.params['vehicleLightStates']

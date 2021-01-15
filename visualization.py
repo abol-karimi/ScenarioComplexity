@@ -52,7 +52,7 @@ def draw_intersection(world, intersection):
 
 def label_car(world, car):
     loc = carla.Location(car.position.x, -car.position.y, 1.5)
-    world.debug.draw_string(loc, car.name, life_time=0.001)
+    world.debug.draw_string(loc, car.name, life_time=0.01)
 
 
 def draw_trajectories(world, sim_trajectory):
