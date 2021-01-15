@@ -142,14 +142,14 @@ violatesRightOfForRule(V1, V2, yieldToInside):-
 % Page 35 of the handbook:
 % At intersections without “STOP” or “YIELD” signs,
 %  yield to the vehicle or bicycle that arrived first.
-% mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
-%   atTheIntersectionAtTime(Vehicle1, T),
-%   atTheIntersectionAtTime(Vehicle2, T),
-%   arrivedEarlierThan(Vehicle2, Vehicle1).
+mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
+  atTheIntersectionAtTime(Vehicle1, T),
+  atTheIntersectionAtTime(Vehicle2, T),
+  arrivedEarlierThan(Vehicle2, Vehicle1).
 
-% violatesRightOfForRule(V1, V2, firstAtFirstIn):-
-%   mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
-%   enteredSameOrEarlierThan(V1, V2).
+violatesRightOfForRule(V1, V2, firstAtFirstIn):-
+  mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
+  enteredSameOrEarlierThan(V1, V2).
 
 % 21800 (b)(1)
 % When two vehicles enter an intersection from different highways at the same time,
