@@ -24,9 +24,8 @@ param carName = None
 carName = globalParameters.carName
 
 import visualization
-from intersection_monitor import SignalType
 import carla
-from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState
+from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
 
 #CONSTANTS
 SPEED = 4
@@ -47,8 +46,8 @@ behavior PassBehavior(speed, trajectory):
 	take SetBrakeAction(1)
 
 #PLACEMENT
-nonego_maneuver = Uniform(*(intersection.maneuvers))
-#nonego_maneuver = intersection.maneuvers[4]
+#nonego_maneuver = Uniform(*(intersection.maneuvers))
+nonego_maneuver = intersection.maneuvers[4]
 nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, nonego_maneuver.endLane]
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name carName,

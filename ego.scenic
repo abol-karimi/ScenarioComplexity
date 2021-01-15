@@ -20,9 +20,8 @@ param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
 import visualization
-from intersection_monitor import SignalType
 import carla
-from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState
+from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
 		
 #CONSTANTS
 SPEED = 4
