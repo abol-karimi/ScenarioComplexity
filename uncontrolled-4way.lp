@@ -96,6 +96,11 @@ arrivedFromDifferentHighways(Vehicle1, Vehicle2):-
   arrivedAtFork(Vehicle2, F2),
   not onSameHighway(F1, F2).
 
+arrivedFromSameHighway(Vehicle1, Vehicle2):-
+  arrivedAtFork(Vehicle1, F1),
+  arrivedAtFork(Vehicle2, F2),
+  onSameHighway(F1, F2).
+
 %------------------------------------------
 %--------------Rules pre-definitions-------
 %------------------------------------------
@@ -137,14 +142,14 @@ violatesRightOfForRule(V1, V2, yieldToInside):-
 % Page 35 of the handbook:
 % At intersections without “STOP” or “YIELD” signs,
 %  yield to the vehicle or bicycle that arrived first.
-mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
-  atTheIntersectionAtTime(Vehicle1, T),
-  atTheIntersectionAtTime(Vehicle2, T),
-  arrivedEarlierThan(Vehicle2, Vehicle1).
+% mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
+%   atTheIntersectionAtTime(Vehicle1, T),
+%   atTheIntersectionAtTime(Vehicle2, T),
+%   arrivedEarlierThan(Vehicle2, Vehicle1).
 
-violatesRightOfForRule(V1, V2, firstAtFirstIn):-
-  mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
-  enteredSameOrEarlierThan(V1, V2).
+% violatesRightOfForRule(V1, V2, firstAtFirstIn):-
+%   mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
+%   enteredSameOrEarlierThan(V1, V2).
 
 % 21800 (b)(1)
 % When two vehicles enter an intersection from different highways at the same time,
@@ -166,16 +171,16 @@ violatesRightOfForRule(V1, V2, yieldToRight):-
 %  which are close enough to constitute a hazard at any time during the turning movement,
 %  and shall continue to yield the right-of-way to the approaching vehicles
 %  until the left turn or U-turn can be made with reasonable safety.
-mustYieldToForRuleAtTime(Vehicle1, Vehicle2, leftTurn, T):-
-  signaledLeft(Vehicle1),
-  onSameHighway(Vehicle1, Vehicle2),
-  requestedLane(Vehicle1, Lane1),
-  requestedLane(Vehicle2, Lane2),
+mustYieldToForRuleAtTime(V1, V2, leftTurn, T):-
+  signaledLeft(V1),
+  arrivedFromSameHighway(V1, V2),
+  requestedLane(V1, Lane1),
+  requestedLane(V2, Lane2),
   overlaps(Lane1, Lane2),
-  arrivedAtTime(Vehicle2, T1),
+  arrivedAtTime(V2, T1),
   time(T),
-  not enteredLaneByTime(Vehicle1, Lane2, T1),
-  not leftLaneByTime(Vehicle2, Lane1, T).
+  not enteredLaneByTime(V1, Lane2, T1),
+  not leftLaneByTime(V2, Lane1, T).
 
 violatesRightOfForRule(V1, V2, leftTurn):-
   mustYieldToForRuleAtTime(V1, V2, leftTurn, T),
