@@ -9,11 +9,6 @@ param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
 param sim_result = None
-sim_result = globalParameters.sim_result
-sim_trajectory = None
-
-if sim_result:
-	sim_trajectory = sim_result.trajectory
 
 param blueprints = {'ego': 'vehicle.tesla.model3'}
 blueprints = globalParameters.blueprints
