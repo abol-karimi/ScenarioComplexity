@@ -66,68 +66,7 @@ class Generator():
         return self.realtime_to_ruletime(realtime)
 
     def nonego_logical_solution(self, frame2distance):
-        # Index nonego's events by their ruletime
-        frame2events = {}
-        for event in self.events[self.nonego]:
-            if not (event.frame in frame2events):
-                frame2events[event.frame] = [event]
-            else:
-                frame2events[event.frame].append(event)
-
-        # Distinct time variables for nonego's events
-        nonego_events = self.events[self.nonego]
-        timeVar = {nonego_events[i]                   : f'T{i}' for i in range(len(nonego_events))}
-
-        # Nonego's atoms
-        atoms = []
-
-        # Nonego's simultaneous events
-        for frame in frame2events.keys():
-            events = frame2events[frame]
-            for i in range(len(events)-1):
-                ti = timeVar[events[i]]
-                tii = timeVar[events[i+1]]
-                atoms.append(
-                    f':- {events[i].withTime(ti)}, {events[i+1].withTime(tii)}, {ti} != {tii}')
-
-        # Nonego's non-simultaneous events
-        # An event with earlier frame cannot have a later ruletime
-        frames = sorted(frame2events.keys())
-        for i in range(len(frames)-1):
-            ei = frame2events[frames[i]][0]
-            eii = frame2events[frames[i+1]][0]
-            ti = timeVar[ei]
-            tii = timeVar[eii]
-            atoms += [f':- {ei.withTime(ti)}, {eii.withTime(tii)}, {ti} > {tii}']
-
-        # Nonego's speed is bounded between any two events
-        max_speed = 7  # m/s
-        for i in range(len(frames)):
-            ei = frame2events[frames[i]][0]
-            di = frame2distance[frames[i]]
-            ti = timeVar[ei]
-            # Average speed from begining to ti
-            atoms += [
-                f':- {ei.withTime(ti)}, {int(2*di/max_speed)+1} > {ti}']
-            dinf = frame2distance[-1]
-            tinf = self.frame_to_ruletime(self.maxSteps)
-            # Average speed from ti to the end
-            atoms += [
-                f':- {ei.withTime(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
-            # Average speed from ti to later events
-            for j in range(i+1, len(frames)):
-                ej = frame2events[frames[j]][0]
-                dj = frame2distance[frames[j]]
-                tj = timeVar[ej]
-                delta = int(2*(dj-di)/max_speed)+1
-                # 0 < delta <= tj - ti
-                atoms += [
-                    f':- {ei.withTime(ti)}, {ej.withTime(tj)}, {delta} > {tj} - {ti}']
-
-        # Generate nonego events
-        for event in self.events[self.nonego]:
-            t = timeVar[event]
-            atoms += [f'{{ {event.withTime(t)} : time({t}) }} = 1']
+        atoms = self.traj_constraints(frame2distance, self.nonego)
 
         # Instantiate nonego's time variables such that
         #  ego violates nonego's right-of-way.
@@ -165,12 +104,7 @@ class Generator():
 
     def nonego_solution(self, sim_result):
         trajectory = sim_result.trajectory
-        frame2distance = [0]*len(trajectory)
-
-        for i in range(len(trajectory)-1):
-            pi = trajectory[i][self.nonego][0]
-            pii = trajectory[i+1][self.nonego][0]
-            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
+        frame2distance = self.frame_to_distance(sim_result, self.nonego)
 
         model = self.nonego_logical_solution(frame2distance)
 
@@ -255,69 +189,64 @@ class Generator():
         for frame in range(len(trajectory)):
             trajectory[frame][self.nonego] = new_traj[frame]
 
-    def ego_logical_solution(self, frame2distance):
-        # Index ego's events by their ruletime
+    def traj_constraints(self, frame2distance, car):
+        max_speed = 7  # m/s
+
+        # Index car's events by their ruletime
         frame2events = {}
-        for event in self.events['ego']:
+        for event in self.events[car]:
             if not (event.frame in frame2events):
                 frame2events[event.frame] = [event]
             else:
                 frame2events[event.frame].append(event)
 
-        # Distinct time variables for ego's events
-        ego_events = self.events['ego']
-        timeVar = {ego_events[i]: f'T{i}' for i in range(len(ego_events))}
-
-        # Ego's atoms
+        # Constrainst atoms
         atoms = []
 
-        # Nonego's simultaneous events
+        # Car's simultaneous events
         for frame in frame2events.keys():
             events = frame2events[frame]
             for i in range(len(events)-1):
-                ti = timeVar[events[i]]
-                tii = timeVar[events[i+1]]
                 atoms.append(
-                    f':- {events[i].withTime(ti)}, {events[i+1].withTime(tii)}, {ti} != {tii}')
+                    f':- {events[i].withTime("T1")}, {events[i+1].withTime("T2")}, T1 != T2')
 
-        # Ego's non-simultaneous events
+        # Car's non-simultaneous events
         # Two non-simultaneous events may have the same ruletime (logical time)
         frames = sorted(frame2events.keys())
         for i in range(len(frames)-1):
             ei = frame2events[frames[i]][0]
             eii = frame2events[frames[i+1]][0]
-            ti = timeVar[ei]
-            tii = timeVar[eii]
-            atoms += [f':- {ei.withTime(ti)}, {eii.withTime(tii)}, {ti} > {tii}']
+            atoms += [f':- {ei.withTime("T1")}, {eii.withTime("T2")}, T1 > T2']
 
-        # Ego's speed is bounded between any two events
-        max_speed = 7  # m/s
+        # Car's speed is bounded between any two events
         for i in range(len(frames)):
             ei = frame2events[frames[i]][0]
             di = frame2distance[frames[i]]
-            ti = timeVar[ei]
             # Average speed from begining to ti
             atoms += [
-                f':- {ei.withTime(ti)}, {int(2*di/max_speed)+1} > {ti}']
+                f':- {ei.withTime("T")}, {int(2*di/max_speed)+1} > T']
             dinf = frame2distance[-1]
             tinf = self.frame_to_ruletime(self.maxSteps)
             # Average speed from ti to the end
             atoms += [
-                f':- {ei.withTime(ti)}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - {ti}']
+                f':- {ei.withTime("T")}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - T']
             # Average speed from ti to later events
             for j in range(i+1, len(frames)):
                 ej = frame2events[frames[j]][0]
                 dj = frame2distance[frames[j]]
-                tj = timeVar[ej]
                 delta = int(2*(dj-di)/max_speed)+1
                 # 0 < delta <= tj - ti
                 atoms += [
-                    f':- {ei.withTime(ti)}, {ej.withTime(tj)}, {delta} > {tj} - {ti}']
+                    f':- {ei.withTime("T1")}, {ej.withTime("T2")}, {delta} > T2 - T1']
 
-        # Generate ego events
-        for event in self.events['ego']:
-            t = timeVar[event]
-            atoms += [f'{{ {event.withTime(t)} : time({t}) }} = 1']
+        # Generate car events
+        for event in self.events[car]:
+            atoms += [f'{{ {event.withTime("T")} : time(T) }} = 1']
+
+        return atoms
+
+    def ego_logical_solution(self, frame2distance):
+        atoms = self.traj_constraints(frame2distance, 'ego')
 
         # Instantiate ego's time variables such that
         #  ego does not violate any nonego's right-of-way.
@@ -350,12 +279,7 @@ class Generator():
 
     def ego_solution(self, sim_result):
         trajectory = sim_result.trajectory
-        frame2distance = [0]*len(trajectory)
-
-        for i in range(len(trajectory)-1):
-            pi = trajectory[i]['ego'][0]
-            pii = trajectory[i+1]['ego'][0]
-            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
+        frame2distance = self.frame_to_distance(sim_result, 'ego')
 
         model = self.ego_logical_solution(frame2distance)
 
@@ -439,3 +363,20 @@ class Generator():
             new_traj += [trajectory[new2old[frame]]['ego']]
         for frame in range(len(trajectory)):
             trajectory[frame]['ego'] = new_traj[frame]
+
+    def frame_to_distance(self, sim, car):
+        trajectory = sim.trajectory
+        frame2distance = [0]*len(trajectory)
+
+        for i in range(len(trajectory)-1):
+            pi = trajectory[i][car][0]
+            pii = trajectory[i+1][car][0]
+            frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
+
+        return frame2distance
+
+    def solution(self, sim_prev, sim_ego, sim_nonego):
+        frame2distance_ego = self.frame_to_distance(sim_ego, 'ego')
+        frame2distance_illegal = self.frame_to_distance(sim_ego, 'illegal')
+        frame2distance_nonego = self.frame_to_distance(sim_nonego, self.nonego)
+        return None
