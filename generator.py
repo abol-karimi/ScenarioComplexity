@@ -306,6 +306,25 @@ class Generator():
 
         return frame2distance
 
+    def nocollision(self, car1, car2):
+        atoms = []
+        # They don't enter the overlap at the same time
+        atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
+                  f'overlaps(L1, L2),'
+                  f'enteredLaneAtTime({car1}, L2, T), leftLaneAtTime({car2}, L1, T)']
+        # If car2 enters the overlap first, it exits it before car1 enters it.
+        atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
+                  f'overlaps(L1, L2),'
+                  f'enteredLaneAtTime({car1}, L2, T),'
+                  f'enteredLaneByTime({car2}, L1, T), not leftLaneByTime({car2}, L1, T)']
+        # If car1 enters the overlap first, it exits it before car2 enters it.
+        atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
+                  f'overlaps(L1, L2),'
+                  f'enteredLaneAtTime({car2}, L1, T),'
+                  f'enteredLaneByTime({car1}, L2, T), not leftLaneByTime({car1}, L2, T)']
+
+        return atoms
+
     def logical_solution(self, frame2distance_ego, frame2distance_illegal, frame2distance_nonego):
         atoms = []
         atoms += self.geometry
@@ -319,6 +338,13 @@ class Generator():
         atoms += self.traj_constraints(frame2distance_ego, 'ego')
         atoms += self.traj_constraints(frame2distance_illegal, 'illegal')
         atoms += self.traj_constraints(frame2distance_nonego, self.nonego)
+
+        # No collision
+        atoms += self.nocollision('ego', self.nonego)
+        old_cars = {car for car in self.events.keys() if car not in new_cars}
+        for car in old_cars:
+            atoms += self.nocollision(car, 'ego')
+            atoms += self.nocollision(car, self.nonego)
 
         # Enforce ego's legal behavior
         atoms += [f':- violatesRightOf(ego, _)']
