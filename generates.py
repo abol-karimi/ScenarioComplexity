@@ -10,6 +10,7 @@ render = False
 map_path = './maps/Town05.xodr'
 map_name = 'Town05'
 intersection_id = 3  # unsignalized four-way intersection in Town05
+maneuver_id = {'ego': 3}
 
 monitor = intersection_monitor.Monitor()
 monitor.timestep = timestep
@@ -18,6 +19,7 @@ monitor.maxSteps = maxSteps
 params = {'map': map_path,
           'carla_map': map_name,
           'intersection_id': intersection_id,
+          'maneuver_id': maneuver_id,
           'timestep': timestep,
           'weather': weather,
           'render': render,

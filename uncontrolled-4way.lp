@@ -126,12 +126,13 @@ reservedLaneAtTime(Vehicle, Lane1, T):-
 % 21800 (a):
 % The driver of a vehicle approaching an intersection shall yield the right-of-way
 %  to any vehicle which has entered the intersection from a different highway.
-mustYieldToForRuleAtTime(Vehicle1, Vehicle2, yieldToInside, T):-
-  atTheIntersectionAtTime(Vehicle1, T),
-  enteredByTime(Vehicle2, T),
-  arrivedFromDifferentHighways(Vehicle1, Vehicle2),
-  requestedLane(Vehicle1, Lane),
-  reservedLaneAtTime(Vehicle2, Lane, T).
+mustYieldToForRuleAtTime(V1, V2, yieldToInside, T):-
+  V1 != V2,
+  atTheIntersectionAtTime(V1, T),
+  enteredByTime(V2, T),
+  arrivedFromDifferentHighways(V1, V2),
+  requestedLane(V1, Lane),
+  reservedLaneAtTime(V2, Lane, T).
 
 violatesRightOfForRule(V1, V2, yieldToInside):-
   mustYieldToForRuleAtTime(V1, V2, yieldToInside, T),
@@ -142,10 +143,11 @@ violatesRightOfForRule(V1, V2, yieldToInside):-
 % Page 35 of the handbook:
 % At intersections without “STOP” or “YIELD” signs,
 %  yield to the vehicle or bicycle that arrived first.
-mustYieldToForRuleAtTime(Vehicle1, Vehicle2, firstAtFirstIn, T):-
-  atTheIntersectionAtTime(Vehicle1, T),
-  atTheIntersectionAtTime(Vehicle2, T),
-  arrivedEarlierThan(Vehicle2, Vehicle1).
+mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T):-
+  V1 != V2,
+  atTheIntersectionAtTime(V1, T),
+  atTheIntersectionAtTime(V2, T),
+  arrivedEarlierThan(V2, V1).
 
 violatesRightOfForRule(V1, V2, firstAtFirstIn):-
   mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
@@ -155,11 +157,12 @@ violatesRightOfForRule(V1, V2, firstAtFirstIn):-
 % When two vehicles enter an intersection from different highways at the same time,
 %  the driver of the vehicle on the left shall yield the right-of-way
 %  to the vehicle on his or her immediate right.
-mustYieldToForRuleAtTime(Vehicle1, Vehicle2, yieldToRight, T):-
-  atTheIntersectionAtTime(Vehicle1, T),
-  atTheIntersectionAtTime(Vehicle2, T),
-  arrivedSameTime(Vehicle1, Vehicle2),
-  isOnRightOfAtTime(Vehicle2, Vehicle1, T).
+mustYieldToForRuleAtTime(V1, V2, yieldToRight, T):-
+  V1 != V2,
+  atTheIntersectionAtTime(V1, T),
+  atTheIntersectionAtTime(V2, T),
+  arrivedSameTime(V1, V2),
+  isOnRightOfAtTime(V2, V1, T).
 
 violatesRightOfForRule(V1, V2, yieldToRight):-
   mustYieldToForRuleAtTime(V1, V2, yieldToRight, T),
@@ -172,6 +175,7 @@ violatesRightOfForRule(V1, V2, yieldToRight):-
 %  and shall continue to yield the right-of-way to the approaching vehicles
 %  until the left turn or U-turn can be made with reasonable safety.
 mustYieldToForRuleAtTime(V1, V2, leftTurn, T):-
+  V1 != V2,
   signaledLeft(V1),
   arrivedFromSameHighway(V1, V2),
   requestedLane(V1, Lane1),

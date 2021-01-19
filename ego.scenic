@@ -8,6 +8,9 @@ model scenic.simulators.carla.model
 param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
+param maneuver_id = None
+maneuver_id = globalParameters.maneuver_id
+
 param sim_result = None
 
 param blueprints = {'ego': 'vehicle.tesla.model3'}
@@ -41,7 +44,7 @@ behavior PassBehavior(speed, trajectory):
 	take SetBrakeAction(1)
 
 #Ego vehicle
-ego_maneuver = intersection.maneuvers[3]
+ego_maneuver = intersection.maneuvers[maneuver_id['ego']]
 ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
 ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name 'ego',

@@ -352,15 +352,13 @@ class Generator():
         # Evidence that new scenario is strictly harder
         atoms += [f':- not violatesRightOf(illegal, {self.nonego})']
 
-        for atom in atoms:
-            print(atom)
-
         from solver import Solver
         max_ruletime = self.frame_to_ruletime(self.maxSteps)
         solver = Solver(max_ruletime)
         solver.load('uncontrolled-4way.lp')
         solver.add_atoms(atoms)
 
+        print('Solving...')
         model = solver.solve()
 
         sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
