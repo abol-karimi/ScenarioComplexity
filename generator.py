@@ -7,6 +7,7 @@ class Generator():
         self.nonego = nonego
         self.timestep = timestep
         self.maxSteps = maxSteps
+        self.maxSpeed = 8
 
     def load_geometry(self, map_path, intersection_id):
         from signals import SignalType
@@ -65,39 +66,6 @@ class Generator():
         realtime = self.frame_to_realtime(frame)
         return self.realtime_to_ruletime(realtime)
 
-    def nonego_logical_solution(self, frame2distance):
-        atoms = self.traj_constraints(frame2distance, self.nonego)
-
-        # Ego atoms
-        atoms += [event.withTime(self.frame_to_ruletime(
-            event.frame)) for event in self.events['ego']]
-
-        # Enforce ego's violation of nonego
-        atoms += [f':- not violatesRightOf(ego, {self.nonego})']
-
-        atoms += self.geometry
-
-        # Instantiate nonego's time variables such that
-        #  ego violates nonego's right-of-way.
-        from solver import Solver
-        max_ruletime = self.frame_to_ruletime(self.maxSteps)
-        solver = Solver(max_ruletime)
-        solver.load('uncontrolled-4way.lp')
-        solver.add_atoms(atoms)
-
-        model = solver.solve()
-
-        sol_names = {'mustYieldToForRuleAtTime', 'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
-                     'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-        print("Nonego's logical solution: ")
-        for atom in model:
-            if atom.name in sol_names:
-                print(f'\t{atom}')
-
-        ruletime2events = self.model_to_events(model, self.nonego)
-
-        return ruletime2events
-
     def events_to_trajectory(self, ruletime2events, car, trajectory, frame2distance, ruletime2distances):
         # Interpolate car's trajectory based on
         #  its new (frame, distance) points:
@@ -139,40 +107,8 @@ class Generator():
 
         return new_traj
 
-    def nonego_solution(self, sim_result):
-        trajectory = sim_result.trajectory
-        frame2distance = self.frame_to_distance(sim_result, self.nonego)
-
-        # The new ruletime for each old event
-        ruletime2events = self.nonego_logical_solution(frame2distance)
-
-        # Distances of events of a ruletime in increasing order
-        ruletime2distances = {}
-        for ruletime, events in ruletime2events.items():
-            distances = [frame2distance[event.frame]
-                         for event in events]
-            distances_sorted = sorted(set(distances))
-            ruletime2distances[ruletime] = distances_sorted
-
-        # Interpolate the events to a new trajectory
-        new_traj = self.events_to_trajectory(
-            ruletime2events, self.nonego, trajectory, frame2distance, ruletime2distances)
-
-        # Update the old trajectory
-        for frame in range(len(trajectory)):
-            trajectory[frame][self.nonego] = new_traj[frame]
-
-        # Update timing of ego's events
-        for ruletime, events in ruletime2events.items():
-            ds = ruletime2distances[ruletime]
-            for event in events:
-                d = frame2distance[event.frame]
-                fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-                frame = self.ruletime_to_frame(ruletime + fraction)
-                event.frame = frame
-
     def traj_constraints(self, frame2distance, car):
-        max_speed = 10  # m/s
+        maxSpeed = self.maxSpeed
 
         # Index car's events by their ruletime
         frame2events = {}
@@ -206,17 +142,17 @@ class Generator():
             di = frame2distance[frames[i]]
             # Average speed from begining to ti
             atoms += [
-                f':- {ei.withTime("T")}, {int(2*di/max_speed)+1} > T']
+                f':- {ei.withTime("T")}, {int(2*di/maxSpeed)+1} > T']
             dinf = frame2distance[-1]
             tinf = self.frame_to_ruletime(self.maxSteps)
             # Average speed from ti to the end
             atoms += [
-                f':- {ei.withTime("T")}, {int(2*(dinf-di)/max_speed)+1} > {tinf} - T']
+                f':- {ei.withTime("T")}, {int(2*(dinf-di)/maxSpeed)+1} > {tinf} - T']
             # Average speed from ti to later events
             for j in range(i+1, len(frames)):
                 ej = frame2events[frames[j]][0]
                 dj = frame2distance[frames[j]]
-                delta = int(2*(dj-di)/max_speed)+1
+                delta = int(2*(dj-di)/maxSpeed)+1
                 # 0 < delta <= tj - ti
                 atoms += [
                     f':- {ei.withTime("T1")}, {ej.withTime("T2")}, {delta} > T2 - T1']
@@ -226,74 +162,6 @@ class Generator():
             atoms += [f'{{ {event.withTime("T")} : time(T) }} = 1']
 
         return atoms
-
-    def ego_logical_solution(self, frame2distance):
-        atoms = []
-        atoms += self.geometry
-
-        # All nonego atoms
-        for car in self.events.keys():
-            if car != 'ego':
-                atoms += [event.withTime(self.frame_to_ruletime(event.frame))
-                          for event in self.events[car]]
-
-        atoms += self.traj_constraints(frame2distance, 'ego')
-
-        # Enforce ego's legal behavior
-        atoms += [f':- violatesRightOf(ego, _)']
-
-        # Instantiate ego's time variables such that
-        #  ego does not violate any nonego's right-of-way.
-        from solver import Solver
-        max_ruletime = self.frame_to_ruletime(self.maxSteps)
-        solver = Solver(max_ruletime)
-        solver.load('uncontrolled-4way.lp')
-        solver.add_atoms(atoms)
-
-        model = solver.solve()
-
-        sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
-                     'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-        print("Ego's logical solution: ")
-        for atom in model:
-            if atom.name in sol_names:
-                print(f'\t{atom}')
-
-        ruletime2events = self.model_to_events(model, 'ego')
-
-        return ruletime2events
-
-    def ego_solution(self, sim_result):
-        trajectory = sim_result.trajectory
-        frame2distance = self.frame_to_distance(sim_result, 'ego')
-
-        # The new ruletime for each old event
-        ruletime2events = self.ego_logical_solution(frame2distance)
-
-        # Distances of events of a ruletime in increasing order
-        ruletime2distances = {}
-        for ruletime, events in ruletime2events.items():
-            distances = [frame2distance[event.frame]
-                         for event in events]
-            distances_sorted = sorted(set(distances))
-            ruletime2distances[ruletime] = distances_sorted
-
-        # Interpolate the events to a new trajectory
-        new_traj = self.events_to_trajectory(
-            ruletime2events, 'ego', trajectory, frame2distance, ruletime2distances)
-
-        # Update the old trajectory
-        for frame in range(len(trajectory)):
-            trajectory[frame]['ego'] = new_traj[frame]
-
-        # Update timing of ego's events
-        for ruletime, events in ruletime2events.items():
-            ds = ruletime2distances[ruletime]
-            for event in events:
-                d = frame2distance[event.frame]
-                fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-                frame = self.ruletime_to_frame(ruletime + fraction)
-                event.frame = frame
 
     def frame_to_distance(self, sim, car):
         trajectory = sim.trajectory
