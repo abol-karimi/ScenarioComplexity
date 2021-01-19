@@ -7,7 +7,7 @@ class Generator():
         self.nonego = nonego
         self.timestep = timestep
         self.maxSteps = maxSteps
-        self.maxSpeed = 8
+        self.maxSpeed = 7
 
     def load_geometry(self, map_path, intersection_id):
         from signals import SignalType
@@ -226,7 +226,6 @@ class Generator():
         solver.load('uncontrolled-4way.lp')
         solver.add_atoms(atoms)
 
-        print('Solving...')
         model = solver.solve()
 
         sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
@@ -268,7 +267,7 @@ class Generator():
 
         return ruletime2events
 
-    def solution(self, sim_prev, sim_ego, sim_nonego):
+    def solution(self, traj_prev, sim_ego, sim_nonego):
         import copy
         self.events['illegal'] = []
         for event in self.events['ego']:
@@ -309,19 +308,14 @@ class Generator():
         new_traj_nonego = self.events_to_trajectory(
             ruletime2events_nonego, self.nonego, trajectory_nonego, frame2distance_nonego, ruletime2distances_nonego)
 
-        # The new scenario
-        if sim_prev:
-            sim_result = sim_prev
-        else:
-            from scenic.core.simulators import SimulationResult
-            sim_result = SimulationResult(
-                [{} for i in range(len(trajectory_ego))], [], 'Harder scenario found.')
-        trajectory = sim_result.trajectory
+        # When extending an empty scenario
+        if not traj_prev:
+            traj_prev = [{} for i in range(len(trajectory_ego))]
 
         # Trajectories of the new vehicles
-        for frame in range(len(trajectory)):
-            trajectory[frame]['ego'] = new_traj_ego[frame]
-            trajectory[frame][self.nonego] = new_traj_nonego[frame]
+        for frame in range(len(traj_prev)):
+            traj_prev[frame]['ego'] = new_traj_ego[frame]
+            traj_prev[frame][self.nonego] = new_traj_nonego[frame]
 
         # Update timing of new cars' events
         for ruletime, events in ruletime2events_ego.items():
@@ -339,4 +333,69 @@ class Generator():
                 frame = self.ruletime_to_frame(ruletime + fraction)
                 event.frame = frame
 
-        return sim_result
+        return traj_prev
+
+    def extend(self, scenario):
+        self.geometry = self.load_geometry(
+            scenario.map_path, scenario.intersection_id)
+        self.events = scenario.events
+        self.timestep = scenario.timestep
+        self.maxSteps = scenario.maxSteps
+
+        import intersection_monitor
+        monitor = intersection_monitor.Monitor()
+
+        import scenic
+        render = False
+
+        params = {'map': scenario.map_path,
+                  'carla_map': scenario.map_name,
+                  'intersection_id': scenario.intersection_id,
+                  'maneuver_id': scenario.maneuver_id,
+                  'timestep': scenario.timestep,
+                  'weather': scenario.weather,
+                  'render': render,
+                  'event_monitor': monitor}
+
+        monitor.events['ego'] = []
+        print('Sample an ego trajectory...')
+        params['blueprints'] = scenario.blueprints
+        params['vehicleLightStates'] = scenario.vehicleLightStates
+        scenic_scenario = scenic.scenarioFromFile('ego.scenic', params=params)
+        scene, _ = scenic_scenario.generate()
+        simulator = scenic_scenario.getSimulator()
+        sim_result_ego = simulator.simulate(scene, maxSteps=scenario.maxSteps)
+
+        print('Sample a nonego trajectory...')
+        nonego = f'car{len(scenario.blueprints)}'
+        params['carName'] = nonego
+        params['blueprints'] = scene.params['blueprints']
+        params['vehicleLightStates'] = scene.params['vehicleLightStates']
+        scenic_scenario = scenic.scenarioFromFile(
+            'nonego.scenic', params=params)
+        scene, _ = scenic_scenario.generate()
+        simulator = scenic_scenario.getSimulator()
+        sim_result_nonego = simulator.simulate(
+            scene, maxSteps=scenario.maxSteps)
+
+        # Find a strict extension of the given scenario
+        self.events = monitor.events
+        self.nonego = nonego
+        trajectory = self.solution(
+            scenario.trajectory, sim_result_ego, sim_result_nonego)
+
+        from scenario import Scenario
+        scenario_ext = Scenario()
+        scenario_ext.maxSteps = scenario.maxSteps
+        scenario_ext.timestep = scenario.timestep
+        scenario_ext.weather = scenario.weather
+        scenario_ext.map_path = scenario.map_path
+        scenario_ext.map_name = scenario.map_name
+        scenario_ext.intersection_id = scenario_ext.intersection_id
+        scenario_ext.blueprints = scene.params['blueprints']
+        scenario_ext.maneuver_id = scene.params['maneuver_id']
+        scenario_ext.vehicleLightStates = scene.params['vehicleLightStates']
+        scenario_ext.trajectory = trajectory
+        scenario_ext.events = self.events
+
+        return scenario_ext

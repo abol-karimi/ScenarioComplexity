@@ -53,13 +53,13 @@ maneuvers = intersection.maneuvers
 conflicts = maneuvers[maneuver_id['ego']].conflictingManeuvers
 conflicts_ids = [i for i in range(len(maneuvers)) if maneuvers[i] in conflicts]
 new_ids = [i for i in conflicts_ids if not i in maneuver_id.values()]
-new_maneuvers = [maneuvers[i] for i in new_ids]
-nonego_maneuver = Uniform(*(new_maneuvers))
+nonego_maneuver_id = new_ids[0]
+maneuver_id[carName] = nonego_maneuver_id
+nonego_maneuver = maneuvers[nonego_maneuver_id]
 nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, nonego_maneuver.endLane]
 nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
 	with name carName,
 	with behavior PassBehavior(SPEED, nonego_trajectory)
-event_monitor.nonego = nonego.name
 
 ego = nonego
 

@@ -82,7 +82,6 @@ class ExitedIntersectionEvent(Event):
 class Monitor():
     """Record all the static and dynamic traffic predicates."""
     events = {}
-    nonego = None
 
     def on_arrival(self, frame, vehicle, incoming_lane, signal):
         if not (vehicle.name in self.events):

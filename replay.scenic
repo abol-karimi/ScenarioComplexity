@@ -8,9 +8,8 @@ model scenic.simulators.carla.model
 param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
-param sim_result = None
-sim_result = globalParameters.sim_result
-sim_trajectory = sim_result.trajectory
+param trajectory = None
+trajectory = globalParameters.trajectory
 blueprints = globalParameters.blueprints
 
 param vehicleLightStates = None
@@ -25,13 +24,13 @@ behavior ReplayBehavior():
 
 	while True:
 		currentTime = simulation().currentTime
-		state = sim_trajectory[currentTime][self.name]
+		state = trajectory[currentTime][self.name]
 		take SetTransformAction(state[0], state[1])
 		visualization.label_car(carla_world, self)
 		wait
 
 cars = []
-for carName, carState in sim_trajectory[0].items(): 
+for carName, carState in trajectory[0].items(): 
 	car = Car at carState[0], facing carState[1],
 		with name carName,
 		with blueprint blueprints[carName],
