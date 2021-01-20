@@ -5,14 +5,6 @@ import scenic
 
 scenario = Scenario()
 
-params = {'map': scenario.map_path,
-          'carla_map': scenario.map_name,
-          'intersection_id': scenario.intersection_id,
-          'maneuver_id': scenario.maneuver_id,
-          'timestep': scenario.timestep,
-          'weather': scenario.weather,
-          'render': False}
-
 generator = Generator(map_path=scenario.map_path,
                       intersection_id=scenario.intersection_id,
                       timestep=scenario.timestep,
