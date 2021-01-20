@@ -1,13 +1,13 @@
 class Generator():
     """Extend a scenario to a strictly harder one."""
 
-    def __init__(self, map_path=None, intersection_id=None, events={}, nonego=None, timestep=None, maxSteps=None):
+    def __init__(self, map_path=None, intersection_id=None, nonego=None, timestep=None, maxSteps=None):
         self.geometry = self.load_geometry(map_path, intersection_id)
-        self.events = events
         self.nonego = nonego
         self.timestep = timestep
         self.maxSteps = maxSteps
         self.maxSpeed = 7
+        self.events = {}
 
     def load_geometry(self, map_path, intersection_id):
         from signals import SignalType
@@ -15,7 +15,6 @@ class Generator():
         network = Network.fromFile(map_path)
         intersection = network.intersections[intersection_id]
         geometry = []
-        self.events = {}
         for maneuver in intersection.maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
@@ -280,6 +279,7 @@ class Generator():
             sim_ego, 'ego')  # TODO can use frame2distance_ego
         frame2distance_nonego = self.frame_to_distance(sim_nonego, self.nonego)
 
+        # TODO Concretize the illegal trajectory as well
         ruletime2events_ego, ruletime2events_nonego = self.logical_solution(frame2distance_ego,
                                                                             frame2distance_illegal, frame2distance_nonego)
 
@@ -336,12 +336,6 @@ class Generator():
         return traj_prev
 
     def extend(self, scenario):
-        self.geometry = self.load_geometry(
-            scenario.map_path, scenario.intersection_id)
-        self.events = scenario.events
-        self.timestep = scenario.timestep
-        self.maxSteps = scenario.maxSteps
-
         import intersection_monitor
         monitor = intersection_monitor.Monitor()
 
@@ -379,7 +373,13 @@ class Generator():
             scene, maxSteps=scenario.maxSteps)
 
         # Find a strict extension of the given scenario
-        self.events = monitor.events
+        self.geometry = self.load_geometry(
+            scenario.map_path, scenario.intersection_id)
+        self.events = scenario.events
+        self.events['ego'] = monitor.events['ego']
+        self.events[nonego] = monitor.events[nonego]
+        self.timestep = scenario.timestep
+        self.maxSteps = scenario.maxSteps
         self.nonego = nonego
         trajectory = self.solution(
             scenario.trajectory, sim_result_ego, sim_result_nonego)

@@ -3,36 +3,30 @@ import getopt
 
 
 def main(argv):
-    inputfile = ''
     outputfile = ''
     try:
-        opts, _ = getopt.getopt(argv, "hi:o:", ["ifile=", "ofile="])
+        opts, _ = getopt.getopt(argv, "ho:", ["ofile="])
     except getopt.GetoptError:
-        print('extend.py -i <inputfile> -o <outputfile>')
+        print('new.py -o <outputfile>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print('extend.py -i <inputfile> -o <outputfile>')
+            print('new.py -o <outputfile>')
             sys.exit()
-        elif opt in ("-i", "--ifile"):
-            inputfile = arg
         elif opt in ("-o", "--ofile"):
             outputfile = arg
 
-    import pickle
-    import scenic
+    from scenario import Scenario
     from generator import Generator
 
-    with open(inputfile, 'rb') as inFile:
-        scenario = pickle.load(inFile)
-
+    scenario = Scenario()
     generator = Generator(map_path=scenario.map_path,
                           intersection_id=scenario.intersection_id,
                           timestep=scenario.timestep,
                           maxSteps=scenario.maxSteps)
-
     scenario = generator.extend(scenario)
 
+    import pickle
     with open(outputfile, 'wb') as outFile:
         pickle.dump(scenario, outFile)
 

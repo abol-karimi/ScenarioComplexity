@@ -9,4 +9,4 @@ class Scenario():
     blueprints = {'ego': 'vehicle.tesla.model3'}
     vehicleLightStates = {}
     trajectory = None
-    events = None
+    events = {}

@@ -15,7 +15,7 @@ class ArrivedAtIntersectionEvent(Event):
         self.incoming_lane = incoming_lane
 
     def withTime(self, t):
-        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {t})'
+        return f'arrivedAtForkAtTime({self.vehicle}, {self.incoming_lane}, {t})'
 
 
 class SignaledAtForkEvent(Event):
@@ -28,7 +28,7 @@ class SignaledAtForkEvent(Event):
         self.incoming_lane = incoming_lane
 
     def withTime(self, t):
-        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane.uid}, {t})'
+        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane}, {t})'
 
 
 class EnteredLaneEvent(Event):
@@ -40,7 +40,7 @@ class EnteredLaneEvent(Event):
         self.lane = lane
 
     def withTime(self, t):
-        return f'enteredLaneAtTime({self.vehicle}, {self.lane.uid}, {t})'
+        return f'enteredLaneAtTime({self.vehicle}, {self.lane}, {t})'
 
 
 class ExitedLaneEvent(Event):
@@ -52,7 +52,7 @@ class ExitedLaneEvent(Event):
         self.lane = lane
 
     def withTime(self, t):
-        return f'leftLaneAtTime({self.vehicle}, {self.lane.uid}, {t})'
+        return f'leftLaneAtTime({self.vehicle}, {self.lane}, {t})'
 
 
 class EnteredIntersectionEvent(Event):
@@ -64,7 +64,7 @@ class EnteredIntersectionEvent(Event):
         self.incoming_lane = incoming_lane
 
     def withTime(self, t):
-        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane.uid}, {t})'
+        return f'enteredForkAtTime({self.vehicle}, {self.incoming_lane}, {t})'
 
 
 class ExitedIntersectionEvent(Event):
@@ -76,7 +76,7 @@ class ExitedIntersectionEvent(Event):
         self.outgoing_lane = outgoing_lane
 
     def withTime(self, t):
-        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane.uid}, {t})'
+        return f'exitedFromAtTime({self.vehicle}, {self.outgoing_lane}, {t})'
 
 
 class Monitor():

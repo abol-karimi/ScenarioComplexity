@@ -67,13 +67,13 @@ monitor egoEvents:
 		
 		if (not arrived) and (distance from (front of ego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
-			event_monitor.on_arrival(currentTime, 'ego', ego.lane, signal)
+			event_monitor.on_arrival(currentTime, 'ego', ego.lane.uid, signal)
 		if inIntersection and not entered:
 			entered = True
-			event_monitor.on_entrance(currentTime, 'ego', ego.lane)
+			event_monitor.on_entrance(currentTime, 'ego', ego.lane.uid)
 		if entered and (not exited) and not inIntersection:
 			exited = True
-			event_monitor.on_exit(currentTime, 'ego', ego.lane)
+			event_monitor.on_exit(currentTime, 'ego', ego.lane.uid)
 
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane
@@ -81,9 +81,9 @@ monitor egoEvents:
 			isOnLane = lane.intersects(ego)
 			if isOnLane and not wasOnLane:
 				lanes.add(lane)
-				event_monitor.on_enterLane(currentTime, 'ego', lane)
+				event_monitor.on_enterLane(currentTime, 'ego', lane.uid)
 			elif wasOnLane and not isOnLane:
 				lanes.remove(lane)
-				event_monitor.on_exitLane(currentTime, 'ego', lane)
+				event_monitor.on_exitLane(currentTime, 'ego', lane.uid)
 		wait
 
