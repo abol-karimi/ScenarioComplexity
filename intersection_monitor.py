@@ -84,33 +84,33 @@ class Monitor():
     events = {}
 
     def on_arrival(self, frame, vehicle, incoming_lane, signal):
-        if not (vehicle.name in self.events):
-            self.events[vehicle.name] = []
-        self.events[vehicle.name].append(ArrivedAtIntersectionEvent(
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(ArrivedAtIntersectionEvent(
             frame, vehicle, incoming_lane))
-        self.events[vehicle.name].append(SignaledAtForkEvent(
+        self.events[vehicle].append(SignaledAtForkEvent(
             frame, vehicle, signal, incoming_lane))
 
     def on_enterLane(self, frame, vehicle, lane):
-        if not (vehicle.name in self.events):
-            self.events[vehicle.name] = []
-        self.events[vehicle.name].append(
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(
             EnteredLaneEvent(frame, vehicle, lane))
 
     def on_exitLane(self, frame, vehicle, lane):
-        if not (vehicle.name in self.events):
-            self.events[vehicle.name] = []
-        self.events[vehicle.name].append(
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(
             ExitedLaneEvent(frame, vehicle, lane))
 
     def on_entrance(self, frame, vehicle, incoming_lane):
-        if not (vehicle.name in self.events):
-            self.events[vehicle.name] = []
-        self.events[vehicle.name].append(EnteredIntersectionEvent(
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(EnteredIntersectionEvent(
             frame, vehicle, incoming_lane))
 
     def on_exit(self, frame, vehicle, outgoing_lane):
-        if not (vehicle.name in self.events):
-            self.events[vehicle.name] = []
-        self.events[vehicle.name].append(ExitedIntersectionEvent(
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(ExitedIntersectionEvent(
             frame, vehicle, outgoing_lane))
