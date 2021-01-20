@@ -335,7 +335,7 @@ class Generator():
 
         return traj_prev
 
-    def extend(self, scenario):
+    def extend(self, scenario, maneuver_id=None):
         import intersection_monitor
         monitor = intersection_monitor.Monitor()
 
@@ -362,6 +362,8 @@ class Generator():
 
         print('Sample a nonego trajectory...')
         nonego = f'car{len(scenario.blueprints)}'
+        if maneuver_id:
+            params['maneuver_id'][nonego] = maneuver_id
         params['carName'] = nonego
         params['blueprints'] = scene.params['blueprints']
         params['vehicleLightStates'] = scene.params['vehicleLightStates']

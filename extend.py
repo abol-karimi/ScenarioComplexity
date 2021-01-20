@@ -5,8 +5,10 @@ import getopt
 def main(argv):
     inputfile = ''
     outputfile = ''
+    maneuver_id = None
     try:
-        opts, _ = getopt.getopt(argv, "hi:o:", ["ifile=", "ofile="])
+        opts, _ = getopt.getopt(
+            argv, "hi:o:m:", ["ifile=", "ofile=", "maneuver_id="])
     except getopt.GetoptError:
         print('extend.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
@@ -18,6 +20,8 @@ def main(argv):
             inputfile = arg
         elif opt in ("-o", "--ofile"):
             outputfile = arg
+        elif opt in ("-m", "--maneuver_id"):
+            maneuver_id = int(arg)
 
     import pickle
     import scenic
@@ -31,7 +35,7 @@ def main(argv):
                           timestep=scenario.timestep,
                           maxSteps=scenario.maxSteps)
 
-    scenario = generator.extend(scenario)
+    scenario = generator.extend(scenario, maneuver_id=maneuver_id)
 
     with open(outputfile, 'wb') as outFile:
         pickle.dump(scenario, outFile)
