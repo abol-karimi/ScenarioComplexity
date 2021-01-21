@@ -1,3 +1,4 @@
+#!/home/ak/Scenic/.venv/bin/python
 import sys
 import getopt
 
