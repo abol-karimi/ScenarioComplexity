@@ -23,6 +23,11 @@ def main(argv):
     with open(inputfile, 'rb') as inFile:
         scenario = pickle.load(inFile)
 
+    for car in scenario.events:
+        for event in scenario.events[car]:
+            ruletime = frame_to_ruletime(event.frame, scenario.timestep)
+            print(event.withTime(ruletime))
+
     params = {'map': scenario.map_path,
               'carla_map': scenario.map_name,
               'intersection_id': scenario.intersection_id,
@@ -40,6 +45,19 @@ def main(argv):
     scene, _ = scenic_scenario.generate()
     simulator = scenic_scenario.getSimulator()
     simulator.simulate(scene, maxSteps=scenario.maxSteps)
+
+
+def realtime_to_ruletime(t):
+    return int(t*2)
+
+
+def frame_to_realtime(frame, timestep):
+    return frame*timestep
+
+
+def frame_to_ruletime(frame, timestep):
+    realtime = frame_to_realtime(frame, timestep)
+    return realtime_to_ruletime(realtime)
 
 
 if __name__ == "__main__":
