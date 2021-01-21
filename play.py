@@ -29,7 +29,7 @@ def main(argv):
               'maneuver_id': scenario.maneuver_id,
               'timestep': scenario.timestep,
               'weather': scenario.weather,
-              'render': False}
+              'render': True}
 
     print('Play the loaded scenario...')
     params['trajectory'] = scenario.trajectory
