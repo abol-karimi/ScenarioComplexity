@@ -358,6 +358,9 @@ class Generator():
         scenic_scenario = scenic.scenarioFromFile('ego.scenic', params=params)
         scene, _ = scenic_scenario.generate()
         simulator = scenic_scenario.getSimulator()
+        settings = simulator.world.get_settings()
+        settings.no_rendering_mode = True
+        simulator.world.apply_settings(settings)
         sim_result_ego = simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
         print('Sample a nonego trajectory...')
@@ -371,6 +374,9 @@ class Generator():
             'nonego.scenic', params=params)
         scene, _ = scenic_scenario.generate()
         simulator = scenic_scenario.getSimulator()
+        settings = simulator.world.get_settings()
+        settings.no_rendering_mode = True
+        simulator.world.apply_settings(settings)
         sim_result_nonego = simulator.simulate(
             scene, maxSteps=scenario.maxSteps)
 
