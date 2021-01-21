@@ -1,11 +1,12 @@
 class Generator():
     """Extend a scenario to a strictly harder one."""
 
-    def __init__(self, map_path=None, intersection_id=None, nonego=None, timestep=None, maxSteps=None):
+    def __init__(self, map_path=None, intersection_id=None, rules_path=None, timestep=None, maxSteps=None):
         self.geometry = self.load_geometry(map_path, intersection_id)
-        self.nonego = nonego
+        self.rules_path = rules_path
         self.timestep = timestep
         self.maxSteps = maxSteps
+        self.nonego = None
         self.maxSpeed = 7
         self.events = {}
 
@@ -208,7 +209,7 @@ class Generator():
 
         # No collision
         atoms += self.nocollision('ego', self.nonego)
-        old_cars = {car for car in self.events.keys() if car not in new_cars}
+        old_cars = {car for car in self.events.keys() if not car in new_cars}
         for car in old_cars:
             atoms += self.nocollision(car, 'ego')
             atoms += self.nocollision(car, self.nonego)
@@ -216,13 +217,16 @@ class Generator():
         # Enforce ego's legal behavior
         atoms += [f':- violatesRightOf(ego, _)']
 
+        # Enforce nonego's legal behavior
+        # atoms += [f':- V != illegal, violatesRightOf({self.nonego}, V)']
+
         # Evidence that new scenario is strictly harder
         atoms += [f':- not violatesRightOf(illegal, {self.nonego})']
 
         from solver import Solver
         max_ruletime = self.frame_to_ruletime(self.maxSteps)
         solver = Solver(max_ruletime)
-        solver.load('uncontrolled-4way.lp')
+        solver.load(self.rules_path)
         solver.add_atoms(atoms)
 
         model = solver.solve()

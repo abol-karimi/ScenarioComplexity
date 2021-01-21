@@ -34,6 +34,7 @@ def main(argv):
 
     generator = Generator(map_path=scenario.map_path,
                           intersection_id=scenario.intersection_id,
+                          rules_path=scenario.rules_path,
                           timestep=scenario.timestep,
                           maxSteps=scenario.maxSteps)
 

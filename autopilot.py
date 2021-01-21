@@ -58,7 +58,7 @@ def main(argv):
     from solver import Solver
     max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
     solver = Solver(max_ruletime)
-    solver.load('uncontrolled-4way.lp')
+    solver.load(scenario.rules_path)
     solver.add_atoms(atoms)
 
     model = solver.solve()
