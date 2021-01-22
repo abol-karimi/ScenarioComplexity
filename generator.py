@@ -403,7 +403,7 @@ class Generator():
         scenario_ext.weather = scenario.weather
         scenario_ext.map_path = scenario.map_path
         scenario_ext.map_name = scenario.map_name
-        scenario_ext.intersection_id = scenario_ext.intersection_id
+        scenario_ext.intersection_id = scenario.intersection_id
         scenario_ext.blueprints = scene.params['blueprints']
         scenario_ext.maneuver_id = scene.params['maneuver_id']
         scenario_ext.vehicleLightStates = scene.params['vehicleLightStates']
