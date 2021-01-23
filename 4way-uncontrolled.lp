@@ -26,6 +26,9 @@ arrivedByTime(Vehicle, T):-
   time(T),
   T1 <= T.
 
+enteredAtTime(V, T):
+  enteredForkAtTime(V, F, T).
+
 exitedByTime(V, T):-
   exitedFromAtTime(V, _, T1),
   time(T),
@@ -191,6 +194,29 @@ violatesRightOfForRule(V1, V2, leftTurn):-
   mustYieldToForRuleAtTime(V1, V2, leftTurn, T),
   requestedLane(V2, L2),
   enteredLaneByTime(V1, L2, T).
+
+% 22526 (a)
+% Notwithstanding any official traffic control signal indication to proceed,
+%  a driver of a vehicle shall not enter an intersection or marked crosswalk
+%  unless there is sufficient space on the other side of the intersection or marked crosswalk
+%  to accommodate the vehicle driven without obstructing the through passage of vehicles from either side.
+mustYieldToForRuleAtTime(V1, V2, antiGridlock, T):-
+  V1 != V2,
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  laneFromTo(L1, _, E),
+  laneFromTo(L2, _, E),
+  enteredAtTime(V1, T1),
+  enteredAtTime(V2, T2),
+  T1 > T2,
+  time(T),
+  T >= T1,
+  not exitedByTime(V2, T).
+
+violatesRightOfForRule(V1, V2, antiGridlock):-
+  mustYieldToForRuleAtTime(V1, V2, antiGridlock, T),
+  enteredByTime(V1, T).
+
 %-------------------------------------------------
 violatesRightOf(V1, V2):-
   violatesRightOfForRule(V1, V2, _).
