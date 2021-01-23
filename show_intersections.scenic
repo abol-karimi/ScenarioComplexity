@@ -10,7 +10,7 @@ ints = {i: intersections[i] for i in range(len(intersections))
 import visualization
 
 
-behavior ShowIntersectionBehavior():
+behavior IterateIntersectionsBehavior():
   carla_world = simulation().world
   for i, intersection in ints.items():
     visualization.draw_intersection(carla_world, intersection)
@@ -18,5 +18,10 @@ behavior ShowIntersectionBehavior():
     do FollowLaneBehavior() for 50 seconds
     wait
 
+behavior ShowIntersectionBehavior(id):
+  carla_world = simulation().world
+  visualization.draw_intersection(carla_world, intersections[id])
+  wait
+
 ego = Car with name 'ego',
-  with behavior ShowIntersectionBehavior
+  with behavior ShowIntersectionBehavior(18)

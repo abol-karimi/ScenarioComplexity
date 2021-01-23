@@ -1,5 +1,8 @@
 #program boundedtime(maxtime).
 
+%---------------Time domain------------
+time(0..maxtime).
+
 %-----------Geometry (4-way)-----------
 onSameHighway(Fork1, Fork2):-
   isOnRightOf(Fork1, F),
@@ -8,38 +11,38 @@ onSameHighway(Fork1, Fork2):-
 onSameHighway(Fork1, Fork2):-
   onSameHighway(Fork2, Fork1).
 
-%---------------Time domain------------
-time(0..maxtime).
+branchOf(Lane, Fork):-
+  laneFromTo(Lane, Fork, _).
 
 %-----------------Traffic--------------
 arrivedAtFork(Vehicle, Fork):-
   arrivedAtForkAtTime(Vehicle, Fork, _).
 
-arrivedAtTime(Vehicle, T):-
-  arrivedAtForkAtTime(Vehicle, _, T).
+arrivedAtTime(V, T):-
+  arrivedAtForkAtTime(V, _, T).
 
 arrivedByTime(Vehicle, T):-
   arrivedAtForkAtTime(Vehicle, _, T1),
   time(T),
   T1 <= T.
 
-exitedByTime(Vehicle, T):-
-  exitedFromAtTime(Vehicle, _, T1),
+exitedByTime(V, T):-
+  exitedFromAtTime(V, _, T1),
   time(T),
   T1 <= T.
 
-inTheIntersectionAtTime(Vehicle, T):-
-  enteredByTime(Vehicle, T),
-  not exitedByTime(Vehicle, T).
+inTheIntersectionAtTime(V, T):-
+  enteredByTime(V, T),
+  not exitedByTime(V, T).
 
-enteredByTime(Vehicle, T):-
-  enteredForkAtTime(Vehicle, _, T1),
+enteredByTime(V, T):-
+  enteredForkAtTime(V, _, T1),
   time(T),
   T1 <= T.
 
-atTheIntersectionAtTime(Vehicle, T):-
-  arrivedByTime(Vehicle, T),
-  not enteredByTime(Vehicle, T).
+atTheIntersectionAtTime(V, T):-
+  arrivedByTime(V, T),
+  not enteredByTime(V, T).
 
 isAtForkAtTime(Vehicle, Fork, T):-
   arrivedAtFork(Vehicle, Fork),
@@ -66,13 +69,13 @@ isOnRightOfAtTime(Vehicle1, Vehicle2, T):-
   isAtForkAtTime(Vehicle2, Fork2, T),
   isOnRightOf(Fork1, Fork2).
 
-leftLaneByTime(Vehicle, Lane, T):-
-  leftLaneAtTime(Vehicle, Lane, T1),
+leftLaneByTime(V, L, T):-
+  leftLaneAtTime(V, L, T1),
   time(T),
   T1 <= T.
 
-enteredLaneByTime(Vehicle, Lane, T):-
-  enteredLaneAtTime(Vehicle, Lane, T1),
+enteredLaneByTime(V, L, T):-
+  enteredLaneAtTime(V, L, T1),
   time(T),
   T1 <= T.
 
@@ -81,11 +84,8 @@ isOnLaneAtTime(Vehicle, Lane, T):-
   enteredLaneByTime(Vehicle, Lane, T),
   not leftLaneByTime(Vehicle, Lane, T).
 
-branchOf(Lane, Fork):-
-  laneFromTo(Lane, Fork, _).
-
-signaledAtFork(Vehicle, Signal, Fork):-
-  signaledAtForkAtTime(Vehicle, Signal, Fork, _).
+signaledAtFork(V, S, F):-
+  signaledAtForkAtTime(V, S, F, _).
 
 signaledLeft(Vehicle):-
   signaledAtFork(Vehicle, left, _).

@@ -1,0 +1,9 @@
+3way, T, stop on minor:
+  Town05, intersection 2
+  Town05, intersection 18  
+
+3way, T, all stop:
+  Town05, Intersection 12
+
+3way, T, signalized:
+  Town05, Intersection 17
