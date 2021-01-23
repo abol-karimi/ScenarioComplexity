@@ -1,5 +1,6 @@
 #!/home/ak/Scenic/.venv/bin/python
 
+from signals import SignalType
 from scenic.domains.driving.roads import Network
 
 map_path = './maps/Town05.xodr'
@@ -11,3 +12,37 @@ for i in range(len(maneuvers)):
     m = maneuvers[i]
     print(f'Maneuver {i}: { m.connectingLane.uid}')
     print(f'  From {m.startLane.uid} to {m.endLane.uid}')
+
+
+geometry = []
+for maneuver in intersection.maneuvers:
+    lane = maneuver.connectingLane
+    fork = maneuver.startLane
+    exit = maneuver.endLane
+    geometry.append(
+        f'laneFromTo({lane.uid}, {fork.uid}, {exit.uid})')
+    signal = SignalType.from_maneuver(maneuver).name.lower()
+    geometry.append(
+        f'laneCorrectSignal({lane.uid}, {signal})')
+
+for maneuver in intersection.maneuvers:
+    for conflict in maneuver.conflictingManeuvers:
+        geometry.append(
+            f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
+
+roads = intersection.roads
+incomings = intersection.incomingLanes
+road2incomings = {road.uid: [] for road in roads}
+for incoming in incomings:
+    road2incomings[incoming.road.uid].append(incoming.uid)
+# An intersection stores the intersecting roads in CW or CCW order.
+# Assuming the order is CCW, then:
+for i in range(len(roads)):
+    j = (i+1) % len(roads)
+    lefts = road2incomings[roads[i].uid]
+    rights = road2incomings[roads[j].uid]
+    geometry += [
+        f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
+
+for atom in geometry:
+    print(atom)
