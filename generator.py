@@ -1,22 +1,17 @@
 class Generator():
     """Extend a scenario to a strictly harder one."""
 
-    def __init__(self, map_path=None, intersection_id=None, rules_path=None, timestep=None, maxSteps=None):
-        self.geometry = self.load_geometry(map_path, intersection_id)
-        self.rules_path = rules_path
-        self.timestep = timestep
-        self.maxSteps = maxSteps
-        self.nonego = None
+    def __init__(self):
         self.maxSpeed = 7
-        self.events = {}
 
     def load_geometry(self, map_path, intersection_id):
         from signals import SignalType
         from scenic.domains.driving.roads import Network
         network = Network.fromFile(map_path)
         intersection = network.intersections[intersection_id]
+        maneuvers = intersection.maneuvers
         geometry = []
-        for maneuver in intersection.maneuvers:
+        for maneuver in maneuvers:
             lane = maneuver.connectingLane
             fork = maneuver.startLane
             exit = maneuver.endLane
@@ -26,10 +21,13 @@ class Generator():
             geometry.append(
                 f'laneCorrectSignal({lane.uid}, {signal})')
 
-        for maneuver in intersection.maneuvers:
-            for conflict in maneuver.conflictingManeuvers:
-                geometry.append(
-                    f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
+        for i in range(len(maneuvers)):
+            li = maneuvers[i].connectingLane
+            for j in range(i+1, len(maneuvers)):
+                lj = maneuvers[j].connectingLane
+                if li.intersects(lj):
+                    geometry.append(f'overlaps({li.uid}, {lj.uid})')
+                    geometry.append(f'overlaps({lj.uid}, {li.uid})')
 
         roads = intersection.roads
         incomings = intersection.incomingLanes
@@ -218,7 +216,7 @@ class Generator():
         atoms += [f':- violatesRightOf(ego, _)']
 
         # Enforce nonego's legal behavior
-        # atoms += [f':- V != illegal, violatesRightOf({self.nonego}, V)']
+        atoms += [f':- V != illegal, violatesRightOf({self.nonego}, V)']
 
         # Evidence that new scenario is strictly harder
         atoms += [f':- not violatesRightOf(illegal, {self.nonego})']
@@ -339,7 +337,7 @@ class Generator():
 
         return traj_prev
 
-    def extend(self, scenario, maneuver_id=None):
+    def extend(self, scenario, nonego_maneuver_id=None):
         import intersection_monitor
         monitor = intersection_monitor.Monitor()
 
@@ -369,8 +367,8 @@ class Generator():
 
         print('Sample a nonego trajectory...')
         nonego = f'car{len(scenario.blueprints)}'
-        if maneuver_id:
-            params['maneuver_id'][nonego] = maneuver_id
+        if nonego_maneuver_id:
+            params['maneuver_id'][nonego] = nonego_maneuver_id
         params['carName'] = nonego
         params['blueprints'] = scene.params['blueprints']
         params['vehicleLightStates'] = scene.params['vehicleLightStates']
@@ -393,6 +391,7 @@ class Generator():
         self.timestep = scenario.timestep
         self.maxSteps = scenario.maxSteps
         self.nonego = nonego
+        self.rules_path = scenario.rules_path
         trajectory = self.solution(
             scenario.trajectory, sim_result_ego, sim_result_nonego)
 
@@ -404,6 +403,7 @@ class Generator():
         scenario_ext.map_path = scenario.map_path
         scenario_ext.map_name = scenario.map_name
         scenario_ext.intersection_id = scenario.intersection_id
+        scenario_ext.rules_path = scenario.rules_path
         scenario_ext.blueprints = scene.params['blueprints']
         scenario_ext.maneuver_id = scene.params['maneuver_id']
         scenario_ext.vehicleLightStates = scene.params['vehicleLightStates']

@@ -25,10 +25,13 @@ for maneuver in intersection.maneuvers:
     geometry.append(
         f'laneCorrectSignal({lane.uid}, {signal})')
 
-for maneuver in intersection.maneuvers:
-    for conflict in maneuver.conflictingManeuvers:
-        geometry.append(
-            f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
+for i in range(len(maneuvers)):
+    li = maneuvers[i].connectingLane
+    for j in range(i+1, len(maneuvers)):
+        lj = maneuvers[j].connectingLane
+        if li.intersects(lj):
+            geometry.append(f'overlaps({li.uid}, {lj.uid})')
+            geometry.append(f'overlaps({lj.uid}, {li.uid})')
 
 roads = intersection.roads
 incomings = intersection.incomingLanes

@@ -32,13 +32,9 @@ def main(argv):
     with open(inputfile, 'rb') as inFile:
         scenario = pickle.load(inFile)
 
-    generator = Generator(map_path=scenario.map_path,
-                          intersection_id=scenario.intersection_id,
-                          rules_path=scenario.rules_path,
-                          timestep=scenario.timestep,
-                          maxSteps=scenario.maxSteps)
+    generator = Generator()
 
-    scenario = generator.extend(scenario, maneuver_id=maneuver_id)
+    scenario = generator.extend(scenario, nonego_maneuver_id=maneuver_id)
 
     with open(outputfile, 'wb') as outFile:
         pickle.dump(scenario, outFile)

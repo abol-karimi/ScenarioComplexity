@@ -41,12 +41,9 @@ def main(argv):
         scenario.maneuver_id['ego'] = ego_maneuver_id
 
     from generator import Generator
-    generator = Generator(map_path=scenario.map_path,
-                          intersection_id=scenario.intersection_id,
-                          rules_path=scenario.rules_path,
-                          timestep=scenario.timestep,
-                          maxSteps=scenario.maxSteps)
-    scenario = generator.extend(scenario, maneuver_id=nonego_maneuver_id)
+    generator = Generator()
+    scenario = generator.extend(
+        scenario, nonego_maneuver_id=nonego_maneuver_id)
 
     import pickle
     with open(outputfile, 'wb') as outFile:
