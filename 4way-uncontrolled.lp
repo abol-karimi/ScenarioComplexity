@@ -27,7 +27,7 @@ arrivedByTime(Vehicle, T):-
   T1 <= T.
 
 enteredAtTime(V, T):
-  enteredForkAtTime(V, F, T).
+  enteredForkAtTime(V, _, T).
 
 exitedByTime(V, T):-
   exitedFromAtTime(V, _, T1),
@@ -112,17 +112,6 @@ requestedLane(Vehicle, Lane):-
   branchOf(Lane, Fork),
   laneCorrectSignal(Lane, Signal).
 
-% vehicle on the planned lane
-reservedLaneAtTime(Vehicle, Lane, T):-
-  isOnLaneAtTime(Vehicle, Lane, T),
-  requestedLane(Vehicle, Lane).
-
-reservedLaneAtTime(Vehicle, Lane1, T):-
-  isOnLaneAtTime(Vehicle, Lane2, T),
-  requestedLane(Vehicle, Lane2),
-  overlaps(Lane2, Lane1),
-  not leftLaneByTime(Vehicle, Lane1, T).
-
 %---------------- Rules ---------------
 % http://leginfo.legislature.ca.gov/faces/codes_displayText.xhtml?lawCode=VEH&division=11.&title=&part=&chapter=4.&article=
 %--------------------------------------
@@ -131,30 +120,21 @@ reservedLaneAtTime(Vehicle, Lane1, T):-
 %  to any vehicle which has entered the intersection from a different highway.
 mustYieldToForRuleAtTime(V1, V2, yieldToInside, T):-
   V1 != V2,
-  atTheIntersectionAtTime(V1, T),
-  enteredByTime(V2, T),
+  arrivedAtForkAtTime(V1, F1, T1),
+  enteredForkAtTime(V2, F2, T2),
   arrivedFromDifferentHighways(V1, V2),
-  requestedLane(V1, Lane),
-  reservedLaneAtTime(V2, Lane, T).
+  T1 > T2,
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  time(T),
+  not leftLaneByTime(V2, L1, T).
 
 violatesRightOfForRule(V1, V2, yieldToInside):-
   mustYieldToForRuleAtTime(V1, V2, yieldToInside, T),
-  requestedLane(V1, Lane),
-  reservedLaneAtTime(V2, Lane, T),
-  enteredLaneByTime(V1, Lane, T).
+  requestedLane(V2, L2),
+  enteredLaneByTime(V1, L2, T).
 
-% Page 35 of the handbook:
-% At intersections without “STOP” or “YIELD” signs,
-%  yield to the vehicle or bicycle that arrived first.
-mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T):-
-  V1 != V2,
-  atTheIntersectionAtTime(V1, T),
-  atTheIntersectionAtTime(V2, T),
-  arrivedEarlierThan(V2, V1).
-
-violatesRightOfForRule(V1, V2, firstAtFirstIn):-
-  mustYieldToForRuleAtTime(V1, V2, firstAtFirstIn, T),
-  enteredSameOrEarlierThan(V1, V2).
 
 % 21800 (b)(1)
 % When two vehicles enter an intersection from different highways at the same time,
@@ -162,14 +142,20 @@ violatesRightOfForRule(V1, V2, firstAtFirstIn):-
 %  to the vehicle on his or her immediate right.
 mustYieldToForRuleAtTime(V1, V2, yieldToRight, T):-
   V1 != V2,
-  atTheIntersectionAtTime(V1, T),
-  atTheIntersectionAtTime(V2, T),
-  arrivedSameTime(V1, V2),
-  isOnRightOfAtTime(V2, V1, T).
+  arrivedAtForkAtTime(V1, F1, T1),
+  arrivedAtForkAtTime(V2, F2, T1),
+  isOnRightOf(F2, F1),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  time(T),
+  T >= T1,
+  not leftLaneByTime(V2, L1, T).
 
 violatesRightOfForRule(V1, V2, yieldToRight):-
   mustYieldToForRuleAtTime(V1, V2, yieldToRight, T),
-  enteredSameOrEarlierThan(V2, V1).
+  requestedLane(V2, L2),
+  enteredLaneByTime(V1, L2, T).
 
 % 21801 (a)
 % The driver of a vehicle intending to turn to the left or to complete a U-turn upon a highway,
