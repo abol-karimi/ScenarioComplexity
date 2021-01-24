@@ -9,9 +9,11 @@ def main(argv):
     rules_path = None
     ego_maneuver_id = None
     nonego_maneuver_id = None
+    nonego_spawn_distance = None
     try:
         opts, _ = getopt.getopt(
-            argv, "ho:i:r:e:n:", ["ofile=", "intersection_id=", "rules_path=", "ego_maneuver_id=", "nonego_maneuver_id="])
+            argv, "ho:i:r:e:n:s:",
+            ["ofile=", "intersection_id=", "rules_path=", "ego_maneuver_id=", "nonego_maneuver_id=", "nonego_spawn_distance="])
     except getopt.GetoptError:
         print('new.py -o <outputfile>')
         sys.exit(2)
@@ -29,9 +31,10 @@ def main(argv):
             ego_maneuver_id = int(arg)
         elif opt in ("-n", "--nonego_maneuver_id"):
             nonego_maneuver_id = int(arg)
+        elif opt in ("-s", "--nonego_spawn_distance"):
+            nonego_spawn_distance = float(arg)
 
     from scenario import Scenario
-
     scenario = Scenario()
     if intersection_id:
         scenario.intersection_id = intersection_id
@@ -43,7 +46,7 @@ def main(argv):
     from generator import Generator
     generator = Generator()
     scenario = generator.extend(
-        scenario, nonego_maneuver_id=nonego_maneuver_id)
+        scenario, nonego_maneuver_id=nonego_maneuver_id, nonego_spawn_distance=nonego_spawn_distance)
 
     import pickle
     with open(outputfile, 'wb') as outFile:

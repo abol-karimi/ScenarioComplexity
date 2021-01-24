@@ -8,9 +8,11 @@ def main(argv):
     inputfile = ''
     outputfile = ''
     maneuver_id = None
+    nonego_spawn_distance = None
     try:
         opts, _ = getopt.getopt(
-            argv, "hi:o:m:", ["ifile=", "ofile=", "maneuver_id="])
+            argv, "hi:o:m:s:",
+            ["ifile=", "ofile=", "maneuver_id=", "nonego_spawn_distance="])
     except getopt.GetoptError:
         print('extend.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
@@ -24,6 +26,8 @@ def main(argv):
             outputfile = arg
         elif opt in ("-m", "--maneuver_id"):
             maneuver_id = int(arg)
+        elif opt in ("-s", "--nonego_spawn_distance"):
+            nonego_spawn_distance = float(arg)
 
     import pickle
     import scenic
@@ -34,7 +38,8 @@ def main(argv):
 
     generator = Generator()
 
-    scenario = generator.extend(scenario, nonego_maneuver_id=maneuver_id)
+    scenario = generator.extend(
+        scenario, nonego_maneuver_id=maneuver_id, nonego_spawn_distance=nonego_spawn_distance)
 
     with open(outputfile, 'wb') as outFile:
         pickle.dump(scenario, outFile)

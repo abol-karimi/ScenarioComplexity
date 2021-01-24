@@ -26,6 +26,9 @@ event_monitor = globalParameters.event_monitor
 param carName = None
 carName = globalParameters.carName
 
+param spawn_distance = 10.0 # meters
+spawn_distance = globalParameters.spawn_distance
+
 import visualization
 import carla
 from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
@@ -33,7 +36,6 @@ from signals import vehicleLightState_from_maneuverType, signalType_from_vehicle
 #CONSTANTS
 SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
-SPAWN_DISTANCE = 20 + Uniform(10) # meters
 
 behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
@@ -60,7 +62,7 @@ else:
 	maneuver_id[carName] = nonego_maneuver_id
 nonego_maneuver = maneuvers[nonego_maneuver_id]
 nonego_trajectory = [nonego_maneuver.startLane, nonego_maneuver.connectingLane, nonego_maneuver.endLane]
-nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
+nonego = Car following roadDirection from nonego_maneuver.startLane.centerline[-1] for -spawn_distance,
 	with name carName,
 	with behavior PassBehavior(SPEED, nonego_trajectory)
 
