@@ -21,56 +21,13 @@ arrivedAtFork(Vehicle, Fork):-
 arrivedAtTime(V, T):-
   arrivedAtForkAtTime(V, _, T).
 
-arrivedByTime(Vehicle, T):-
-  arrivedAtForkAtTime(Vehicle, _, T1),
-  time(T),
-  T1 <= T.
-
 enteredAtTime(V, T):
   enteredForkAtTime(V, _, T).
-
-exitedByTime(V, T):-
-  exitedFromAtTime(V, _, T1),
-  time(T),
-  T1 <= T.
-
-inTheIntersectionAtTime(V, T):-
-  enteredByTime(V, T),
-  not exitedByTime(V, T).
 
 enteredByTime(V, T):-
   enteredForkAtTime(V, _, T1),
   time(T),
   T1 <= T.
-
-atTheIntersectionAtTime(V, T):-
-  arrivedByTime(V, T),
-  not enteredByTime(V, T).
-
-isAtForkAtTime(Vehicle, Fork, T):-
-  arrivedAtFork(Vehicle, Fork),
-  atTheIntersectionAtTime(Vehicle, T).
-
-arrivedEarlierThan(Vehicle1, Vehicle2):-
-  arrivedAtForkAtTime(Vehicle1, _, T1),
-  arrivedAtForkAtTime(Vehicle2, _, T2),
-  T1 < T2.
-
-arrivedSameTime(Vehicle1, Vehicle2):-
-  Vehicle1 != Vehicle2,
-  arrivedAtTime(Vehicle1, T),
-  arrivedAtTime(Vehicle2, T).
-
-enteredSameOrEarlierThan(V1, V2):-
-  V1 != V2,
-  enteredForkAtTime(V1, _, T1),
-  enteredForkAtTime(V2, _, T2),
-  T1 <= T2.
-
-isOnRightOfAtTime(Vehicle1, Vehicle2, T):-
-  isAtForkAtTime(Vehicle1, Fork1, T),
-  isAtForkAtTime(Vehicle2, Fork2, T),
-  isOnRightOf(Fork1, Fork2).
 
 leftLaneByTime(V, L, T):-
   leftLaneAtTime(V, L, T1),
@@ -81,11 +38,6 @@ enteredLaneByTime(V, L, T):-
   enteredLaneAtTime(V, L, T1),
   time(T),
   T1 <= T.
-
-% Does not handle re-entries.
-isOnLaneAtTime(Vehicle, Lane, T):-
-  enteredLaneByTime(Vehicle, Lane, T),
-  not leftLaneByTime(Vehicle, Lane, T).
 
 signaledAtFork(V, S, F):-
   signaledAtForkAtTime(V, S, F, _).
@@ -197,7 +149,7 @@ mustYieldToForRuleAtTime(V1, V2, antiGridlock, T):-
   T1 > T2,
   time(T),
   T >= T1,
-  not exitedByTime(V2, T).
+  not leftLaneByTime(V2, L2, T).
 
 violatesRightOfForRule(V1, V2, antiGridlock):-
   mustYieldToForRuleAtTime(V1, V2, antiGridlock, T),
