@@ -8,8 +8,8 @@ def main(argv):
     intersection_id = None
     rules_path = None
     ego_maneuver_id = None
-    nonego_maneuver_id = None
-    nonego_spawn_distance = None
+    nonego_maneuver_id = 0
+    nonego_spawn_distance = 10
     try:
         opts, _ = getopt.getopt(
             argv, "ho:i:r:e:n:s:",

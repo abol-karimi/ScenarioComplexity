@@ -8,16 +8,20 @@ model scenic.simulators.carla.model
 param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
+param car_name = None
+car_name = globalParameters.car_name
+
 param maneuver_id = None
 maneuver_id = globalParameters.maneuver_id
 
-param sim_result = None
-
-param blueprints = {'ego': 'vehicle.tesla.model3'}
-blueprints = globalParameters.blueprints
+param car_blueprint = None
+car_blueprint = globalParameters.car_blueprint
 
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
+
+param spawn_distance = None
+spawn_distance = globalParameters.spawn_distance
 
 import visualization
 import carla
@@ -26,7 +30,6 @@ from signals import vehicleLightState_from_maneuverType, signalType_from_vehicle
 #CONSTANTS
 SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
-SPAWN_DISTANCE = 20 # meters
 
 behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
@@ -40,15 +43,15 @@ behavior PassBehavior(speed, trajectory):
 	take SetBrakeAction(1)
 
 #Ego vehicle
-ego_maneuver = intersection.maneuvers[maneuver_id['ego']]
-ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
-ego = Car following roadDirection from ego_maneuver.startLane.centerline[-1] for -SPAWN_DISTANCE,
-	with name 'ego',
-	with blueprint blueprints['ego'],
-	with behavior PassBehavior(SPEED, ego_trajectory)
+car_maneuver = intersection.maneuvers[maneuver_id]
+car_trajectory = [car_maneuver.startLane, car_maneuver.connectingLane, car_maneuver.endLane]
+ego = Car following roadDirection from car_maneuver.startLane.centerline[-1] for -spawn_distance,
+	with name car_name,
+	with blueprint car_blueprint,
+	with behavior PassBehavior(SPEED, car_trajectory)
 
-monitor egoEvents:
-	signal = SignalType.from_maneuver(ego_maneuver)
+monitor trafficRules_events:
+	signal = SignalType.from_maneuver(car_maneuver)
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
 	maneuvers = intersection.maneuvers
@@ -63,13 +66,13 @@ monitor egoEvents:
 		
 		if (not arrived) and (distance from (front of ego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
-			event_monitor.on_arrival(currentTime, 'ego', ego.lane.uid, signal)
+			event_monitor.on_arrival(currentTime, ego.name, ego.lane.uid, signal)
 		if inIntersection and not entered:
 			entered = True
-			event_monitor.on_entrance(currentTime, 'ego', ego.lane.uid)
+			event_monitor.on_entrance(currentTime, ego.name, ego.lane.uid)
 		if entered and (not exited) and not inIntersection:
 			exited = True
-			event_monitor.on_exit(currentTime, 'ego', ego.lane.uid)
+			event_monitor.on_exit(currentTime, ego.name, ego.lane.uid)
 
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane
@@ -77,9 +80,9 @@ monitor egoEvents:
 			isOnLane = lane.intersects(ego)
 			if isOnLane and not wasOnLane:
 				lanes.add(lane)
-				event_monitor.on_enterLane(currentTime, 'ego', lane.uid)
+				event_monitor.on_enterLane(currentTime, ego.name, lane.uid)
 			elif wasOnLane and not isOnLane:
 				lanes.remove(lane)
-				event_monitor.on_exitLane(currentTime, 'ego', lane.uid)
+				event_monitor.on_exitLane(currentTime, ego.name, lane.uid)
 		wait
 

@@ -345,7 +345,7 @@ def solution(scenario, events_all, nonego, sim_ego, sim_nonego, maxSpeed):
     return traj_prev
 
 
-def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpeed=7):
+def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blueprint='vehicle.tesla.model3', maxSpeed=7):
     import intersection_monitor
     monitor = intersection_monitor.Monitor()
 
@@ -355,7 +355,6 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
     params = {'map': scenario.map_path,
               'carla_map': scenario.map_name,
               'intersection_id': scenario.intersection_id,
-              'maneuver_id': scenario.maneuver_id,
               'timestep': scenario.timestep,
               'weather': scenario.weather,
               'render': render,
@@ -363,8 +362,12 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
 
     monitor.events['ego'] = []
     print('Sample an ego trajectory...')
-    params['blueprints'] = scenario.blueprints
-    scenic_scenario = scenic.scenarioFromFile('ego.scenic', params=params)
+    params['car_name'] = 'ego'
+    params['maneuver_id'] = scenario.maneuver_id['ego']
+    params['spawn_distance'] = 20
+    params['car_blueprint'] = scenario.blueprints['ego']
+    scenic_scenario = scenic.scenarioFromFile(
+        'trajectory.scenic', params=params)
     scene, _ = scenic_scenario.generate()
     simulator = scenic_scenario.getSimulator()
     settings = simulator.world.get_settings()
@@ -374,14 +377,12 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
 
     print('Sample a nonego trajectory...')
     nonego = f'car{len(scenario.blueprints)}'
-    if nonego_maneuver_id:
-        params['maneuver_id'][nonego] = nonego_maneuver_id
-    if nonego_spawn_distance:
-        params['spawn_distance'] = nonego_spawn_distance
-    params['carName'] = nonego
-    params['blueprints'] = scene.params['blueprints']
+    params['car_name'] = nonego
+    params['maneuver_id'] = nonego_maneuver_id
+    params['spawn_distance'] = nonego_spawn_distance
+    params['car_blueprint'] = nonego_blueprint
     scenic_scenario = scenic.scenarioFromFile(
-        'nonego.scenic', params=params)
+        'trajectory.scenic', params=params)
     scene, _ = scenic_scenario.generate()
     simulator = scenic_scenario.getSimulator()
     settings = simulator.world.get_settings()
@@ -405,8 +406,10 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
     scenario_ext.map_name = scenario.map_name
     scenario_ext.intersection_id = scenario.intersection_id
     scenario_ext.rules_path = scenario.rules_path
-    scenario_ext.blueprints = scene.params['blueprints']
-    scenario_ext.maneuver_id = scene.params['maneuver_id']
+    scenario_ext.blueprints = {nonego: nonego_blueprint}
+    scenario_ext.blueprints.update(scenario.blueprints)
+    scenario_ext.maneuver_id = {nonego: nonego_maneuver_id}
+    scenario_ext.maneuver_id.update(scenario.maneuver_id)
     scenario_ext.trajectory = trajectory
     scenario_ext.events = events
 

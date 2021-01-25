@@ -7,8 +7,8 @@ import getopt
 def main(argv):
     inputfile = ''
     outputfile = ''
-    maneuver_id = None
-    nonego_spawn_distance = None
+    maneuver_id = 0
+    nonego_spawn_distance = 10
     try:
         opts, _ = getopt.getopt(
             argv, "hi:o:m:s:",
