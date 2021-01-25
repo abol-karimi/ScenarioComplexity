@@ -36,10 +36,9 @@ def main(argv):
               'weather': scenario.weather,
               'render': False}
 
-    print('Play the loaded scenario...')
+    print('Replay the loaded scenario...')
     params['trajectory'] = scenario.trajectory
     params['blueprints'] = scenario.blueprints
-    params['vehicleLightStates'] = scenario.vehicleLightStates
     scenic_scenario = scenic.scenarioFromFile(
         'replay.scenic', params=params)
     scene, _ = scenic_scenario.generate()

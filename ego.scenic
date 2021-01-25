@@ -16,9 +16,6 @@ param sim_result = None
 param blueprints = {'ego': 'vehicle.tesla.model3'}
 blueprints = globalParameters.blueprints
 
-param vehicleLightStates = None
-vehicleLightStates = globalParameters.vehicleLightStates
-
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
@@ -35,7 +32,6 @@ behavior SignalBehavior(trajectory):
 	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
-	vehicleLightStates[self.name] = lights
 
 behavior PassBehavior(speed, trajectory):
 	do SignalBehavior(trajectory)

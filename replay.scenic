@@ -8,20 +8,27 @@ model scenic.simulators.carla.model
 param intersection_id = None
 intersection = network.intersections[globalParameters.intersection_id]
 
+param maneuver_id = None
+maneuver_id = globalParameters.maneuver_id
+
 param trajectory = None
 trajectory = globalParameters.trajectory
 blueprints = globalParameters.blueprints
 
-param vehicleLightStates = None
-vehicleLightStates = globalParameters.vehicleLightStates
-
 import visualization
+from signals import vehicleLightState_from_maneuverType
+
+behavior SignalBehavior():
+	maneuvers = intersection.maneuvers
+	maneuver = maneuvers[maneuver_id[self.name]]
+	trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
+	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
+	lights = vehicleLightState_from_maneuverType(maneuverType)
+	take SetVehicleLightStateAction(lights)
 
 behavior ReplayBehavior():
-	lights = vehicleLightStates[self.name]
-	take SetVehicleLightStateAction(lights)
+	do SignalBehavior()
 	carla_world = simulation().world
-
 	while True:
 		currentTime = simulation().currentTime
 		state = trajectory[currentTime][self.name]

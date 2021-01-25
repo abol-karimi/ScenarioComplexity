@@ -364,7 +364,6 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
     monitor.events['ego'] = []
     print('Sample an ego trajectory...')
     params['blueprints'] = scenario.blueprints
-    params['vehicleLightStates'] = scenario.vehicleLightStates
     scenic_scenario = scenic.scenarioFromFile('ego.scenic', params=params)
     scene, _ = scenic_scenario.generate()
     simulator = scenic_scenario.getSimulator()
@@ -381,7 +380,6 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
         params['spawn_distance'] = nonego_spawn_distance
     params['carName'] = nonego
     params['blueprints'] = scene.params['blueprints']
-    params['vehicleLightStates'] = scene.params['vehicleLightStates']
     scenic_scenario = scenic.scenarioFromFile(
         'nonego.scenic', params=params)
     scene, _ = scenic_scenario.generate()
@@ -409,7 +407,6 @@ def extend(scenario, nonego_maneuver_id=None, nonego_spawn_distance=None, maxSpe
     scenario_ext.rules_path = scenario.rules_path
     scenario_ext.blueprints = scene.params['blueprints']
     scenario_ext.maneuver_id = scene.params['maneuver_id']
-    scenario_ext.vehicleLightStates = scene.params['vehicleLightStates']
     scenario_ext.trajectory = trajectory
     scenario_ext.events = events
 
