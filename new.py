@@ -43,8 +43,7 @@ def main(argv):
     if ego_maneuver_id:
         scenario.maneuver_id['ego'] = ego_maneuver_id
 
-    from generator import Generator
-    generator = Generator()
+    import generator
     scenario = generator.extend(
         scenario, nonego_maneuver_id=nonego_maneuver_id, nonego_spawn_distance=nonego_spawn_distance)
 

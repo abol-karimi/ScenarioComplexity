@@ -30,13 +30,10 @@ def main(argv):
             nonego_spawn_distance = float(arg)
 
     import pickle
-    import scenic
-    from generator import Generator
+    import generator
 
     with open(inputfile, 'rb') as inFile:
         scenario = pickle.load(inFile)
-
-    generator = Generator()
 
     scenario = generator.extend(
         scenario, nonego_maneuver_id=maneuver_id, nonego_spawn_distance=nonego_spawn_distance)
