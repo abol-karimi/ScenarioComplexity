@@ -1,5 +1,6 @@
 """ Scenario Description
-Ego-vehicle arrives at an intersection.
+Ego-vehicle driven by Carla's autopilot.
+All nonegos' behaviors are predetermined.
 """
 param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
@@ -15,19 +16,24 @@ param trajectory = None
 trajectory = globalParameters.trajectory
 blueprints = globalParameters.blueprints
 
-param vehicleLightStates = None
-vehicleLightStates = globalParameters.vehicleLightStates
-
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
 import visualization
+from signals import vehicleLightState_from_maneuverType
 
 ARRIVAL_DISTANCE = 4 # meters
 
-behavior ReplayBehavior():
-	lights = vehicleLightStates[self.name]
+behavior SignalBehavior():
+	maneuvers = intersection.maneuvers
+	maneuver = maneuvers[maneuver_id[self.name]]
+	trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
+	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
+	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
+
+behavior ReplayBehavior():
+	do SignalBehavior()
 	carla_world = simulation().world
 
 	while True:

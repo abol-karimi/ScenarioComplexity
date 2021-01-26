@@ -35,10 +35,9 @@ def main(argv):
               'render': True,
               'event_monitor': monitor}
 
-    print('Play the loaded scenario...')
+    print('Play an autopilot ego in the scenario...')
     params['trajectory'] = scenario.trajectory
     params['blueprints'] = scenario.blueprints
-    params['vehicleLightStates'] = scenario.vehicleLightStates
     scenic_scenario = scenic.scenarioFromFile(
         'autopilot.scenic', params=params)
     scene, _ = scenic_scenario.generate()

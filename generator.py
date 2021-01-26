@@ -360,7 +360,6 @@ def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blue
               'render': render,
               'event_monitor': monitor}
 
-    monitor.events['ego'] = []
     print('Sample an ego trajectory...')
     params['car_name'] = 'ego'
     params['maneuver_id'] = scenario.maneuver_id['ego']
