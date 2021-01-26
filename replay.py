@@ -1,63 +1,34 @@
 #!/home/ak/Scenic/.venv/bin/python
-import sys
-import getopt
+import argparse
+from generator import frame_to_ruletime
+import pickle
+import scenic
 
+parser = argparse.ArgumentParser(description='play the given scenario.')
+parser.add_argument('inputfile', help='filename of the given scenario')
+args = parser.parse_args()
 
-def main(argv):
-    inputfile = ''
-    try:
-        opts, _ = getopt.getopt(argv, "hi:", ["ifile="])
-    except getopt.GetoptError:
-        print('extend.py -i <inputfile>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('extend.py -i <inputfile>')
-            sys.exit()
-        elif opt in ("-i", "--ifile"):
-            inputfile = arg
+with open(args.inputfile, 'rb') as inFile:
+    scenario = pickle.load(inFile)
 
-    import pickle
-    import scenic
+for car in scenario.events:
+    for event in scenario.events[car]:
+        ruletime = frame_to_ruletime(event.frame, scenario.timestep)
+        print(event.withTime(ruletime))
 
-    with open(inputfile, 'rb') as inFile:
-        scenario = pickle.load(inFile)
+params = {'map': scenario.map_path,
+          'carla_map': scenario.map_name,
+          'intersection_id': scenario.intersection_id,
+          'maneuver_id': scenario.maneuver_id,
+          'timestep': scenario.timestep,
+          'weather': scenario.weather,
+          'render': False}
 
-    for car in scenario.events:
-        for event in scenario.events[car]:
-            ruletime = frame_to_ruletime(event.frame, scenario.timestep)
-            print(event.withTime(ruletime))
-
-    params = {'map': scenario.map_path,
-              'carla_map': scenario.map_name,
-              'intersection_id': scenario.intersection_id,
-              'maneuver_id': scenario.maneuver_id,
-              'timestep': scenario.timestep,
-              'weather': scenario.weather,
-              'render': False}
-
-    print('Replay the loaded scenario...')
-    params['trajectory'] = scenario.trajectory
-    params['blueprints'] = scenario.blueprints
-    scenic_scenario = scenic.scenarioFromFile(
-        'replay.scenic', params=params)
-    scene, _ = scenic_scenario.generate()
-    simulator = scenic_scenario.getSimulator()
-    simulator.simulate(scene, maxSteps=scenario.maxSteps)
-
-
-def realtime_to_ruletime(t):
-    return int(t*2)
-
-
-def frame_to_realtime(frame, timestep):
-    return frame*timestep
-
-
-def frame_to_ruletime(frame, timestep):
-    realtime = frame_to_realtime(frame, timestep)
-    return realtime_to_ruletime(realtime)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+print('Replay the loaded scenario...')
+params['trajectory'] = scenario.trajectory
+params['blueprints'] = scenario.blueprints
+scenic_scenario = scenic.scenarioFromFile(
+    'replay.scenic', params=params)
+scene, _ = scenic_scenario.generate()
+simulator = scenic_scenario.getSimulator()
+simulator.simulate(scene, maxSteps=scenario.maxSteps)
