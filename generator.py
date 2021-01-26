@@ -55,6 +55,7 @@ def load_geometry(map_path, intersection_id):
 
     for i in range(len(maneuvers)):
         li = maneuvers[i].connectingLane
+        geometry.append(f'overlaps({li.uid}, {li.uid})')
         for j in range(i+1, len(maneuvers)):
             lj = maneuvers[j].connectingLane
             if li.intersects(lj):
@@ -134,17 +135,21 @@ def nocollision(car1, car2):
     # They don't enter the overlap at the same time
     atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
               f'overlaps(L1, L2),'
-              f'enteredLaneAtTime({car1}, L2, T), leftLaneAtTime({car2}, L1, T)']
+              f'enteredLaneAtTime({car1}, L2, T), enteredLaneAtTime({car2}, L1, T)']
     # If car2 enters the overlap first, it exits it before car1 enters it.
     atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
               f'overlaps(L1, L2),'
-              f'enteredLaneAtTime({car1}, L2, T),'
-              f'enteredLaneByTime({car2}, L1, T), not leftLaneByTime({car2}, L1, T)']
+              f'enteredLaneAtTime({car2}, L1, T1),'
+              f'enteredLaneAtTime({car1}, L2, T2),'
+              f'T1 < T2,'
+              f'not leftLaneByTime({car2}, L1, T2)']
     # If car1 enters the overlap first, it exits it before car2 enters it.
     atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
               f'overlaps(L1, L2),'
-              f'enteredLaneAtTime({car2}, L1, T),'
-              f'enteredLaneByTime({car1}, L2, T), not leftLaneByTime({car1}, L2, T)']
+              f'enteredLaneAtTime({car1}, L2, T1),'
+              f'enteredLaneAtTime({car2}, L1, T2),'
+              f'T1 < T2,'
+              f'not leftLaneByTime({car1}, L2, T2)']
 
     return atoms
 
