@@ -1,6 +1,7 @@
 #!/home/ak/Scenic/.venv/bin/python
 import sys
 import getopt
+from generator import load_geometry, frame_to_ruletime
 
 
 def main(argv):
@@ -47,8 +48,11 @@ def main(argv):
     atoms = []
     atoms += load_geometry(scenario.map_path, scenario.intersection_id)
 
-    atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
-              for event in monitor.events['ego']]
+    for event in monitor.events['ego']:
+        ruletime = frame_to_ruletime(event.frame, scenario.timestep)
+        atom = event.withTime(ruletime)
+        atoms.append(atom)
+
     for car in scenario.events.keys():
         if not car in {'ego', 'illegal'}:
             atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
@@ -66,59 +70,8 @@ def main(argv):
                  'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
     print("Logical solution: ")
     for atom in model:
-        args = atom.arguments
-        if (atom.name in sol_names) and str(args[0]) == 'ego':
+        if atom.name in sol_names:
             print(f'\t{atom}')
-
-
-def load_geometry(map_path, intersection_id):
-    from signals import SignalType
-    from scenic.domains.driving.roads import Network
-    network = Network.fromFile(map_path)
-    intersection = network.intersections[intersection_id]
-    geometry = []
-    for maneuver in intersection.maneuvers:
-        lane = maneuver.connectingLane
-        fork = maneuver.startLane
-        exit = maneuver.endLane
-        geometry.append(
-            f'laneFromTo({lane.uid}, {fork.uid}, {exit.uid})')
-        signal = SignalType.from_maneuver(maneuver).name.lower()
-        geometry.append(
-            f'laneCorrectSignal({lane.uid}, {signal})')
-
-    for maneuver in intersection.maneuvers:
-        for conflict in maneuver.conflictingManeuvers:
-            geometry.append(
-                f'overlaps({maneuver.connectingLane.uid}, {conflict.connectingLane.uid})')
-
-    roads = intersection.roads
-    incomings = intersection.incomingLanes
-    road2incomings = {road.uid: [] for road in roads}
-    for incoming in incomings:
-        road2incomings[incoming.road.uid].append(incoming.uid)
-    # An intersection stores the intersecting roads in CW or CCW order.
-    # Assuming the order is CCW, then:
-    for i in range(len(roads)):
-        j = (i+1) % len(roads)
-        lefts = road2incomings[roads[i].uid]
-        rights = road2incomings[roads[j].uid]
-        geometry += [
-            f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
-    return geometry
-
-
-def realtime_to_ruletime(t):
-    return int(t*2)
-
-
-def frame_to_realtime(frame, timestep):
-    return frame*timestep
-
-
-def frame_to_ruletime(frame, timestep):
-    realtime = frame_to_realtime(frame, timestep)
-    return realtime_to_ruletime(realtime)
 
 
 if __name__ == "__main__":

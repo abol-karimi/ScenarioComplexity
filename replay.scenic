@@ -49,5 +49,5 @@ ego = cars[0]
 
 monitor showIntersection:
 	carla_world = simulation().world
-	visualization.draw_intersection(carla_world, intersection)
+	visualization.draw_intersection(carla_world, intersection, draw_lanes=True)
 	wait

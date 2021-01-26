@@ -62,7 +62,7 @@ ego_maneuver = intersection.maneuvers[maneuver_id['ego']]
 monitor egoEvents:
 	signal = SignalType.from_maneuver(ego_maneuver)
 	carla_world = simulation().world
-	visualization.draw_intersection(carla_world, intersection)
+	visualization.draw_intersection(carla_world, intersection, draw_lanes=True)
 	maneuvers = intersection.maneuvers
 	arrived = False
 	entered = False

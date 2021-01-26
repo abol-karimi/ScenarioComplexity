@@ -18,7 +18,7 @@ def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1):
             begin, end, thickness=0.1, color=color, life_time=life_time)
 
 
-def draw_intersection(world, intersection):
+def draw_intersection(world, intersection, draw_lanes=False):
     polygon = intersection.polygon
 
     # Boundaries of the intersection
@@ -48,6 +48,11 @@ def draw_intersection(world, intersection):
     loc = carla.Location(centroid.x, -centroid.y, 35)
     rot = carla.Rotation(pitch=-90)
     world.get_spectator().set_transform(carla.Transform(loc, rot))
+
+    if draw_lanes:
+        for m in intersection.maneuvers:
+            l = m.connectingLane
+            draw_lane(world, l)
 
 
 def label_car(world, car):
