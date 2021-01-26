@@ -1,56 +1,36 @@
 #!/home/ak/Scenic/.venv/bin/python
-import sys
-import getopt
+import pickle
+import generator
+from scenario import Scenario
+import argparse
 
 
-def main(argv):
-    outputfile = ''
-    intersection_id = None
-    rules_path = None
-    ego_maneuver_id = None
-    nonego_maneuver_id = 0
-    nonego_spawn_distance = 10
-    try:
-        opts, _ = getopt.getopt(
-            argv, "ho:i:r:e:n:s:",
-            ["ofile=", "intersection_id=", "rules_path=", "ego_maneuver_id=", "nonego_maneuver_id=", "nonego_spawn_distance="])
-    except getopt.GetoptError:
-        print('new.py -o <outputfile>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('new.py -o <outputfile>')
-            sys.exit()
-        elif opt in ("-o", "--ofile"):
-            outputfile = arg
-        elif opt in ("-i", "--intersection_id="):
-            intersection_id = int(arg)
-        elif opt in ("-r", "--rules_path="):
-            rules_path = arg
-        elif opt in ("-e", "--ego_maneuver_id"):
-            ego_maneuver_id = int(arg)
-        elif opt in ("-n", "--nonego_maneuver_id"):
-            nonego_maneuver_id = int(arg)
-        elif opt in ("-s", "--nonego_spawn_distance"):
-            nonego_spawn_distance = float(arg)
+parser = argparse.ArgumentParser(description='generate a new scenario.')
+parser.add_argument('outputfile', help='filename of the new scenario')
+parser.add_argument('-i', '--intersection_id', type=int,
+                    help='the intersection at which the scenario happens')
+parser.add_argument('-r', '--rules_path',
+                    help='the file containing the traffic rules')
+parser.add_argument('-e', '--ego_maneuver_id', type=int,
+                    help='the maneuver of the ego through the intersection')
+parser.add_argument('-n', '--nonego_maneuver_id', type=int, default=0,
+                    help='the maneuver of the nonego through the intersection')
+parser.add_argument('-s', '--nonego_spawn_distance', type=float, default=10.0,
+                    help='initial distance of nonego to the intersection')
+args = parser.parse_args()
 
-    from scenario import Scenario
-    scenario = Scenario()
-    if intersection_id:
-        scenario.intersection_id = intersection_id
-    if rules_path:
-        scenario.rules_path = rules_path
-    if ego_maneuver_id:
-        scenario.maneuver_id['ego'] = ego_maneuver_id
+scenario = Scenario()
+if args.intersection_id:
+    scenario.intersection_id = args.intersection_id
+if args.rules_path:
+    scenario.rules_path = args.rules_path
+if args.ego_maneuver_id:
+    scenario.maneuver_id['ego'] = args.ego_maneuver_id
 
-    import generator
-    scenario = generator.extend(
-        scenario, nonego_maneuver_id=nonego_maneuver_id, nonego_spawn_distance=nonego_spawn_distance)
+scenario = generator.extend(
+    scenario,
+    nonego_maneuver_id=args.nonego_maneuver_id,
+    nonego_spawn_distance=args.nonego_spawn_distance)
 
-    import pickle
-    with open(outputfile, 'wb') as outFile:
-        pickle.dump(scenario, outFile)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+with open(args.outputfile, 'wb') as outFile:
+    pickle.dump(scenario, outFile)
