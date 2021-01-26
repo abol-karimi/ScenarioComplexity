@@ -11,6 +11,12 @@ onSameHighway(Fork1, Fork2):-
 onSameHighway(Fork1, Fork2):-
   onSameHighway(Fork2, Fork1).
 
+onDifferentHighways(F1, F2):-
+  isOnRightOf(F1, F2).
+
+onDifferentHighways(F1, F2):-
+  isOnRightOf(F2, F1).
+
 branchOf(Lane, Fork):-
   laneFromTo(Lane, Fork, _).
 
@@ -45,12 +51,6 @@ signaledAtFork(V, S, F):-
 signaledLeft(Vehicle):-
   signaledAtFork(Vehicle, left, _).
 
-arrivedFromDifferentHighways(Vehicle1, Vehicle2):-
-  Vehicle1 != Vehicle2,
-  arrivedAtFork(Vehicle1, F1),
-  arrivedAtFork(Vehicle2, F2),
-  not onSameHighway(F1, F2).
-
 arrivedFromSameHighway(Vehicle1, Vehicle2):-
   arrivedAtFork(Vehicle1, F1),
   arrivedAtFork(Vehicle2, F2),
@@ -72,9 +72,9 @@ requestedLane(Vehicle, Lane):-
 %  to any vehicle which has entered the intersection from a different highway.
 mustYieldToForRuleAtTime(V1, V2, yieldToInside, T):-
   V1 != V2,
-  arrivedAtForkAtTime(V1, F1, T1),
+  enteredForkAtTime(V1, F1, T1),
   enteredForkAtTime(V2, F2, T2),
-  arrivedFromDifferentHighways(V1, V2),
+  onDifferentHighways(F1, F2),
   T1 > T2,
   requestedLane(V1, L1),
   requestedLane(V2, L2),
@@ -94,8 +94,8 @@ violatesRightOfForRule(V1, V2, yieldToInside):-
 %  to the vehicle on his or her immediate right.
 mustYieldToForRuleAtTime(V1, V2, yieldToRight, T):-
   V1 != V2,
-  arrivedAtForkAtTime(V1, F1, T1),
-  arrivedAtForkAtTime(V2, F2, T1),
+  enteredForkAtTime(V1, F1, T1),
+  enteredForkAtTime(V2, F2, T1),
   isOnRightOf(F2, F1),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
