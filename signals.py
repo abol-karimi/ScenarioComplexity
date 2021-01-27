@@ -2,6 +2,7 @@ from carla import VehicleLightState
 from scenic.domains.driving.roads import ManeuverType
 import enum
 
+
 @enum.unique
 class SignalType(enum.Enum):
     """Turn signal at an intersection."""
@@ -20,6 +21,18 @@ class SignalType(enum.Enum):
         if maneuver.type is ManeuverType.U_TURN:
             return SignalType.LEFT
 
+    @classmethod
+    def from_maneuverType(cls, maneuverType):
+        if maneuverType is ManeuverType.STRAIGHT:
+            return SignalType.OFF
+        if maneuverType is ManeuverType.LEFT_TURN:
+            return SignalType.LEFT
+        if maneuverType is ManeuverType.RIGHT_TURN:
+            return SignalType.RIGHT
+        if maneuverType is ManeuverType.U_TURN:
+            return SignalType.LEFT
+
+
 def vehicleLightState_from_maneuverType(maneuverType):
     if maneuverType is ManeuverType.STRAIGHT:
         return VehicleLightState.NONE
@@ -29,6 +42,7 @@ def vehicleLightState_from_maneuverType(maneuverType):
         return VehicleLightState.RightBlinker
     if maneuverType is ManeuverType.U_TURN:
         return VehicleLightState.LeftBlinker
+
 
 def signalType_from_vehicleLightState(vehicleLightState):
     if vehicleLightState is VehicleLightState.NONE:

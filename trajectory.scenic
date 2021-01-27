@@ -5,14 +5,14 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection_id = None
-intersection = network.intersections[globalParameters.intersection_id]
+param intersection_uid = None
+intersection = network.elements[globalParameters.intersection_uid]
 
 param car_name = None
 car_name = globalParameters.car_name
 
-param maneuver_id = None
-maneuver_id = globalParameters.maneuver_id
+param maneuver_uid = None
+maneuver_uid = globalParameters.maneuver_uid
 
 param car_blueprint = None
 car_blueprint = globalParameters.car_blueprint
@@ -31,27 +31,28 @@ from signals import vehicleLightState_from_maneuverType, signalType_from_vehicle
 SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
 
-behavior SignalBehavior(trajectory):
-	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
+behavior PassBehavior(speed, trajectory, maneuverType):
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
-
-behavior PassBehavior(speed, trajectory):
-	do SignalBehavior(trajectory)
 	while (distance from self to trajectory[2].centerline[-1]) > 5:
 		do FollowTrajectoryBehavior(speed, trajectory)
 	take SetBrakeAction(1)
 
 #Ego vehicle
-car_maneuver = intersection.maneuvers[maneuver_id]
-car_trajectory = [car_maneuver.startLane, car_maneuver.connectingLane, car_maneuver.endLane]
-ego = Car following roadDirection from car_maneuver.startLane.centerline[-1] for -spawn_distance,
+l0_uid, l1_uid, l2_uid = maneuver_uid
+l0 = network.elements[l0_uid]
+l1 = network.elements[l1_uid]
+l2 = network.elements[l2_uid]
+maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
+ego = Car following roadDirection from l0.centerline[-1] for -spawn_distance,
 	with name car_name,
 	with blueprint car_blueprint,
-	with behavior PassBehavior(SPEED, car_trajectory)
+	with behavior PassBehavior(SPEED, [l0, l1, l2], maneuverType)
 
-monitor trafficRules_events:
-	signal = SignalType.from_maneuver(car_maneuver)
+
+signal = SignalType.from_maneuverType(maneuverType)
+
+monitor ego_events:
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
 	maneuvers = intersection.maneuvers

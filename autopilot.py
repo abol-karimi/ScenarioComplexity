@@ -19,8 +19,8 @@ monitor = intersection_monitor.Monitor()
 
 params = {'map': scenario.map_path,
           'carla_map': scenario.map_name,
-          'intersection_id': scenario.intersection_id,
-          'maneuver_id': scenario.maneuver_id,
+          'intersection_uid': scenario.intersection_uid,
+          'maneuver_uid': scenario.maneuver_uid,
           'timestep': scenario.timestep,
           'weather': scenario.weather,
           'render': True,
@@ -36,7 +36,7 @@ simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
 atoms = []
-atoms += load_geometry(scenario.map_path, scenario.intersection_id)
+atoms += load_geometry(scenario.map_path, scenario.intersection_uid)
 
 for event in monitor.events['ego']:
     ruletime = frame_to_ruletime(event.frame, scenario.timestep)

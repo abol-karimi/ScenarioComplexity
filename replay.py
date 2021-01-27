@@ -18,8 +18,8 @@ for car in scenario.events:
 
 params = {'map': scenario.map_path,
           'carla_map': scenario.map_name,
-          'intersection_id': scenario.intersection_id,
-          'maneuver_id': scenario.maneuver_id,
+          'intersection_uid': scenario.intersection_uid,
+          'maneuver_uid': scenario.maneuver_uid,
           'timestep': scenario.timestep,
           'weather': scenario.weather,
           'render': False}

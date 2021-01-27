@@ -6,11 +6,11 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection_id = None
-intersection = network.intersections[globalParameters.intersection_id]
+param intersection_uid = None
+intersection = network.elements[globalParameters.intersection_uid]
 
-param maneuver_id = None
-maneuver_id = globalParameters.maneuver_id
+param maneuver_uid = None
+maneuver_uid = globalParameters.maneuver_uid
 
 param trajectory = None
 trajectory = globalParameters.trajectory
@@ -25,10 +25,11 @@ from signals import vehicleLightState_from_maneuverType
 ARRIVAL_DISTANCE = 4 # meters
 
 behavior SignalBehavior():
-	maneuvers = intersection.maneuvers
-	maneuver = maneuvers[maneuver_id[self.name]]
-	trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
-	maneuverType = ManeuverType.guessTypeFromLanes(trajectory[0], trajectory[2], trajectory[1])
+	l0_uid, l1_uid, l2_uid = maneuver_uid[self.name]
+	l0 = network.elements[l0_uid]
+	l1 = network.elements[l1_uid]
+	l2 = network.elements[l2_uid]
+	maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
 
@@ -57,10 +58,14 @@ for carName, carState in trajectory[0].items():
 			with behavior AutopilotBehavior()
 
 from signals import SignalType
-ego_maneuver = intersection.maneuvers[maneuver_id['ego']]
+l0_uid, l1_uid, l2_uid = maneuver_uid['ego']
+l0 = network.elements[l0_uid]
+l1 = network.elements[l1_uid]
+l2 = network.elements[l2_uid]
+maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
+signal = SignalType.from_maneuverType(maneuverType)
 
 monitor egoEvents:
-	signal = SignalType.from_maneuver(ego_maneuver)
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection, draw_lanes=True)
 	maneuvers = intersection.maneuvers

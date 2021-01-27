@@ -36,11 +36,11 @@ def frame_to_distance(sim, car):
     return frame2distance
 
 
-def load_geometry(map_path, intersection_id):
+def load_geometry(map_path, intersection_uid):
     from signals import SignalType
     from scenic.domains.driving.roads import Network
     network = Network.fromFile(map_path)
-    intersection = network.intersections[intersection_id]
+    intersection = network.elements[intersection_uid]
     maneuvers = intersection.maneuvers
     geometry = []
     for maneuver in maneuvers:
@@ -183,7 +183,7 @@ def model_to_events(model, events_all, car):
 
 
 def logical_solution(scenario, events_all, nonego, frame2distance_ego, frame2distance_illegal, frame2distance_nonego, maxSpeed):
-    atoms = load_geometry(scenario.map_path, scenario.intersection_id)
+    atoms = load_geometry(scenario.map_path, scenario.intersection_uid)
 
     old_nonegos = {car for car in scenario.events.keys() if not car in {
         'ego', 'illegal'}}
@@ -350,7 +350,7 @@ def solution(scenario, events_all, nonego, sim_ego, sim_nonego, maxSpeed):
     return traj_prev
 
 
-def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blueprint='vehicle.tesla.model3', maxSpeed=7):
+def extend(scenario, nonego_maneuver_uid, nonego_spawn_distance=10, nonego_blueprint='vehicle.tesla.model3', maxSpeed=7):
     import intersection_monitor
     monitor = intersection_monitor.Monitor()
 
@@ -359,7 +359,7 @@ def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blue
 
     params = {'map': scenario.map_path,
               'carla_map': scenario.map_name,
-              'intersection_id': scenario.intersection_id,
+              'intersection_uid': scenario.intersection_uid,
               'timestep': scenario.timestep,
               'weather': scenario.weather,
               'render': render,
@@ -367,7 +367,7 @@ def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blue
 
     print('Sample an ego trajectory...')
     params['car_name'] = 'ego'
-    params['maneuver_id'] = scenario.maneuver_id['ego']
+    params['maneuver_uid'] = scenario.maneuver_uid['ego']
     params['spawn_distance'] = 20
     params['car_blueprint'] = scenario.blueprints['ego']
     scenic_scenario = scenic.scenarioFromFile(
@@ -382,7 +382,7 @@ def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blue
     print('Sample a nonego trajectory...')
     nonego = f'car{len(scenario.blueprints)}'
     params['car_name'] = nonego
-    params['maneuver_id'] = nonego_maneuver_id
+    params['maneuver_uid'] = nonego_maneuver_uid
     params['spawn_distance'] = nonego_spawn_distance
     params['car_blueprint'] = nonego_blueprint
     scenic_scenario = scenic.scenarioFromFile(
@@ -408,12 +408,12 @@ def extend(scenario, nonego_maneuver_id=0, nonego_spawn_distance=10, nonego_blue
     scenario_ext.weather = scenario.weather
     scenario_ext.map_path = scenario.map_path
     scenario_ext.map_name = scenario.map_name
-    scenario_ext.intersection_id = scenario.intersection_id
+    scenario_ext.intersection_uid = scenario.intersection_uid
     scenario_ext.rules_path = scenario.rules_path
     scenario_ext.blueprints = {nonego: nonego_blueprint}
     scenario_ext.blueprints.update(scenario.blueprints)
-    scenario_ext.maneuver_id = {nonego: nonego_maneuver_id}
-    scenario_ext.maneuver_id.update(scenario.maneuver_id)
+    scenario_ext.maneuver_uid = {nonego: nonego_maneuver_uid}
+    scenario_ext.maneuver_uid.update(scenario.maneuver_uid)
     scenario_ext.trajectory = trajectory
     scenario_ext.events = events
 
