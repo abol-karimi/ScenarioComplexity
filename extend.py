@@ -9,7 +9,7 @@ parser.add_argument('inputfile', help='filename of the given scenario')
 parser.add_argument('outputfile', help='filename of the new scenario')
 parser.add_argument('-m', '--from_to', nargs='+', type=str,
                     help='the maneuver of the nonego through the intersection')
-parser.add_argument('-s', '--nonego_spawn_distance', type=float, default=10.0,
+parser.add_argument('-d', '--nonego_spawn_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
 args = parser.parse_args()
 
