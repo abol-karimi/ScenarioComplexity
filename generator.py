@@ -36,10 +36,8 @@ def frame_to_distance(sim, car):
     return frame2distance
 
 
-def load_geometry(map_path, intersection_uid):
+def geometry_atoms(network, intersection_uid):
     from signals import SignalType
-    from scenic.domains.driving.roads import Network
-    network = Network.fromFile(map_path)
     intersection = network.elements[intersection_uid]
     maneuvers = intersection.maneuvers
     geometry = []
@@ -130,7 +128,7 @@ def traj_constraints(scenario, events, frame2distance, maxSpeed):
     return atoms
 
 
-def nocollision(car1, car2):
+def nocollision_other(car1, car2):
     atoms = []
     # They don't enter the overlap at the same time
     atoms += [f':- requestedLane({car1}, L1), requestedLane({car2}, L2),'
@@ -150,6 +148,100 @@ def nocollision(car1, car2):
               f'enteredLaneAtTime({car2}, L1, T2),'
               f'T1 < T2,'
               f'not leftLaneByTime({car1}, L2, T2)']
+
+    return atoms
+
+
+def nocollision_merge(car1, car2):
+    return nocollision_other(car1, car2)
+
+
+def nocollision_follow(follow, lead):
+    atoms = []
+    ternary_events = {'arrivedAtForkAtTime', 'enteredLaneAtTime', 'leftLaneAtTime',
+                      'enteredForkAtTime', 'exitedFromAtTime'}
+    for e in ternary_events:
+        atoms += [f':- {e}({follow}, NetworkElement, T1),'
+                  f'{e}({lead}, NetworkElement, T2),'
+                  f'T1 <= T2']
+    return atoms
+
+
+def nocollision_fork(follow, lead):
+    """Reduces the chance of collision but does not elliminate it."""
+    atoms = []
+    atoms += [f':- arrivedAtTime({follow}, T),'
+              f'not enteredByTime({lead}, T)']
+    atoms += [f':- enteredAtTime({follow}, T),'
+              f'requestedLane({follow}, L),'
+              f'not leftLaneByTime({lead}, L, T)']
+    return atoms
+
+
+def nocollision(network, scenario, nonego,
+                nonego_maneuver_uid,
+                nonego_spawn_distance,
+                sim_ego, sim_nonego):
+    atoms = []
+
+    # Spawn distance for each car
+    intersection = network.elements[scenario.intersection_uid]
+    trajectory = scenario.trajectory
+    spawn_distance = {}
+    if trajectory:
+        spawn_distance = {car: intersection.distanceTo(state[0])
+                          for car, state in trajectory[0].items()}
+    spawn_distance[nonego] = nonego_spawn_distance
+    ego_loc0 = sim_ego.trajectory[0]['ego'][0]
+    ego_spawn_distance = intersection.distanceTo(ego_loc0)
+    spawn_distance['ego'] = ego_spawn_distance
+
+    def follow_lead(car1, car2):
+        if spawn_distance[car1] < spawn_distance[car2]:
+            return car2, car1
+        else:
+            return car1, car2
+
+    # No collision between ego and nonego
+    nm = nonego_maneuver_uid
+    em = scenario.maneuver_uid['ego']
+    follow, lead = follow_lead('ego', nonego)
+    if em[0] == nm[0] and em[2] == nm[2]:
+        atoms += nocollision_follow(follow, lead)
+    elif em[0] == nm[0] and em[2] != nm[2]:
+        atoms += nocollision_fork(follow, lead)
+    elif em[0] != nm[0] and em[2] == nm[2]:
+        atoms += nocollision_merge('ego', nonego)
+    else:
+        atoms += nocollision_other('ego', nonego)
+
+    # No collision between ego and old nonegos:
+    old_nonegos = {car for car in scenario.events.keys()
+                   if not car in {'ego', 'illegal'}}
+    for old in old_nonegos:
+        om = scenario.maneuver_uid[old]
+        follow, lead = follow_lead('ego', old)
+        if em[0] == om[0] and em[2] == om[2]:
+            atoms += nocollision_follow(follow, lead)
+        elif em[0] == om[0] and em[2] != om[2]:
+            atoms += nocollision_fork(follow, lead)
+        elif em[0] != om[0] and em[2] == om[2]:
+            atoms += nocollision_merge('ego', old)
+        else:
+            atoms += nocollision_other('ego', old)
+
+    # No collision between nonego and old nonegos:
+    for old in old_nonegos:
+        om = scenario.maneuver_uid[old]
+        follow, lead = follow_lead(nonego, old)
+        if nm[0] == om[0] and nm[2] == om[2]:
+            atoms += nocollision_follow(follow, lead)
+        elif nm[0] == om[0] and nm[2] != om[2]:
+            atoms += nocollision_fork(follow, lead)
+        elif nm[0] != om[0] and nm[2] == om[2]:
+            atoms += nocollision_merge(nonego, old)
+        else:
+            atoms += nocollision_other(nonego, old)
 
     return atoms
 
@@ -182,8 +274,16 @@ def model_to_events(model, events_all, car):
     return ruletime2events
 
 
-def logical_solution(scenario, events_all, nonego, frame2distance_ego, frame2distance_illegal, frame2distance_nonego, maxSpeed):
-    atoms = load_geometry(scenario.map_path, scenario.intersection_uid)
+def logical_solution(scenario, events_all,
+                     nonego, nonego_maneuver_uid, nonego_spawn_distance,
+                     sim_ego, sim_nonego,
+                     frame2distance_ego,
+                     frame2distance_illegal,
+                     frame2distance_nonego,
+                     maxSpeed):
+    from scenic.domains.driving.roads import Network
+    network = Network.fromFile(scenario.map_path)
+    atoms = geometry_atoms(network, scenario.intersection_uid)
 
     old_nonegos = {car for car in scenario.events.keys() if not car in {
         'ego', 'illegal'}}
@@ -199,16 +299,16 @@ def logical_solution(scenario, events_all, nonego, frame2distance_ego, frame2dis
                               events_all[nonego], frame2distance_nonego, maxSpeed)
 
     # No collision
-    atoms += nocollision('ego', nonego)
-    for car in old_nonegos:
-        atoms += nocollision(car, 'ego')
-        atoms += nocollision(car, nonego)
+    atoms += nocollision(network, scenario, nonego,
+                         nonego_maneuver_uid,
+                         nonego_spawn_distance,
+                         sim_ego, sim_nonego)
 
     # Enforce ego's legal behavior
     atoms += [f':- violatesRightOf(ego, _)']
 
     # Enforce nonego's legal behavior
-    atoms += [f':- V != illegal, violatesRightOf({nonego}, V)']
+    # atoms += [f':- V != illegal, violatesRightOf({nonego}, V)']
 
     # Evidence that new scenario is strictly harder
     atoms += [f':- not violatesRightOf(illegal, {nonego})']
@@ -277,7 +377,10 @@ def events_to_trajectory(scenario, ruletime2events, car, trajectory, frame2dista
     return new_traj
 
 
-def solution(scenario, events_all, nonego, sim_ego, sim_nonego, maxSpeed):
+def solution(scenario, events_all,
+             nonego, nonego_maneuver_uid, nonego_spawn_distance,
+             sim_ego, sim_nonego,
+             maxSpeed):
     import copy
     events_all['illegal'] = []
     for event in events_all['ego']:
@@ -291,8 +394,12 @@ def solution(scenario, events_all, nonego, sim_ego, sim_nonego, maxSpeed):
     frame2distance_nonego = frame_to_distance(sim_nonego, nonego)
 
     # TODO Concretize the illegal trajectory as well
-    ruletime2events_ego, ruletime2events_nonego = logical_solution(scenario, events_all, nonego, frame2distance_ego,
-                                                                   frame2distance_illegal, frame2distance_nonego, maxSpeed)
+    r2e = logical_solution(scenario, events_all,
+                           nonego, nonego_maneuver_uid, nonego_spawn_distance,
+                           sim_ego, sim_nonego,
+                           frame2distance_ego, frame2distance_illegal, frame2distance_nonego,
+                           maxSpeed)
+    ruletime2events_ego, ruletime2events_nonego = r2e
 
     # Distances of events of a ruletime in increasing order
     ruletime2distances_ego = {}
@@ -350,7 +457,10 @@ def solution(scenario, events_all, nonego, sim_ego, sim_nonego, maxSpeed):
     return traj_prev
 
 
-def extend(scenario, nonego_maneuver_uid, nonego_spawn_distance=10, nonego_blueprint='vehicle.tesla.model3', maxSpeed=7):
+def extend(scenario, nonego_maneuver_uid,
+           nonego_spawn_distance=10,
+           nonego_blueprint='vehicle.tesla.model3',
+           maxSpeed=8):
     import intersection_monitor
     monitor = intersection_monitor.Monitor()
 
@@ -399,7 +509,9 @@ def extend(scenario, nonego_maneuver_uid, nonego_spawn_distance=10, nonego_bluep
     events = {car: event for car, event in scenario.events.items()}
     events.update(monitor.events)
     trajectory = solution(
-        scenario, events, nonego, sim_result_ego, sim_result_nonego, maxSpeed)
+        scenario, events,
+        nonego, nonego_maneuver_uid, nonego_spawn_distance,
+        sim_result_ego, sim_result_nonego, maxSpeed)
 
     from scenario import Scenario
     scenario_ext = Scenario()

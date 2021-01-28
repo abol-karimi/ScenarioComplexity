@@ -1,10 +1,11 @@
 #!/home/ak/Scenic/.venv/bin/python
+from scenic.domains.driving.roads import Network
 from solver import Solver
 import intersection_monitor
 import scenic
 import pickle
 import argparse
-from generator import load_geometry, frame_to_ruletime
+from generator import geometry_atoms, frame_to_ruletime
 
 
 parser = argparse.ArgumentParser(
@@ -36,7 +37,8 @@ simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
 atoms = []
-atoms += load_geometry(scenario.map_path, scenario.intersection_uid)
+network = Network.fromFile(scenario.map_path)
+atoms += geometry_atoms(network, scenario.intersection_uid)
 
 for event in monitor.events['ego']:
     ruletime = frame_to_ruletime(event.frame, scenario.timestep)
