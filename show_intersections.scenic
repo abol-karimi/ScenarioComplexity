@@ -5,23 +5,24 @@ model scenic.simulators.carla.model
 param render = False
 
 intersections = network.intersections
-ints = {i: intersections[i] for i in range(len(intersections))
-  if intersections[i].is3Way and not intersections[i].isSignalized}
+T_intersections = [i for i in intersections 
+  if network.elements[i.uid].is3Way and not network.elements[i.uid].isSignalized]
+
 import visualization
 
 
 behavior IterateIntersectionsBehavior():
   carla_world = simulation().world
-  for i, intersection in ints.items():
+  for intersection in T_intersections:
     visualization.draw_intersection(carla_world, intersection)
-    print(f'Intersection index: {i}')
+    print(f'Intersection uid: {intersection.uid}')
     do FollowLaneBehavior() for 50 seconds
     wait
 
-behavior ShowIntersectionBehavior(id):
+behavior ShowIntersectionBehavior(uid):
   carla_world = simulation().world
-  visualization.draw_intersection(carla_world, intersections[id])
+  visualization.draw_intersection(carla_world, network.elements[uid])
   wait
 
 ego = Car with name 'ego',
-  with behavior ShowIntersectionBehavior(18)
+  with behavior ShowIntersectionBehavior('intersection224')
