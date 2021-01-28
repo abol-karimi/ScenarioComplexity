@@ -18,7 +18,7 @@ def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1):
             begin, end, thickness=0.1, color=color, life_time=life_time)
 
 
-def draw_intersection(world, intersection, draw_lanes=False):
+def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4):
     polygon = intersection.polygon
 
     # Boundaries of the intersection
@@ -42,6 +42,17 @@ def draw_intersection(world, intersection, draw_lanes=False):
         loc = carla.Location(v.x, -v.y, 0.5)
         world.debug.draw_string(
             loc, lane.uid, draw_shadow=False, life_time=1000)
+
+    # Draw arrival boxes
+    for lane in intersection.incomingLanes:
+        l = lane.leftEdge[-1]
+        vl = lane.flowFrom(l, -arrival_distance)
+        r = lane.rightEdge[-1]
+        vr = lane.flowFrom(r, -arrival_distance)
+        loc_l = carla.Location(vl.x, -vl.y, 0.5)
+        loc_r = carla.Location(vr.x, -vr.y, 0.5)
+        world.debug.draw_line(
+            loc_l, loc_r, thickness=0.1, life_time=1000)
 
     # Bird-eye view of the intersection
     centroid = polygon.centroid  # a Shapely point
