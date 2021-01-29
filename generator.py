@@ -395,11 +395,9 @@ def solution(scenario, events_all,
         events_all['illegal'] += [event_ill]
 
     frame2distance_ego = frame_to_distance(sim_ego, 'ego')
-    frame2distance_illegal = frame_to_distance(
-        sim_ego, 'ego')  # TODO can use frame2distance_ego
+    frame2distance_illegal = frame2distance_ego
     frame2distance_nonego = frame_to_distance(sim_nonego, nonego)
 
-    # TODO Concretize the illegal trajectory as well
     r2e = logical_solution(scenario, events_all,
                            nonego, nonego_maneuver_uid, nonego_spawn_distance,
                            sim_ego, sim_nonego,
