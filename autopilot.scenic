@@ -45,13 +45,13 @@ behavior ReplayBehavior():
 		wait
 
 for carName, carState in trajectory[0].items():
-	if carName != 'ego':
+	if not carName in {'ego', 'illegal'}:
 		car = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
 			with behavior ReplayBehavior(),
 			with physics False
-	else:
+	elif carName == 'ego':
 		ego = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
