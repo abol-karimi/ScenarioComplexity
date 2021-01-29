@@ -330,11 +330,17 @@ def logical_solution(scenario, events_all,
 
     ruletime2events_ego = model_to_events(model, events_all, 'ego')
     ruletime2events_nonego = model_to_events(model, events_all, nonego)
+    ruletime2events_illegal = model_to_events(model, events_all, 'illegal')
 
-    return ruletime2events_ego, ruletime2events_nonego
+    return ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal
 
 
-def events_to_trajectory(scenario, ruletime2events, car, trajectory, frame2distance, ruletime2distances):
+def events_to_trajectory(scenario,
+                         ruletime2events,
+                         car,
+                         trajectory,
+                         frame2distance,
+                         ruletime2distances):
     # Interpolate car's trajectory based on
     #  its new (frame, distance) points:
     p_f = [0]
@@ -399,7 +405,7 @@ def solution(scenario, events_all,
                            sim_ego, sim_nonego,
                            frame2distance_ego, frame2distance_illegal, frame2distance_nonego,
                            maxSpeed)
-    ruletime2events_ego, ruletime2events_nonego = r2e
+    ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal = r2e
 
     # Distances of events of a ruletime in increasing order
     ruletime2distances_ego = {}
@@ -417,14 +423,36 @@ def solution(scenario, events_all,
         distances_sorted = sorted(set(distances))
         ruletime2distances_nonego[ruletime] = distances_sorted
 
+    # Distances of events of a ruletime in increasing order
+    ruletime2distances_illegal = {}
+    for ruletime, events in ruletime2events_illegal.items():
+        distances = [frame2distance_illegal[event.frame]
+                     for event in events]
+        distances_sorted = sorted(set(distances))
+        ruletime2distances_illegal[ruletime] = distances_sorted
+
     trajectory_ego = sim_ego.trajectory
     trajectory_nonego = sim_nonego.trajectory
 
     # Interpolate the events to a new trajectory
     new_traj_ego = events_to_trajectory(scenario,
-                                        ruletime2events_ego, 'ego', trajectory_ego, frame2distance_ego, ruletime2distances_ego)
+                                        ruletime2events_ego,
+                                        'ego',
+                                        trajectory_ego,
+                                        frame2distance_ego,
+                                        ruletime2distances_ego)
     new_traj_nonego = events_to_trajectory(scenario,
-                                           ruletime2events_nonego, nonego, trajectory_nonego, frame2distance_nonego, ruletime2distances_nonego)
+                                           ruletime2events_nonego,
+                                           nonego,
+                                           trajectory_nonego,
+                                           frame2distance_nonego,
+                                           ruletime2distances_nonego)
+    new_traj_illegal = events_to_trajectory(scenario,
+                                            ruletime2events_illegal,
+                                            'ego',
+                                            trajectory_ego,
+                                            frame2distance_illegal,
+                                            ruletime2distances_illegal)
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
@@ -435,6 +463,7 @@ def solution(scenario, events_all,
     for frame in range(len(traj_prev)):
         traj_prev[frame]['ego'] = new_traj_ego[frame]
         traj_prev[frame][nonego] = new_traj_nonego[frame]
+        traj_prev[frame]['illegal'] = new_traj_illegal[frame]
 
     # Update timing of new cars' events
     for ruletime, events in ruletime2events_ego.items():
