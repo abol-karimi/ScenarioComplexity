@@ -44,6 +44,23 @@ behavior ReplayBehavior():
 		visualization.label_car(carla_world, self)
 		wait
 
+from agents.navigation.behavior_agent import BehaviorAgent
+from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
+
+behavior CarlaBehaviorAgent():
+	take SetAutopilotAction(True)
+	agent = BehaviorAgent(self.carlaActor, behavior='normal')
+	print(agent.vehicle)
+	carla_world = simulation().world
+	src = scenicToCarlaLocation(trajectory[0][self.name][0], world=carla_world)
+	dest = scenicToCarlaLocation(trajectory[-1][self.name][0], world=carla_world)
+	agent.set_destination(src, dest, clean=True)
+	while True:
+		agent.update_information()
+		control = agent.run_step()
+		self.carlaActor.apply_control(control)
+		wait
+
 for carName, carState in trajectory[0].items():
 	if not carName in {'ego', 'illegal'}:
 		car = Car at carState[0], facing carState[1],
@@ -55,7 +72,7 @@ for carName, carState in trajectory[0].items():
 		ego = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
-			with behavior AutopilotBehavior()
+			with behavior CarlaBehaviorAgent()
 
 from signals import SignalType
 l0_uid, l1_uid, l2_uid = maneuver_uid['ego']
