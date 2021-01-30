@@ -37,6 +37,7 @@ def frame_to_distance(sim, car):
 
 
 def geometry_atoms(network, intersection_uid):
+    """Assumes the correct map is loaded in CARLA server."""
     from signals import SignalType
     intersection = network.elements[intersection_uid]
     maneuvers = intersection.maneuvers
@@ -73,6 +74,24 @@ def geometry_atoms(network, intersection_uid):
         rights = road2incomings[roads[j].uid]
         geometry += [
             f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
+
+    # To detect stop signs
+    import carla
+    client = carla.Client('127.0.0.1', 2000)
+    world = client.get_world()
+    map = world.get_map()
+
+    from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
+    for lane in incomings:
+        end = lane.centerline[-1]
+        point = lane.flowFrom(end, -6.0)
+        loc = scenicToCarlaLocation(point, world=world)
+        wp = map.get_waypoint(loc)
+        landmarks = wp.get_landmarks_of_type(
+            6.0, '206')  # 206: stop sign or utencil
+        if len(landmarks) > 0:
+            geometry += [f'hasStopSign({lane.uid})']
+
     return geometry
 
 
