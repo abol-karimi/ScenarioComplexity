@@ -31,6 +31,17 @@ class SignaledAtForkEvent(Event):
         return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane}, {t})'
 
 
+class StoppedAtForkEvent(Event):
+    """Stopping after arrival at a stop sign and before entrance to the intersection."""
+    name = 'stoppedAtForkAtTime'
+
+    def __init__(self, frame, vehicle, incoming_lane):
+        super().__init__(frame, vehicle)
+        self.incoming_lane = incoming_lane
+
+    def withTime(self, t):
+        return f'stoppedAtForkAtTime({self.vehicle}, {self.incoming_lane}, {t})'
+
 class EnteredLaneEvent(Event):
     """When part of a vehicle enters the lane."""
     name = 'enteredLaneAtTime'
@@ -91,6 +102,12 @@ class Monitor():
         self.events[vehicle].append(SignaledAtForkEvent(
             frame, vehicle, signal, incoming_lane))
 
+    def on_stop(self, frame, vehicle, incoming_lane):
+        if not (vehicle in self.events):
+            self.events[vehicle] = []
+        self.events[vehicle].append(
+            StoppedAtForkEvent(frame, vehicle, incoming_lane))
+            
     def on_enterLane(self, frame, vehicle, lane):
         if not (vehicle in self.events):
             self.events[vehicle] = []

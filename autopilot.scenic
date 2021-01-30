@@ -19,6 +19,9 @@ blueprints = globalParameters.blueprints
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
+param stop_speed_threshold = 0.01  # meters/seconds
+stop_speed_threshold = globalParameters.stop_speed_threshold
+
 import visualization
 from signals import vehicleLightState_from_maneuverType
 
@@ -48,18 +51,19 @@ from agents.navigation.behavior_agent import BehaviorAgent
 from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
 
 behavior CarlaBehaviorAgent():
+	do SignalBehavior()
 	take SetAutopilotAction(True)
 	agent = BehaviorAgent(self.carlaActor, behavior='normal')
-	print(agent.vehicle)
 	carla_world = simulation().world
 	src = scenicToCarlaLocation(trajectory[0][self.name][0], world=carla_world)
 	dest = scenicToCarlaLocation(trajectory[-1][self.name][0], world=carla_world)
 	agent.set_destination(src, dest, clean=True)
-	while True:
-		agent.update_information()
+	agent.update_information()
+	while agent.incoming_waypoint:
 		control = agent.run_step()
 		self.carlaActor.apply_control(control)
 		wait
+		agent.update_information()
 
 for carName, carState in trajectory[0].items():
 	if not carName in {'ego', 'illegal'}:
@@ -87,6 +91,7 @@ monitor egoEvents:
 	visualization.draw_intersection(carla_world, intersection, draw_lanes=True)
 	maneuvers = intersection.maneuvers
 	arrived = False
+	stopped = False
 	entered = False
 	exited = False
 	lanes = set()
@@ -104,6 +109,10 @@ monitor egoEvents:
 		if entered and (not exited) and not inIntersection:
 			exited = True
 			event_monitor.on_exit(currentTime, 'ego', ego.lane.uid)
+		if arrived and (not entered) and (not stopped) and ego.speed <= stop_speed_threshold:
+			stopped = True
+			# if ego.lane has a stop sign:
+			event_monitor.on_stop(currentTime, 'ego', ego.lane.uid)
 
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane

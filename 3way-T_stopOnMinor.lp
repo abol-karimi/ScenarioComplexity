@@ -110,10 +110,11 @@ violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
 %  otherwise before entering the crosswalk on the near side of the intersection.
 % If there is no limit line or crosswalk,
 %  the driver shall stop at the entrance to the intersecting roadway.
-
 % 21802 (a):
 % The driver of any vehicle approaching a stop sign at the entrance to, or within, an intersection
 %  shall stop as required by Section 22450.
+
+ 
 % The driver shall then yield the right-of-way
 %  to any vehicles which have approached from another highway,
 %  or which are approaching so closely as to constitute an immediate hazard,
