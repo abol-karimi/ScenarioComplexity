@@ -27,8 +27,9 @@ arrivedAtFork(Vehicle, Fork):-
 arrivedAtTime(V, T):-
   arrivedAtForkAtTime(V, _, T).
 
-enteredAtTime(V, T):
-  enteredForkAtTime(V, _, T).
+% Clingo bug?! It doesn't generate the atom for all vehicles.
+% enteredAtTime(V, T):
+%   enteredForkAtTime(V, _, T).
 
 enteredByTime(V, T):-
   enteredForkAtTime(V, _, T1),
@@ -159,6 +160,3 @@ violatesRightOfForRule(V1, V2, leftTurn):-
 violatesRightOf(V1, V2):-
   violatesRightOfForRule(V1, V2, _).
 
-#show violatesRightOf/2.
-#show violatesRightOfForRule/3.
-#show mustYieldToForRuleAtTime/4.

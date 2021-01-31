@@ -113,7 +113,11 @@ violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
 % 21802 (a):
 % The driver of any vehicle approaching a stop sign at the entrance to, or within, an intersection
 %  shall stop as required by Section 22450.
-
+violatesRule(V, stopAtSign):-
+  arrivedAtForkAtTime(V, F, T1),
+  hasStopSign(F),
+  enteredAtTime(V, T2),
+  T2 - T1 < 4. % i.e. < 4*0.5 = 2 seconds
  
 % The driver shall then yield the right-of-way
 %  to any vehicles which have approached from another highway,

@@ -325,6 +325,7 @@ def logical_solution(scenario, events_all,
 
     # Enforce ego's legal behavior
     atoms += [f':- violatesRightOf(ego, _)']
+    atoms += [f':- violatesRule(ego, _)']
 
     # Enforce nonego's legal behavior
     # atoms += [f':- V != illegal, violatesRightOf({nonego}, V)']
@@ -340,7 +341,7 @@ def logical_solution(scenario, events_all,
 
     model = solver.solve()
 
-    sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+    sol_names = {'violatesRule', 'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                  'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
     print("Logical solution: ")
     for atom in model:

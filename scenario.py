@@ -6,7 +6,7 @@ class Scenario():
     map_name = 'Town05'
     # unsignalized four-way intersection in Town05:
     intersection_uid = 'intersection245'
-    rules_path = '4way-uncontrolled.lp'
+    rules_path = '4way-stopOnAll.lp'
     blueprints = {'ego': 'vehicle.tesla.model3'}
     # left turn from road9_lane2 in Town05:
     maneuver_uid = {'ego': ('road9_lane2', 'road304_lane0', 'road45_lane1')}
