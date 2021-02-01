@@ -2,16 +2,24 @@
 
 from scenic.domains.driving.roads import Network
 from generator import geometry_atoms
+import argparse
+import carla
 
-# A city
-map_path = './maps/Town05.xodr'
-# unsignalized four-way intersection in Town05
-intersection_uid = 'intersection245'
-# 3way T-intersection with stop sign on minor road in Town05
-intersection_uid = 'intersection224'
+parser = argparse.ArgumentParser(description='label the intersections.')
+parser.add_argument('-m', '--map_name',
+                    help='Carla map name', default='Town05')
+parser.add_argument('-i', '--intersection_uid',
+                    help='Carla map name', default='intersection245')
+args = parser.parse_args()
+
+map_name = args.map_name
+map_path = f'./maps/{map_name}.xodr'
+
+client = carla.Client('127.0.0.1', 2000)
+world = client.load_world(map_name)
 
 network = Network.fromFile(map_path)
-geometry = geometry_atoms(network, intersection_uid)
+geometry = geometry_atoms(network, args.intersection_uid)
 
 for atom in geometry:
     print(atom)
