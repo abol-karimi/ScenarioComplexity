@@ -48,6 +48,9 @@ def geometry_atoms(network, intersection_uid):
         exit = maneuver.endLane
         geometry.append(
             f'laneFromTo({lane.uid}, {fork.uid}, {exit.uid})')
+
+    for maneuver in maneuvers:
+        lane = maneuver.connectingLane
         signal = SignalType.from_maneuver(maneuver).name.lower()
         geometry.append(
             f'laneCorrectSignal({lane.uid}, {signal})')
