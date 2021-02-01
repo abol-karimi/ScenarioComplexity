@@ -18,4 +18,4 @@ world = client.load_world(map_name)
 
 network = Network.fromFile(map_path)
 intersection = network.elements[args.intersection_uid]
-draw_intersection(world, intersection)
+draw_intersection(world, intersection, draw_lanes=True)

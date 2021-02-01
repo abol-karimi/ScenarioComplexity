@@ -1,14 +1,38 @@
+3way, T, uncontrolled:
+  Town03, intersection475
+  Town03, intersection1441
+  Town03, intersection1794
+
+  Town07, intersection879
+
 3way, T, stop on minor:
   Town05, intersection224
   Town05, intersection1162
 
+3way, T, stop on minor and one of the majors:
+  Town03, intersection1038
+
 3way, T, all stop:
-  Town05, Intersection924
+  Town05, intersection924
+  Town10HD, intersection134
 
 3way, T, signalized:
-  Town05, Intersection1148
+  Town05, intersection1148
+  Town10HD, intersection468
+
+3way, symmetric, uncontrolled:
+  Town07, intersection358
+
+3way, T, one-way major, uncontrolled?
+  Town10HD, intersection895
+  Town10HD, intersection664
 
 4way, all-stop:
+  Town03, intersection730
+
+  Town04, intersection53
+  Town04, intersection1452
+
   Town05, intersection245
   Town05, intersection334
   Town05, intersection685
