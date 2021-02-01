@@ -185,7 +185,7 @@ def nocollision_follow(follow, lead):
     for e in ternary_events:
         atoms += [f':- {e}({follow}, NetworkElement, T1),'
                   f'{e}({lead}, NetworkElement, T2),'
-                  f'T1 <= T2']
+                  f'T1 <= T2 + 1']
     return atoms
 
 
@@ -335,9 +335,6 @@ def logical_solution(scenario, events_all,
     # Enforce ego's legal behavior
     atoms += [f':- violatesRightOf(ego, _)']
     atoms += [f':- violatesRule(ego, _)']
-
-    # Enforce nonego's legal behavior
-    # atoms += [f':- V != illegal, violatesRightOf({nonego}, V)']
 
     # Evidence that new scenario is strictly harder
     atoms += [f':- not violatesRightOf(illegal, {nonego})']
