@@ -13,6 +13,8 @@ parser.add_argument('-d', '--nonego_spawn_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
 parser.add_argument('-b', '--blueprint', default='vehicle.tesla.model3',
                     help='blueprint of the nonego')
+parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],
+                    help='additional logic constraints')
 args = parser.parse_args()
 
 with open(args.inputfile, 'rb') as inFile:
@@ -35,7 +37,8 @@ scenario = generator.extend(
     scenario,
     nonego_maneuver_uid=nonego_maneuver_uid,
     nonego_spawn_distance=args.nonego_spawn_distance,
-    nonego_blueprint=args.blueprint)
+    nonego_blueprint=args.blueprint,
+    extra_constraints=args.constraints)
 
 with open(args.outputfile, 'wb') as outFile:
     pickle.dump(scenario, outFile)
