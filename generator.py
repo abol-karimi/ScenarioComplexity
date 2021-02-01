@@ -700,7 +700,14 @@ def solution(scenario, events_all,
             frame = ruletime_to_frame(
                 ruletime + fraction, scenario.timestep)
             event.frame = frame
-
+    for ruletime, events in ruletime2events_illegal.items():
+        ds = ruletime2distances_illegal[ruletime]
+        for event in events:
+            d = frame2distance_illegal[event.frame]
+            fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
+            frame = ruletime_to_frame(
+                ruletime + fraction, scenario.timestep)
+            event.frame = frame
     return traj_prev
 
 
