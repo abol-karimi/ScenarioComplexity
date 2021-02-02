@@ -180,12 +180,17 @@ def nocollision_merge(car1, car2):
 
 def nocollision_follow(follow, lead):
     atoms = []
-    ternary_events = {'arrivedAtForkAtTime', 'enteredLaneAtTime', 'leftLaneAtTime',
-                      'enteredForkAtTime', 'exitedFromAtTime'}
-    for e in ternary_events:
-        atoms += [f':- {e}({follow}, NetworkElement, T1),'
-                  f'{e}({lead}, NetworkElement, T2),'
-                  f'T1 <= T2 + 1']
+    atoms += [f':- requestedLane({follow}, L),'
+              f'enteredLaneAtTime({follow}, L1, T1),'
+              f'L != L1,'
+              f'not leftLaneByTime({lead}, L1, T1)']
+
+    atoms += [f':- arrivedAtTime({follow}, T),'
+              f'not enteredByTime({lead}, T)']
+
+    atoms += [f':- exitedFromAtTime({lead}, E, T1),'
+              f'exitedFromAtTime({follow}, E, T2),'
+              f'T2 < T1 + 2']
     return atoms
 
 
