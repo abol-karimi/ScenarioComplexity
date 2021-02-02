@@ -3,7 +3,30 @@ import pickle
 import generator
 from scenario import Scenario
 import argparse
+import random
 
+car_blueprints = [
+    'vehicle.audi.a2',
+    'vehicle.audi.etron',
+    'vehicle.audi.tt',
+    'vehicle.bmw.grandtourer',
+    'vehicle.bmw.isetta',
+    'vehicle.chevrolet.impala',
+    'vehicle.citroen.c3',
+    'vehicle.dodge_charger.police',
+    'vehicle.jeep.wrangler_rubicon',
+    'vehicle.lincoln.mkz2017',
+    'vehicle.mercedes-benz.coupe',
+    'vehicle.mini.cooperst',
+    'vehicle.mustang.mustang',
+    'vehicle.nissan.micra',
+    'vehicle.nissan.patrol',
+    'vehicle.seat.leon',
+    'vehicle.tesla.model3',
+    'vehicle.toyota.prius',
+    'vehicle.volkswagen.t2'
+]
+nonego_blueprint = random.choice(car_blueprints)
 
 parser = argparse.ArgumentParser(description='generate a new scenario.')
 parser.add_argument('outputfile', help='filename of the new scenario')
@@ -17,11 +40,23 @@ parser.add_argument('-n', '--nonego_from_to', nargs='+', type=str,
                     help='the maneuver of the nonego through the intersection')
 parser.add_argument('-s', '--nonego_spawn_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
+parser.add_argument('--ego_blueprint',
+                    help='blueprint of the nonego')
+parser.add_argument('--nonego_blueprint',
+                    help='blueprint of the nonego')
 parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],
                     help='additional logic constraints')
 args = parser.parse_args()
 
+if args.nonego_blueprint:
+    nonego_blueprint = args.blueprints
+
 scenario = Scenario()
+
+if args.ego_blueprint:
+    scenario.blueprints['ego'] = args.ego_blueprint
+else:
+    scenario.blueprints['ego'] = random.choice(car_blueprints)
 
 if args.intersection_uid:
     scenario.intersection_uid = args.intersection_uid
@@ -49,6 +84,7 @@ scenario = generator.extend(
     scenario,
     nonego_maneuver_uid=nonego_maneuver_uid,
     nonego_spawn_distance=args.nonego_spawn_distance,
+    nonego_blueprint=nonego_blueprint,
     extra_constraints=args.constraints)
 
 with open(args.outputfile, 'wb') as outFile:
