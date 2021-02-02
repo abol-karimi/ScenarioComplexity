@@ -38,10 +38,12 @@ parser.add_argument('-e', '--ego_from_to', nargs='+', type=str,
                     help='the maneuver of the ego through the intersection')
 parser.add_argument('-n', '--nonego_from_to', nargs='+', type=str,
                     help='the maneuver of the nonego through the intersection')
-parser.add_argument('-s', '--nonego_spawn_distance', type=float, default=10.0,
+parser.add_argument('--ego_distance', type=float, default=25.0,
+                    help='initial distance of ego to the intersection')
+parser.add_argument('--nonego_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
 parser.add_argument('--ego_blueprint',
-                    help='blueprint of the nonego')
+                    help='blueprint of ego')
 parser.add_argument('--nonego_blueprint',
                     help='blueprint of the nonego')
 parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],
@@ -82,8 +84,9 @@ if args.nonego_from_to:
 
 scenario = generator.extend(
     scenario,
-    nonego_maneuver_uid=nonego_maneuver_uid,
-    nonego_spawn_distance=args.nonego_spawn_distance,
+    nonego_maneuver_uid,
+    ego_spawn_distance=args.ego_distance,
+    nonego_spawn_distance=args.nonego_distance,
     nonego_blueprint=nonego_blueprint,
     extra_constraints=args.constraints)
 

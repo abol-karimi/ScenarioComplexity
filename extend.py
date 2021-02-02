@@ -32,7 +32,7 @@ parser.add_argument('inputfile', help='filename of the given scenario')
 parser.add_argument('outputfile', help='filename of the new scenario')
 parser.add_argument('-m', '--from_to', nargs='+', type=str,
                     help='the maneuver of the nonego through the intersection')
-parser.add_argument('-d', '--nonego_spawn_distance', type=float, default=10.0,
+parser.add_argument('-d', '--nonego_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
 parser.add_argument('-b', '--blueprint',
                     help='blueprint of the nonego')
@@ -61,8 +61,8 @@ else:
 
 scenario = generator.extend(
     scenario,
-    nonego_maneuver_uid=nonego_maneuver_uid,
-    nonego_spawn_distance=args.nonego_spawn_distance,
+    nonego_maneuver_uid,
+    nonego_spawn_distance=args.nonego_distance,
     nonego_blueprint=nonego_blueprint,
     extra_constraints=args.constraints)
 

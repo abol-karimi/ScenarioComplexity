@@ -712,6 +712,7 @@ def solution(scenario, events_all,
 
 
 def extend(scenario, nonego_maneuver_uid,
+           ego_spawn_distance=25,
            nonego_spawn_distance=10,
            nonego_blueprint='vehicle.tesla.model3',
            maxSpeed=8,
@@ -733,7 +734,7 @@ def extend(scenario, nonego_maneuver_uid,
     print('Sample an ego trajectory...')
     params['car_name'] = 'ego'
     params['maneuver_uid'] = scenario.maneuver_uid['ego']
-    params['spawn_distance'] = 20
+    params['spawn_distance'] = ego_spawn_distance
     params['car_blueprint'] = scenario.blueprints['ego']
     scenic_scenario = scenic.scenarioFromFile(
         'trajectory.scenic', params=params)
