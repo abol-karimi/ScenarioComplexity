@@ -199,9 +199,12 @@ def nocollision_fork(follow, lead):
     atoms = []
     atoms += [f':- arrivedAtTime({follow}, T),'
               f'not enteredByTime({lead}, T)']
-    atoms += [f':- enteredAtTime({follow}, T),'
-              f'requestedLane({follow}, L),'
-              f'not leftLaneByTime({lead}, L, T)']
+    atoms += [f':- requestedLane({lead}, L1),'
+              f'requestedLane({follow}, L2),'
+              f'L3 != L1, L3 != L2,'
+              f'enteredLaneAtTime({lead}, L3, _),'
+              f'enteredLaneAtTime({follow}, L3, T2),'
+              f'not leftLaneByTime({lead}, L3, T2)']
     return atoms
 
 
@@ -393,10 +396,13 @@ def events_to_trajectory(scenario,
     new2distance = np.interp(range(len(trajectory)), p_f, p_d)
 
     import matplotlib.pyplot as plt
+    plt.title(f'{car} trajectory')
     plt.plot(frame2distance, 'g')
     plt.plot(p_f, p_d, 'ro')
     plt.plot(new2distance)
 
+    plt.xlabel('frame')
+    plt.ylabel('distance')
     plt.show()
 
     # The new trajectory
