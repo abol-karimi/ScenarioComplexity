@@ -11,6 +11,8 @@ from generator import geometry_atoms, frame_to_ruletime
 parser = argparse.ArgumentParser(
     description='play the given scenario with a Carla autopilot driving the ego.')
 parser.add_argument('inputfile', help='filename of the given scenario')
+parser.add_argument('-a', '--aggressiveness', choices=['cautious', 'normal', 'aggressive'],
+                    default='normal', help='aggressiveness of Carla BehaviorAgent')
 args = parser.parse_args()
 
 with open(args.inputfile, 'rb') as inFile:
@@ -30,6 +32,7 @@ params = {'map': scenario.map_path,
 print('Play an autopilot ego in the scenario...')
 params['trajectory'] = scenario.trajectory
 params['blueprints'] = scenario.blueprints
+params['aggressiveness'] = args.aggressiveness
 scenic_scenario = scenic.scenarioFromFile(
     'autopilot.scenic', params=params)
 scene, _ = scenic_scenario.generate()

@@ -22,6 +22,9 @@ event_monitor = globalParameters.event_monitor
 param stop_speed_threshold = 0.01  # meters/seconds
 stop_speed_threshold = globalParameters.stop_speed_threshold
 
+param aggressiveness = 'normal'
+aggressiveness = globalParameters.aggressiveness
+
 import visualization
 from signals import vehicleLightState_from_maneuverType
 
@@ -53,7 +56,7 @@ from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
 behavior CarlaBehaviorAgent():
 	do SignalBehavior()
 	take SetAutopilotAction(True)
-	agent = BehaviorAgent(self.carlaActor, behavior='normal')
+	agent = BehaviorAgent(self.carlaActor, behavior=aggressiveness)
 	carla_world = simulation().world
 	src = scenicToCarlaLocation(trajectory[0][self.name][0], world=carla_world)
 	dest = scenicToCarlaLocation(trajectory[-1][self.name][0], world=carla_world)
