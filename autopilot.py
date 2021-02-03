@@ -60,7 +60,7 @@ solver.add_atoms(atoms)
 
 model = solver.solve()
 
-sol_names = {'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+sol_names = {'violatesRule', 'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
              'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
 print("Logical solution: ")
 for atom in model:
