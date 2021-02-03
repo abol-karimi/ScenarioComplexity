@@ -57,7 +57,7 @@ def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4,
 
     # Bird-eye view of the intersection
     centroid = polygon.centroid  # a Shapely point
-    loc = carla.Location(centroid.x, -centroid.y, 35)
+    loc = carla.Location(centroid.x, -centroid.y, 22)
     rot = carla.Rotation(pitch=-90)
     world.get_spectator().set_transform(carla.Transform(loc, rot))
 
