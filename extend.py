@@ -35,7 +35,7 @@ parser.add_argument('-m', '--from_to', nargs='+', type=str,
 parser.add_argument('-d', '--nonego_distance', type=float, default=10.0,
                     help='initial distance of nonego to the intersection')
 parser.add_argument('-s', '--max_speed', type=float, default=8.0,
-                    help='max average speed of nonego')
+                    help='max average speed of new cars')
 parser.add_argument('-b', '--blueprint',
                     help='blueprint of the nonego')
 parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],

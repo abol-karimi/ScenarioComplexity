@@ -38,6 +38,8 @@ parser.add_argument('-e', '--ego_from_to', nargs='+', type=str,
                     help='the maneuver of the ego through the intersection')
 parser.add_argument('-n', '--nonego_from_to', nargs='+', type=str,
                     help='the maneuver of the nonego through the intersection')
+parser.add_argument('-s', '--max_speed', type=float, default=8.0,
+                    help='max average speed of new cars')
 parser.add_argument('--ego_distance', type=float, default=25.0,
                     help='initial distance of ego to the intersection')
 parser.add_argument('--nonego_distance', type=float, default=10.0,
@@ -87,6 +89,7 @@ scenario = generator.extend(
     nonego_maneuver_uid,
     ego_spawn_distance=args.ego_distance,
     nonego_spawn_distance=args.nonego_distance,
+    maxSpeed=args.max_speed,
     nonego_blueprint=nonego_blueprint,
     extra_constraints=args.constraints)
 
