@@ -153,6 +153,3 @@ violatesRightOfForRule(V1, V2, fromTerminatingHighway):-
 violatesRightOf(V1, V2):-
   violatesRightOfForRule(V1, V2, _).
 
-#show violatesRightOf/2.
-#show violatesRightOfForRule/3.
-#show mustYieldToForRuleAtTime/4.
