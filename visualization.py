@@ -1,15 +1,15 @@
 import carla
 
 
-def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1):
-    locations = [carla.Location(p[0], -p[1], 0.1)
+def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1, height=0.2):
+    locations = [carla.Location(p[0], -p[1], height)
                  for p in lane.leftEdge.lineString.coords]
     for i in range(len(locations)-1):
         begin = locations[i]
         end = locations[i+1]
         world.debug.draw_line(
             begin, end, thickness=0.1, color=color, life_time=life_time)
-    locations = [carla.Location(p[0], -p[1], 0.1)
+    locations = [carla.Location(p[0], -p[1], height)
                  for p in lane.rightEdge.lineString.coords]
     for i in range(len(locations)-1):
         begin = locations[i]
@@ -18,11 +18,12 @@ def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1):
             begin, end, thickness=0.1, color=color, life_time=life_time)
 
 
-def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4):
+def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4, height=0.1):
     polygon = intersection.polygon
 
     # Boundaries of the intersection
-    locs = [carla.Location(p[0], -p[1], 0.5) for p in polygon.exterior.coords]
+    locs = [carla.Location(p[0], -p[1], height)
+            for p in polygon.exterior.coords]
     for i in range(len(locs)):
         p0 = locs[i]
         p1 = locs[(i+1) % len(locs)]
@@ -33,13 +34,13 @@ def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4)
     for lane in intersection.incomingLanes:
         c = lane.centerline[-1]
         v = lane.flowFrom(c, -1)
-        loc = carla.Location(v.x, -v.y, 0.5)
+        loc = carla.Location(v.x, -v.y, height)
         world.debug.draw_string(
             loc, lane.uid, draw_shadow=False, life_time=1000)
     for lane in intersection.outgoingLanes:
         c = lane.centerline[0]
         v = lane.flowFrom(c, 1)
-        loc = carla.Location(v.x, -v.y, 0.5)
+        loc = carla.Location(v.x, -v.y, height)
         world.debug.draw_string(
             loc, lane.uid, draw_shadow=False, life_time=1000)
 
@@ -49,8 +50,8 @@ def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4)
         vl = lane.flowFrom(l, -arrival_distance)
         r = lane.rightEdge[-1]
         vr = lane.flowFrom(r, -arrival_distance)
-        loc_l = carla.Location(vl.x, -vl.y, 0.5)
-        loc_r = carla.Location(vr.x, -vr.y, 0.5)
+        loc_l = carla.Location(vl.x, -vl.y, height)
+        loc_r = carla.Location(vr.x, -vr.y, height)
         world.debug.draw_line(
             loc_l, loc_r, thickness=0.1, life_time=1000)
 
@@ -63,7 +64,7 @@ def draw_intersection(world, intersection, draw_lanes=False, arrival_distance=4)
     if draw_lanes:
         for m in intersection.maneuvers:
             l = m.connectingLane
-            draw_lane(world, l)
+            draw_lane(world, l, height=height)
 
 
 def label_car(world, car):
