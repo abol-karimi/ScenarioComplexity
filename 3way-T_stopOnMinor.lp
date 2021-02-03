@@ -17,6 +17,9 @@ arrivedAtTime(V, T):-
 
 arrivedAtFork(Vehicle, Fork):-
   arrivedAtForkAtTime(Vehicle, Fork, _).
+
+enteredAtTime(V, T):-
+  enteredForkAtTime(V, _, T).
   
 enteredByTime(V, T):-
   enteredForkAtTime(V, _, T1),
@@ -116,7 +119,7 @@ violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
 violatesRule(V, stopAtSign):-
   arrivedAtForkAtTime(V, F, T1),
   hasStopSign(F),
-  enteredAtTime(V, T2),
+  enteredForkAtTime(V, F, T2),
   T2 - T1 < 4. % i.e. < 4*0.5 = 2 seconds
  
 % The driver shall then yield the right-of-way
