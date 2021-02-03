@@ -43,7 +43,7 @@ parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],
 args = parser.parse_args()
 
 if args.blueprint:
-    nonego_blueprint = args.blueprints
+    nonego_blueprint = args.blueprint
 
 with open(args.inputfile, 'rb') as inFile:
     scenario = pickle.load(inFile)
