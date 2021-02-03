@@ -6,10 +6,8 @@ import argparse
 import carla
 
 parser = argparse.ArgumentParser(description='label the intersections.')
-parser.add_argument('-m', '--map_name',
-                    help='Carla map name', default='Town05')
-parser.add_argument('-i', '--intersection_uid',
-                    help='Carla map name', default='intersection245')
+parser.add_argument('map_name', help='Carla map name')
+parser.add_argument('intersection_uid', help='Carla map name')
 args = parser.parse_args()
 
 map_name = args.map_name
