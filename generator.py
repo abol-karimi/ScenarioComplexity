@@ -71,10 +71,17 @@ def geometry_atoms(network, intersection_uid):
         road2incomings[incoming.road.uid].append(incoming.uid)
     # An intersection stores the intersecting roads in CW or CCW order.
     # Assuming the order is CCW, then:
+    import math
     for i in range(len(roads)):
         j = (i+1) % len(roads)
         lefts = road2incomings[roads[i].uid]
         rights = road2incomings[roads[j].uid]
+        l0 = network.elements[lefts[0]]
+        r0 = network.elements[rights[0]]
+        hl = l0.centerline[-1] - l0.centerline[-2]
+        hr = r0.centerline[-1] - r0.centerline[-2]
+        if abs(math.pi - abs(hr.angleWith(hl))) < math.pi/6:
+            continue
         geometry += [
             f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
 
