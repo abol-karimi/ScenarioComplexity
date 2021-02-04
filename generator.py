@@ -232,6 +232,7 @@ def nocollision(network, scenario, nonego,
     ego_loc0 = sim_ego.trajectory[0]['ego'][0]
     ego_spawn_distance = intersection.distanceTo(ego_loc0)
     spawn_distance['ego'] = ego_spawn_distance
+    spawn_distance['illegal'] = ego_spawn_distance
 
     def follow_lead(car1, car2):
         if spawn_distance[car1] < spawn_distance[car2]:
@@ -266,6 +267,19 @@ def nocollision(network, scenario, nonego,
             atoms += nocollision_merge('ego', old)
         else:
             atoms += nocollision_other('ego', old)
+
+    # No collision between illegal and old nonegos:
+    for old in old_nonegos:
+        om = scenario.maneuver_uid[old]
+        follow, lead = follow_lead('illegal', old)
+        if em[0] == om[0] and em[2] == om[2]:
+            atoms += nocollision_follow(follow, lead)
+        elif em[0] == om[0] and em[2] != om[2]:
+            atoms += nocollision_fork(follow, lead)
+        elif em[0] != om[0] and em[2] == om[2]:
+            atoms += nocollision_merge('illegal', old)
+        else:
+            atoms += nocollision_other('illegal', old)
 
     # No collision between nonego and old nonegos:
     for old in old_nonegos:
