@@ -43,15 +43,21 @@ atoms = []
 network = Network.fromFile(scenario.map_path)
 atoms += geometry_atoms(network, scenario.intersection_uid)
 
+event_atoms = []
 for event in monitor.events['ego']:
     ruletime = frame_to_ruletime(event.frame, scenario.timestep)
     atom = event.withTime(ruletime)
-    atoms.append(atom)
+    event_atoms.append(atom)
 
 for car in scenario.events.keys():
-    if not car in {'ego', 'illegal'}:
-        atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
-                  for event in scenario.events[car]]
+    if car in {'ego', 'illegal'}:
+        continue
+    for event in scenario.events[car]:
+        ruletime = frame_to_ruletime(event.frame, scenario.timestep)
+        atom = event.withTime(ruletime)
+        event_atoms.append(atom)
+
+atoms += event_atoms
 
 max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
 solver = Solver(max_ruletime)
@@ -60,9 +66,12 @@ solver.add_atoms(atoms)
 
 model = solver.solve()
 
-sol_names = {'violatesRule', 'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
-             'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-print("Logical solution: ")
+print('Events:')
+for atom in event_atoms:
+    print(f'\t{atom}')
+
+sol_names = {'violatesRule', 'violatesRightOfForRule'}
+print('Violations:')
 for atom in model:
     if atom.name in sol_names:
         print(f'\t{atom}')
