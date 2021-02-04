@@ -340,12 +340,14 @@ def logical_solution(scenario, events_all,
                          nonego_spawn_distance,
                          sim_ego, sim_nonego)
 
-    # Enforce ego's legal behavior
-    atoms += [f':- violatesRightOf(ego, _)']
+    # Evidence that the new scenario has a solution
+    atoms += [f':- V != illegal, violatesRightOf(ego, V)']
     atoms += [f':- violatesRule(ego, _)']
 
-    # Evidence that new scenario is strictly harder
+    # Evidence that the new scenario is strictly harder
     atoms += [f':- not violatesRightOf(illegal, {nonego})']
+    atoms += [f':- V != {nonego}, V != ego, violatesRightOf(illegal, V)']
+    atoms += [f':- violatesRule(illegal, _)']
 
     from solver import Solver
     max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
