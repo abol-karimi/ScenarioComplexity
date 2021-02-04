@@ -45,11 +45,12 @@ signaledLeft(V):-
 %------------------------------------------
 %--------Rules auxiliary-definitions-------
 %------------------------------------------
-arrivedFromSameHighway(V1, V2):-
+arrivedFromOppositeDirection(V1, V2):- % TODO fix for multi-lane highway
   arrivedAtFork(V1, F1),
   forkOnContinuingHighway(F1),
   arrivedAtFork(V2, F2),
-  forkOnContinuingHighway(F2).
+  forkOnContinuingHighway(F2),
+  F1 != F2.
 
 requestedLane(Vehicle, Lane):-
   signaledAtFork(Vehicle, Signal, Fork),
@@ -68,7 +69,7 @@ requestedLane(Vehicle, Lane):-
 mustYieldToForRuleAtTime(V1, V2, leftTurnFromContinuingHighway, T):-
   V1 != V2,
   signaledLeft(V1),
-  arrivedFromSameHighway(V1, V2),
+  arrivedFromOppositeDirection(V1, V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
@@ -92,7 +93,7 @@ violatesRightOfForRule(V1, V2, leftTurnFromContinuingHighway):-
 mustYieldToForRuleAtTime(V2, V1, yieldToLeftTurnFromContinuingHighway, T):-
   V1 != V2,
   signaledLeft(V1),
-  arrivedFromSameHighway(V1, V2),
+  arrivedFromOppositeDirection(V1, V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
@@ -128,6 +129,8 @@ violatesRule(V, stopAtSign):-
 %  and shall continue to yield the right-of-way to those vehicles until he or she can proceed with reasonable safety.
 mustYieldToForRuleAtTime(V1, V2, fromTerminatingHighway, T):-
   V1 != V2,
+  arrivedAtFork(V1, F),
+  hasStopSign(F),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
