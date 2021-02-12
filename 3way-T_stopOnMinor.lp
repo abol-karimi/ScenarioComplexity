@@ -11,6 +11,9 @@ forkOnContinuingHighway(F):-
   laneFromTo(L, F, _),
   laneCorrectSignal(L, off).
 
+forkOnTerminatingHighway(F):-
+  hasStopSign(F).
+
 %----------Events (quantified)---------
 arrivedAtTime(V, T):-
   arrivedAtForkAtTime(V, _, T).
@@ -51,6 +54,14 @@ arrivedFromOppositeDirection(V1, V2):- % TODO fix for multi-lane highway
   arrivedAtFork(V2, F2),
   forkOnContinuingHighway(F2),
   F1 != F2.
+
+arrivedFromContinuingHighway(V):-
+  arrivedAtFork(V, F),
+  forkOnContinuingHighway(F).
+
+arrivedFromTerminatingHighway(V):-
+  arrivedAtFork(V, F),
+  forkOnTerminatingHighway(F).
 
 requestedLane(Vehicle, Lane):-
   signaledAtFork(Vehicle, Signal, Fork),
@@ -129,8 +140,8 @@ violatesRule(V, stopAtSign):-
 %  and shall continue to yield the right-of-way to those vehicles until he or she can proceed with reasonable safety.
 mustYieldToForRuleAtTime(V1, V2, fromTerminatingHighway, T):-
   V1 != V2,
-  arrivedAtFork(V1, F),
-  hasStopSign(F),
+  arrivedFromTerminatingHighway(V1),
+  arrivedFromContinuingHighway(V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
