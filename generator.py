@@ -656,41 +656,41 @@ def solution(scenario, events_all,
         event_ill.vehicle = 'illegal'
         events_all['illegal'] += [event_ill]
 
-    frame2distance_ego = frame_to_distance(sim_ego, 'ego')
-    frame2distance_illegal = frame2distance_ego
-    frame2distance_nonego = frame_to_distance(sim_nonego, nonego)
+    frame2oldDistance_ego = frame_to_distance(sim_ego, 'ego')
+    frame2oldDistance_illegal = frame2oldDistance_ego
+    frame2oldDistance_nonego = frame_to_distance(sim_nonego, nonego)
 
     r2e = logical_solution(scenario, events_all,
                            nonego, nonego_maneuver_uid, nonego_spawn_distance,
                            sim_ego, sim_nonego,
-                           frame2distance_ego, frame2distance_illegal, frame2distance_nonego,
+                           frame2oldDistance_ego, frame2oldDistance_illegal, frame2oldDistance_nonego,
                            maxSpeed,
                            extra_constraints)
-    ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal = r2e
+    newRuletime2events_ego, newRuletime2events_nonego, newRuletime2events_illegal = r2e
 
-    # Distances of events of a ruletime in increasing order
-    ruletime2distances_ego = {}
-    for ruletime, events in ruletime2events_ego.items():
-        distances = [frame2distance_ego[event.frame]
+    # Distances of events of a new ruletime in increasing order
+    newRuletime2distances_ego = {}
+    for newRuletime, events in newRuletime2events_ego.items():
+        distances = [frame2oldDistance_ego[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        ruletime2distances_ego[ruletime] = distances_sorted
+        newRuletime2distances_ego[newRuletime] = distances_sorted
 
-    # Distances of events of a ruletime in increasing order
-    ruletime2distances_nonego = {}
-    for ruletime, events in ruletime2events_nonego.items():
-        distances = [frame2distance_nonego[event.frame]
+    # Distances of events of a new ruletime in increasing order
+    newRuletime2distances_nonego = {}
+    for ruletime, events in newRuletime2events_nonego.items():
+        distances = [frame2oldDistance_nonego[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        ruletime2distances_nonego[ruletime] = distances_sorted
+        newRuletime2distances_nonego[ruletime] = distances_sorted
 
-    # Distances of events of a ruletime in increasing order
-    ruletime2distances_illegal = {}
-    for ruletime, events in ruletime2events_illegal.items():
-        distances = [frame2distance_illegal[event.frame]
+    # Distances of events of a new ruletime in increasing order
+    newRuletime2distances_illegal = {}
+    for ruletime, events in newRuletime2events_illegal.items():
+        distances = [frame2oldDistance_illegal[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        ruletime2distances_illegal[ruletime] = distances_sorted
+        newRuletime2distances_illegal[ruletime] = distances_sorted
 
     trajectory_ego = sim_ego.trajectory
     trajectory_nonego = sim_nonego.trajectory
@@ -699,18 +699,18 @@ def solution(scenario, events_all,
     new_traj_ego = events_to_trajectory(scenario,
                                         'ego',
                                         trajectory_ego,
-                                        frame2distance_ego,
-                                        ruletime2distances_ego)
+                                        frame2oldDistance_ego,
+                                        newRuletime2distances_ego)
     new_traj_nonego = events_to_trajectory(scenario,
                                            nonego,
                                            trajectory_nonego,
-                                           frame2distance_nonego,
-                                           ruletime2distances_nonego)
+                                           frame2oldDistance_nonego,
+                                           newRuletime2distances_nonego)
     new_traj_illegal = events_to_trajectory(scenario,
                                             'ego',
                                             trajectory_ego,
-                                            frame2distance_illegal,
-                                            ruletime2distances_illegal)
+                                            frame2oldDistance_illegal,
+                                            newRuletime2distances_illegal)
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
@@ -724,26 +724,26 @@ def solution(scenario, events_all,
         traj_prev[frame]['illegal'] = new_traj_illegal[frame]
 
     # Update timing of new cars' events
-    for ruletime, events in ruletime2events_ego.items():
-        ds = ruletime2distances_ego[ruletime]
+    for ruletime, events in newRuletime2events_ego.items():
+        ds = newRuletime2distances_ego[ruletime]
         for event in events:
-            d = frame2distance_ego[event.frame]
+            d = frame2oldDistance_ego[event.frame]
             fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
             frame = ruletime_to_frame(
                 ruletime + fraction, scenario.timestep)
             event.frame = frame
-    for ruletime, events in ruletime2events_nonego.items():
-        ds = ruletime2distances_nonego[ruletime]
+    for ruletime, events in newRuletime2events_nonego.items():
+        ds = newRuletime2distances_nonego[ruletime]
         for event in events:
-            d = frame2distance_nonego[event.frame]
+            d = frame2oldDistance_nonego[event.frame]
             fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
             frame = ruletime_to_frame(
                 ruletime + fraction, scenario.timestep)
             event.frame = frame
-    for ruletime, events in ruletime2events_illegal.items():
-        ds = ruletime2distances_illegal[ruletime]
+    for ruletime, events in newRuletime2events_illegal.items():
+        ds = newRuletime2distances_illegal[ruletime]
         for event in events:
-            d = frame2distance_illegal[event.frame]
+            d = frame2oldDistance_illegal[event.frame]
             fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
             frame = ruletime_to_frame(
                 ruletime + fraction, scenario.timestep)
