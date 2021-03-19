@@ -298,7 +298,9 @@ def nocollision(network, scenario, nonego,
 
 
 def model_to_events(model, events_all, car):
-    """Returns a mapping from each new ruletime to corresponding events."""
+    """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and 
+    returns a mapping from each new ruletime to corresponding events in 'events_all'.
+    """
 
     event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                    'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
@@ -335,6 +337,10 @@ def logical_solution(scenario, events_all,
                      frame2distance_nonego,
                      maxSpeed,
                      extra_constraints):
+    """ Given the events for ego, nonego, and illegal (in 'events_all') 
+    and their distances along the corresponding car's trajectory (in 'frame2distance_*'),
+    find a timing for the events that satisfies the logical constraints.
+    """
 
     atoms = extra_constraints
 
@@ -393,11 +399,14 @@ def logical_solution(scenario, events_all,
 
 
 def events_to_trajectory(scenario,
-                         ruletime2events,
                          car,
                          trajectory,
                          frame2distance,
                          ruletime2distances):
+    """ Given a new timing of events of 'car' (in keys of 'ruletime2distances'),
+    compute a new trajectory (pose for each frame) that interpolates (new time, event distance)
+    where the event distance is in values of 'ruletime2distances'.
+    """
     # Interpolate car's trajectory based on
     #  its new (frame, distance) points:
     p_f = [0]
@@ -688,19 +697,16 @@ def solution(scenario, events_all,
 
     # Interpolate the events to a new trajectory
     new_traj_ego = events_to_trajectory(scenario,
-                                        ruletime2events_ego,
                                         'ego',
                                         trajectory_ego,
                                         frame2distance_ego,
                                         ruletime2distances_ego)
     new_traj_nonego = events_to_trajectory(scenario,
-                                           ruletime2events_nonego,
                                            nonego,
                                            trajectory_nonego,
                                            frame2distance_nonego,
                                            ruletime2distances_nonego)
     new_traj_illegal = events_to_trajectory(scenario,
-                                            ruletime2events_illegal,
                                             'ego',
                                             trajectory_ego,
                                             frame2distance_illegal,

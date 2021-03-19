@@ -20,7 +20,7 @@ params = {'map': scenario.map_path,
           'maneuver_uid': scenario.maneuver_uid,
           'timestep': scenario.timestep,
           'weather': scenario.weather,
-          'render': False}
+          'render': True}
 
 print('Replay the loaded scenario...')
 params['trajectory'] = scenario.trajectory
