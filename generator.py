@@ -771,16 +771,21 @@ def smooth_trajectories(scenario, nonego,
     fig.suptitle('distance-time curves for ego, nonego, illegal')
     axs[0].plot(frame2oldDistance_ego, 'g')
     axs[0].plot(new2distance_ego)
-    axs[0].plot([realtime_to_frame(t, scenario.timestep)
-                 for t in t_ego[1:-1]], d_ego[3:-3:3], 'ro')
+    axs[0].scatter([realtime_to_frame(t, scenario.timestep) for t in t_ego_comp], d_ego,
+                   c=['r' if i % 3 == 0 else 'b' for i in range(len(d_ego))],
+                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_ego))])
     axs[1].plot(frame2oldDistance_nonego, 'g')
     axs[1].plot(new2distance_nonego)
-    axs[1].plot([realtime_to_frame(t, scenario.timestep)
-                 for t in t_nonego[1:-1]], d_nonego[3:-3:3], 'ro')
+    axs[1].scatter([realtime_to_frame(t, scenario.timestep) for t in t_nonego_comp], d_nonego,
+                   c=['r' if i %
+                       3 == 0 else 'b' for i in range(len(d_nonego))],
+                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_nonego))])
     axs[2].plot(frame2oldDistance_illegal, 'g')
     axs[2].plot(new2distance_illegal)
-    axs[2].plot([realtime_to_frame(t, scenario.timestep)
-                 for t in t_illegal[1:-1]], d_illegal[3:-3:3], 'ro')
+    axs[2].scatter([realtime_to_frame(t, scenario.timestep) for t in t_illegal_comp], d_illegal,
+                   c=['r' if i %
+                       3 == 0 else 'b' for i in range(len(d_illegal))],
+                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_illegal))])
     plt.show()
 
     # The new ego trajectory
