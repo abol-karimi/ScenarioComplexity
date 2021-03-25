@@ -1,3 +1,34 @@
+import math
+
+
+# Rounds r >=0 down to precision number of decimal places.
+def round_up(r, precision=3):
+    coeff = 10**precision
+    return math.ceil(r*coeff)/coeff
+
+
+# Rounds r >=0 down to precision number of decimal places.
+def round_down(r, precision=3):
+    coeff = 10**precision
+    return math.floor(r*coeff)/coeff
+
+
+# Returns sign(r)*round_up(abs(r), precision)
+def round_norm_up(r, precision=3):
+    if r >= 0:
+        return round_up(r, precision)
+    else:
+        return -round_up(-r, precision)
+
+
+# Returns sign(r)*round_down(abs(r), precision)
+def round_norm_down(r, precision=3):
+    if r >= 0:
+        return round_down(r, precision)
+    else:
+        return -round_down(-r, precision)
+
+
 def realtime_to_ruletime(t):
     return int(t*2)
 
@@ -298,7 +329,7 @@ def nocollision(network, scenario, nonego,
 
 
 def model_to_events(model, events_all, car):
-    """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and 
+    """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
     returns a mapping from each new ruletime to corresponding events in 'events_all'.
     """
 
@@ -337,7 +368,7 @@ def logical_solution(scenario, events_all,
                      frame2distance_nonego,
                      maxSpeed,
                      extra_constraints):
-    """ Given the events for ego, nonego, and illegal (in 'events_all') 
+    """ Given the events for ego, nonego, and illegal (in 'events_all')
     and their distances along the corresponding car's trajectory (in 'frame2distance_*'),
     find a timing for the events that satisfies the logical constraints.
     """
@@ -452,196 +483,343 @@ def events_to_trajectory(scenario,
     return new_traj
 
 
-def smooth_trajectories(self):
-    # Realtime increases as distance increases along a trajectory.
+def smooth_trajectories(scenario, nonego,
+                        trajectory_ego, trajectory_nonego,
+                        frame2oldDistance_ego, frame2oldDistance_nonego, frame2oldDistance_illegal,
+                        newRuletime2distances_ego, newRuletime2distances_nonego, newRuletime2distances_illegal):
+    """ Find:
+    1. A realtime for each (ego, illegal, nonego) event distance s.t.
+      (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
+      (b) the relative order of ruletimes of all events are preserved
+    2. Cubic bezier interpolation between any two points (ts, ds) and (te, de)
+      where ds, de are distances of two consecutive events of a car,
+      and ts, te are the corresponding realtimes,
+      and (ts+(te-ts)/3, d1) and (ts+2(te-ts)/3, d2) are intermediate control points, such that:
+      (a) the curve interpolates each (t, d)
+      (b) interpolation does not create new events
+      (c) speed is continuous (to model no impact)
+      (d) acceleration is bounded (to model bounded torque)
+    """
 
-    # Find:
-    # 1. A realtime for each (ego, illegal, nonego) event distance s.t.
-    #   the relative ruletime order of all events are preserved
-    # 2. Two distances for each agent's time interval s.t.
-    #   (a) distances are bounded by the distances at the interval ends.
-    #   (b) distances correspond to (te-ts)/3 and 2(te-ts)/3 where [ts, te] is the interval
-    #   (c) slope is continuous at interval endpoints
+    distances_ego = sorted(
+        [round_down(d) for ds in newRuletime2distances_ego.values() for d in ds])
+    distances_nonego = sorted(
+        [round_down(d) for ds in newRuletime2distances_nonego.values() for d in ds])
+    distances_illegal = sorted(
+        [round_down(d) for ds in newRuletime2distances_illegal.values() for d in ds])
 
-    # import z3
-    # ruletime2realtimes = {}
-    # for ruletime, distances in ruletime2distances.items():
-    #     ruletime2realtimes[ruletime] = [
-    #         z3.Real(f'T{ruletime}_{i}') for i in range(len(distances))]
+    import z3
+    t_vars_ego = [0] + [z3.Real(f'T_ego_{i}')
+                        for i in range(len(distances_ego))] + [scenario.maxSteps*scenario.timestep]
+    t_vars_nonego = [0] + [z3.Real(f'T_nonego_{i}')
+                           for i in range(len(distances_nonego))] + [scenario.maxSteps*scenario.timestep]
+    t_vars_illegal = [0] + [z3.Real(f'T_illegal_{i}')
+                            for i in range(len(distances_illegal))] + [scenario.maxSteps*scenario.timestep]
 
-    # # Z3 constraints
-    # constraints = []
+    d_vars_ego = [0 for i in range(len(t_vars_ego)*3-2)]
+    d_vars_ego[-1] = round_down(frame2oldDistance_ego[-1])
+    for i in range(1, len(d_vars_ego)-1):
+        if i % 3 == 0:
+            d_vars_ego[i] = distances_ego[i//3-1]
+        else:
+            d_vars_ego[i] = z3.Real(f'D_ego_{i//3}_{i%3}')
 
-    # # Valid concretization
-    # valid_concretization = []
+    d_vars_nonego = [0 for i in range(len(t_vars_nonego)*3-2)]
+    d_vars_nonego[-1] = round_down(frame2oldDistance_nonego[-1])
+    for i in range(1, len(d_vars_nonego)-1):
+        if i % 3 == 0:
+            d_vars_nonego[i] = distances_nonego[i//3-1]
+        else:
+            d_vars_nonego[i] = z3.Real(f'D_nonego_{i//3}_{i%3}')
 
-    # ruletimes = sorted(ruletime2realtimes.keys())
-    # # All the realtime variables in increasing order
-    # realtimes_all = [realtime for ruletime in ruletimes
-    #                  for realtime in ruletime2realtimes[ruletime]]
-    # # Shorter distances have earlier realtimes
-    # valid_concretization += [realtimes_all[i] < realtimes_all[i+1]
-    #                          for i in range(len(realtimes_all)-1)]
-    # # Concretizations of a ruletime preserves the ruletime
-    # for ruletime, realtimes in ruletime2realtimes.items():
-    #     for i in range(len(realtimes)-1):
-    #         Ti = realtime_to_ruletime(realtimes[i])
-    #         Tii = realtime_to_ruletime(realtimes[i+1])
-    #         valid_concretization += [Ti == Tii]
+    d_vars_illegal = [0 for i in range(len(t_vars_illegal)*3-2)]
+    d_vars_illegal[-1] = round_down(frame2oldDistance_illegal[-1])
+    for i in range(1, len(d_vars_illegal)-1):
+        if i % 3 == 0:
+            d_vars_illegal[i] = distances_illegal[i//3-1]
+        else:
+            d_vars_illegal[i] = z3.Real(f'D_illegal_{i//3}_{i%3}')
 
-    # # Order of ruletimes is preserved by the concretization
-    # for i in range(len(ruletimes)-1):
-    #     ti = ruletimes[i]
-    #     tii = ruletimes[i+1]
-    #     Ti = realtime_to_ruletime(ruletime2realtimes[ti][0])
-    #     Tii = realtime_to_ruletime(ruletime2realtimes[tii][0])
-    #     valid_concretization += [Ti < Tii]
+    constraints = []
 
-    # constraints += valid_concretization
+    # 1. (a)
+    constraints += [t_vars_ego[i] < t_vars_ego[i+1]
+                    for i in range(len(t_vars_ego)-1)]
+    constraints += [t_vars_nonego[i] < t_vars_nonego[i+1]
+                    for i in range(len(t_vars_nonego)-1)]
+    constraints += [t_vars_illegal[i] < t_vars_illegal[i+1]
+                    for i in range(len(t_vars_illegal)-1)]
 
-    # # Preserve logical solution (ego violating nonego's right-of-way)
-    # logical_sol = []
-    # max_ruletime = realtime_to_ruletime(self.max_realtime)
-    # ego_ruletimes = sorted(set(
-    #     [event.ruletime for event in self.events['ego']]))
-    # import portion as P
-    # ego_intervals = [P.closedopen(0, ego_ruletimes[0])]
-    # for i in range(len(ego_ruletimes)-1):
-    #     ti = ego_ruletimes[i]
-    #     tii = ego_ruletimes[i+1]
-    #     ego_intervals.append(P.singleton(ti))
-    #     ego_intervals.append(P.open(ti, tii))
-    # ego_intervals.append(P.singleton(ego_ruletimes[-1]))
-    # ego_intervals.append(P.openclosed(ego_ruletimes[-1], max_ruletime))
+    # 1. (b)
+    # Make a mapping from (agent, ruletime) to corresponding list of realtime variables.
+    # Make a list (ruletime, agent) and sort it w.r.t ruletime.
+    ruletimes_ego = sorted(newRuletime2distances_ego.keys())
+    newRuletime2ts_ego = {}
+    for ruletime in ruletimes_ego:
+        start = len(newRuletime2ts_ego.values())
+        end = start + len(newRuletime2distances_ego[ruletime])
+        newRuletime2ts_ego[ruletime] = t_vars_ego[1:-1][start:end]
 
-    # for t in ruletimes:
-    #     for I in ego_intervals:
-    #         if t in I:
-    #             T = realtime_to_ruletime(ruletime2realtimes[t][0])
-    #             if I.lower == I.upper:
-    #                 logical_sol += [T == t]
-    #             elif I.left is P.OPEN and I.right is P.OPEN:
-    #                 logical_sol += [I.lower < T, T < I.upper]
-    #             elif I.left is P.CLOSED and I.right is P.OPEN:
-    #                 logical_sol += [I.lower <= T, T < I.upper]
-    #             elif I.left is P.OPEN and I.right is P.CLOSED:
-    #                 logical_sol += [I.lower < T, T <= I.upper]
-    #             break
+    ruletimes_nonego = sorted(newRuletime2distances_nonego.keys())
+    newRuletime2ts_nonego = {}
+    for ruletime in ruletimes_nonego:
+        start = len(newRuletime2ts_nonego.values())
+        end = start + len(newRuletime2distances_nonego[ruletime])
+        newRuletime2ts_nonego[ruletime] = t_vars_nonego[1:-1][start:end]
 
-    # constraints += logical_sol
+    ruletimes_illegal = sorted(newRuletime2distances_illegal.keys())
+    newRuletime2ts_illegal = {}
+    for ruletime in ruletimes_illegal:
+        start = len(newRuletime2ts_illegal.values())
+        end = start + len(newRuletime2distances_illegal[ruletime])
+        newRuletime2ts_illegal[ruletime] = t_vars_illegal[1:-1][start:end]
 
-    # # Interpolated points (ti, di)
-    # event_distances = []
-    # for ruletime in ruletimes:
-    #     for distance in ruletime2distances[ruletime]:
-    #         event_distances.append(distance)
-    # print(event_distances)
+    agent2ruletime2ts = {'ego': newRuletime2ts_ego,
+                         'nonego': newRuletime2ts_nonego,
+                         'illegal': newRuletime2ts_illegal}
 
-    # interp_d = [0] + event_distances + [frame2distance[-1]]
-    # interp_t = [0] + realtimes_all + [self.max_realtime]
-    # print(interp_t)
-    # print(interp_d)
-    # # Smooth speed interpolation with bounded acceleration
-    # # All the distances of events in increasing order
-    # coeffs = [z3.Reals(f'a{i}_0 a{i}_1 a{i}_2')
-    #           for i in range(len(interp_t)-1)]
-    # interp = []
-    # # The interpolation passes through each (ti, di).
-    # # Non-negative speed at each ti so that
-    # #  di <= d(t) <= dii for ti <= t <= tii.
-    # for i in range(len(coeffs)):
-    #     ti = interp_t[i]
-    #     di = interp_d[i]
-    #     tii = interp_t[i+1]
-    #     dii = interp_d[i+1]
-    #     a0, a1, a2 = coeffs[i]
-    #     interp += [a2*ti**2 + a1*ti + a0 == di]
-    #     interp += [a2*tii**2 + a1*tii + a0 == dii]
-    #     interp += [2*a2*ti + a1 >= 0]
-    # # Continuously differentiable
-    # for i in range(len(coeffs)-1):
-    #     tii = interp_t[i+1]
-    #     _, a1, a2 = coeffs[i]
-    #     _, b1, b2 = coeffs[i+1]
-    #     interp += [2*a2*tii + a1 == 2*b2*tii + b1]
-    # # Bound on acceleration (second derivative)
-    # min_acceleration = -2
-    # max_acceleration = 2
-    # for _, _, a2 in coeffs:
-    #     interp += [2*a2 <= max_acceleration]
-    #     interp += [min_acceleration <= 2*a2]
+    ruletime_agent = [(r, 'ego') for r in ruletimes_ego]
+    ruletime_agent += [(r, 'nonego') for r in ruletimes_nonego]
+    ruletime_agent += [(r, 'illegal') for r in ruletimes_illegal]
+    # TODO add events from existing agents in scenario
 
-    # constraints += interp
+    ruletime_agent.sort(key=lambda pair: pair[0])
 
-    # s = z3.Solver()
-    # s.add(constraints)
-    # print(s.check())
+    # 1. (b)
+    # (i) If two consecutive ruletimes r1<r2 belong to different agents,
+    #   then enforce ruletime(T1) < ruletime(T2)
+    #   where T1,T2 are any realtimes associated with r1,r2 respectively.
+    # (ii) If two consecutive ruletimes r1,r2 are equal (and so belong to different agents),
+    #   then enforce ruletime(T1) = ruletime(T2)
+    #   where T1,T2 are any realtimes associated with r1,r2 respectively.
+    for i in range(len(ruletime_agent)-1):
+        r1, a1 = ruletime_agent[i]
+        r2, a2 = ruletime_agent[i+1]
+        if (r1 < r2) and a1 != a2:
+            T1 = agent2ruletime2ts[a1][r1][-1]
+            T2 = agent2ruletime2ts[a2][r2][0]
+            # ruletime(T) = int(T*2):
+            constraints += [z3.ToInt(T1*2) < z3.ToInt(T2*2)]
+        elif r1 == r2:
+            T1 = agent2ruletime2ts[a1][r1][0]
+            T2 = agent2ruletime2ts[a2][r2][-1]
+            constraints += [z3.ToInt(T1*2) == z3.ToInt(T2*2)]
 
-    # # To convert Z3 rational numbers to Python's floating point reals
-    # def rat2fp(num):
-    #     return float(num.numerator_as_long())/float(num.denominator_as_long())
-    # m = s.model()
-    # concrete_realtimes = [
-    #     interp_t[0]] + [rat2fp(m.eval(T)) for T in interp_t[1:-1]] + [interp_t[-1]]
-    # concrete_coeffs = [(rat2fp(m.eval(c[0])), rat2fp(m.eval(c[1])), rat2fp(m.eval(c[2])))
-    #                    for c in coeffs]
-    # # print(concrete_realtimes)
-    # # print(concrete_coeffs)
+    # 2. (a)
+    # interpolate event points (t, d)
 
-    # nonego_intervals = []
-    # for i in range(len(concrete_realtimes)-1):
-    #     ti = concrete_realtimes[i]
-    #     tii = concrete_realtimes[i+1]
-    #     nonego_intervals += [P.closed(ti, tii)]
+    # 2. (b)
+    # ds <= d1 <= de, and ds <= d2 <= de
+    for i in range(0, len(d_vars_ego)-3, 3):
+        constraints += [d_vars_ego[i] <= d_vars_ego[i+1],
+                        d_vars_ego[i+1] <= d_vars_ego[i+3],
+                        d_vars_ego[i] <= d_vars_ego[i+2],
+                        d_vars_ego[i+2] <= d_vars_ego[i+3]]
+    for i in range(0, len(d_vars_nonego)-3, 3):
+        constraints += [d_vars_nonego[i] <= d_vars_nonego[i+1],
+                        d_vars_nonego[i+1] <= d_vars_nonego[i+3],
+                        d_vars_nonego[i] <= d_vars_nonego[i+2],
+                        d_vars_nonego[i+2] <= d_vars_nonego[i+3]]
+    for i in range(0, len(d_vars_illegal)-3, 3):
+        constraints += [d_vars_illegal[i] <= d_vars_illegal[i+1],
+                        d_vars_illegal[i+1] <= d_vars_illegal[i+3],
+                        d_vars_illegal[i] <= d_vars_illegal[i+2],
+                        d_vars_illegal[i+2] <= d_vars_illegal[i+3]]
 
-    # interval_index = 0
-    # new2distance = []
-    # for frame in range(len(trajectory)):
-    #     t = frame * self.timestep
-    #     while not t in nonego_intervals[interval_index]:
-    #         interval_index += 1
-    #     a0, a1, a2 = concrete_coeffs[interval_index]
-    #     d = a2*(t**2) + a1*t + a0
-    #     new2distance += [d]
+    # 2. (c)
+    # Let dq < dr < ds be three consecutive distances,
+    # tq < tr < ts be their corresponding realtimes,
+    # dq1 and dq2 be the distances for tq+(tr-tq)/3 and tq+2(tr-tq)/3, and
+    # dr1 and dr2 be the distances for tr+(ts-tr)/3 and tr+2(ts-tr)/3, respectively.
+    # Then we require:
+    # (tr-tq)(dr1-dr) = (ts-tr)(dr-dq2)
+    for i in range(len(t_vars_ego)-3):
+        tq, tr, ts = tuple(t_vars_ego[i:i+3])
+        dq2, dr, dr1 = tuple(d_vars_ego[3*i+2:3*i+5])
+        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
-    # import matplotlib.pyplot as plt
-    # import numpy as np
+    for i in range(len(t_vars_nonego)-3):
+        tq, tr, ts = tuple(t_vars_nonego[i:i+3])
+        dq2, dr, dr1 = tuple(d_vars_nonego[3*i+2:3*i+5])
+        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
-    # fs = []
-    # ds = []
-    # for i in range(len(nonego_intervals)):
-    #     I = nonego_intervals[i]
-    #     a0, a1, a2 = concrete_coeffs[i]
-    #     f = np.arange(I.lower, I.upper, self.timestep)
-    #     fs += [t/self.timestep for t in f]
-    #     ds += [a2*t**2 + a1*t + a0 for t in f]
+    for i in range(len(t_vars_illegal)-3):
+        tq, tr, ts = tuple(t_vars_illegal[i:i+3])
+        dq2, dr, dr1 = tuple(d_vars_illegal[3*i+2:3*i+5])
+        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
-    # plt.plot(fs, ds, '+')
-    # plt.plot(frame2distance, '.')
-    # plt.plot(new2distance, '.')
+    # 2. (d)
+    # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
+    # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
+    # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
+    # TODO move magic numbers to function arguments. Also, relation with average speed enforced in ASP.
+    # am, aM = -10, 10
+    # for i in range(len(t_vars_ego)-3):
+    #     tr, ts = tuple(t_vars_ego[i:i+2])
+    #     dr, dr1, dr2, ds = tuple(d_vars_ego[3*i:3*i+4])
+    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
+    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
+    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
+    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
-    # eventframe2distance = [[event.timestamp.frame, frame2distance[event.timestamp.frame]]
-    #                        for event in self.events[self.nonego]]
-    # plt.plot([p[0] for p in eventframe2distance], [p[1]
-    #                                                for p in eventframe2distance], 'o')
-    # plt.xlabel('frame')
-    # plt.ylabel('distance')
-    # plt.show()
+    # for i in range(len(t_vars_nonego)-3):
+    #     tr, ts = tuple(t_vars_nonego[i:i+2])
+    #     dr, dr1, dr2, ds = tuple(d_vars_nonego[3*i:3*i+4])
+    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
+    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
+    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
+    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
-    # new2old = []
-    # old = 0
-    # for new in range(len(trajectory)):
-    #     while old < len(trajectory)-1 and frame2distance[old] < new2distance[new]:
-    #         old += 1
-    #     new2old += [old]
+    # for i in range(len(t_vars_illegal)-3):
+    #     tr, ts = tuple(t_vars_illegal[i:i+2])
+    #     dr, dr1, dr2, ds = tuple(d_vars_illegal[3*i:3*i+4])
+    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
+    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
+    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
+    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
-    # new_traj = []
-    # for frame in range(len(trajectory)):
-    #     new_traj += [trajectory[new2old[frame]][self.nonego]]
-    # for frame in range(len(trajectory)):
-    #     trajectory[frame][self.nonego] = new_traj[frame]
+    # for c in constraints:
+    #     print(c)
 
-    return
+    s = z3.Solver()
+    s.add(constraints)
+    print(s.check())
+
+    # To convert Z3 rational numbers to Python's floating point reals
+    def rat2fp(num):
+        return float(num.numerator_as_long())/float(num.denominator_as_long())
+
+    # Get the model
+    m = s.model()
+
+    t_ego = [0] + [rat2fp(m.eval(T))
+                   for T in t_vars_ego[1:-1]] + [t_vars_ego[-1]]
+    d_ego = [d_vars_ego[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_ego[i]))
+             for i in range(len(d_vars_ego))]
+
+    t_nonego = [0] + [rat2fp(m.eval(T))
+                      for T in t_vars_nonego[1:-1]] + [t_vars_nonego[-1]]
+    d_nonego = [d_vars_nonego[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_nonego[i]))
+                for i in range(len(d_vars_nonego))]
+
+    t_illegal = [0] + [rat2fp(m.eval(T))
+                       for T in t_vars_illegal[1:-1]] + [t_vars_illegal[-1]]
+    d_illegal = [d_vars_illegal[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_illegal[i]))
+                 for i in range(len(d_vars_illegal))]
+
+    # Get interpolated points based on the Bezier control points
+    from geomdl import BSpline
+
+    # The new ego distance curve
+    t_ego_comp = [t_ego[0]]
+    for i in range(len(t_ego)-1):
+        ts, te = t_ego[i], t_ego[i+1]
+        ts1 = ts + (te-ts)/3
+        ts2 = ts + 2*(te-ts)/3
+        t_ego_comp += [ts1, ts2, te]
+    curve = BSpline.Curve()
+    curve.degree = 3
+    curve.ctrlpts = [[t_ego_comp[i], d_ego[i]] for i in range(len(d_ego))]
+    kv = [0, 0, 0, 0]
+    for i in range(1, len(t_ego)-1):
+        kv += [t_ego[i], t_ego[i], t_ego[i]]
+    kv += [t_ego[-1], t_ego[-1], t_ego[-1], t_ego[-1]]
+    curve.knotvector = kv
+    curve.sample_size = int(scenario.maxSteps)+1
+    new2distance_ego = [p[1] for p in curve.evalpts]
+
+    # The new nonego distance curve
+    t_nonego_comp = [t_nonego[0]]
+    for i in range(len(t_nonego)-1):
+        ts, te = t_nonego[i], t_nonego[i+1]
+        ts1 = ts + (te-ts)/3
+        ts2 = ts + 2*(te-ts)/3
+        t_nonego_comp += [ts1, ts2, te]
+    curve = BSpline.Curve()
+    curve.degree = 3
+    curve.ctrlpts = [[t_nonego_comp[i], d_nonego[i]]
+                     for i in range(len(d_nonego))]
+    kv = [0, 0, 0, 0]
+    for i in range(1, len(t_nonego)-1):
+        kv += [t_nonego[i], t_nonego[i], t_nonego[i]]
+    kv += [t_nonego[-1], t_nonego[-1], t_nonego[-1], t_nonego[-1]]
+    curve.knotvector = kv
+    curve.sample_size = int(scenario.maxSteps)+1
+    new2distance_nonego = [p[1] for p in curve.evalpts]
+
+    # The new illegal distance curve
+    t_illegal_comp = [t_illegal[0]]
+    for i in range(len(t_illegal)-1):
+        ts, te = t_illegal[i], t_illegal[i+1]
+        ts1 = ts + (te-ts)/3
+        ts2 = ts + 2*(te-ts)/3
+        t_illegal_comp += [ts1, ts2, te]
+    curve = BSpline.Curve()
+    curve.degree = 3
+    curve.ctrlpts = [[t_illegal_comp[i], d_illegal[i]]
+                     for i in range(len(d_illegal))]
+    kv = [0, 0, 0, 0]
+    for i in range(1, len(t_illegal)-1):
+        kv += [t_illegal[i], t_illegal[i], t_illegal[i]]
+    kv += [t_illegal[-1], t_illegal[-1], t_illegal[-1], t_illegal[-1]]
+    curve.knotvector = kv
+    curve.sample_size = int(scenario.maxSteps)+1
+    new2distance_illegal = [p[1] for p in curve.evalpts]
+
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(3)
+    fig.suptitle('distance-time curves for ego, nonego, illegal')
+    axs[0].plot(frame2oldDistance_ego, 'g')
+    axs[0].plot(new2distance_ego)
+    axs[0].plot([realtime_to_frame(t, scenario.timestep)
+                 for t in t_ego[1:-1]], d_ego[3:-3:3], 'ro')
+    axs[1].plot(frame2oldDistance_nonego, 'g')
+    axs[1].plot(new2distance_nonego)
+    axs[1].plot([realtime_to_frame(t, scenario.timestep)
+                 for t in t_nonego[1:-1]], d_nonego[3:-3:3], 'ro')
+    axs[2].plot(frame2oldDistance_illegal, 'g')
+    axs[2].plot(new2distance_illegal)
+    axs[2].plot([realtime_to_frame(t, scenario.timestep)
+                 for t in t_illegal[1:-1]], d_illegal[3:-3:3], 'ro')
+    plt.show()
+
+    # The new ego trajectory
+    new2old = []
+    old = 0
+    for new in range(len(trajectory_ego)):
+        while old < len(trajectory_ego)-1 and frame2oldDistance_ego[old] < new2distance_ego[new]:
+            old += 1
+        new2old += [old]
+
+    new_traj_ego = []
+    for frame in range(len(trajectory_ego)):
+        new_traj_ego += [trajectory_ego[new2old[frame]]['ego']]
+
+    # The new nonego trajectory
+    new2old = []
+    old = 0
+    for new in range(len(trajectory_nonego)):
+        while old < len(trajectory_nonego)-1 and frame2oldDistance_nonego[old] < new2distance_nonego[new]:
+            old += 1
+        new2old += [old]
+
+    new_traj_nonego = []
+    for frame in range(len(trajectory_nonego)):
+        new_traj_nonego += [trajectory_nonego[new2old[frame]][nonego]]
+
+    # The new illegal trajectory
+    new2old = []
+    old = 0
+    for new in range(len(trajectory_ego)):
+        while old < len(trajectory_ego)-1 and frame2oldDistance_illegal[old] < new2distance_illegal[new]:
+            old += 1
+        new2old += [old]
+
+    new_traj_illegal = []
+    for frame in range(len(trajectory_ego)):
+        new_traj_illegal += [trajectory_ego[new2old[frame]]['ego']]
+
+    return new_traj_ego, new_traj_nonego, new_traj_illegal
 
 
 def solution(scenario, events_all,
@@ -696,21 +874,27 @@ def solution(scenario, events_all,
     trajectory_nonego = sim_nonego.trajectory
 
     # Interpolate the events to a new trajectory
-    new_traj_ego = events_to_trajectory(scenario,
-                                        'ego',
-                                        trajectory_ego,
-                                        frame2oldDistance_ego,
-                                        newRuletime2distances_ego)
-    new_traj_nonego = events_to_trajectory(scenario,
-                                           nonego,
-                                           trajectory_nonego,
-                                           frame2oldDistance_nonego,
-                                           newRuletime2distances_nonego)
-    new_traj_illegal = events_to_trajectory(scenario,
-                                            'ego',
-                                            trajectory_ego,
-                                            frame2oldDistance_illegal,
-                                            newRuletime2distances_illegal)
+    # new_traj_ego = events_to_trajectory(scenario,
+    #                                     'ego',
+    #                                     trajectory_ego,
+    #                                     frame2oldDistance_ego,
+    #                                     newRuletime2distances_ego)
+    # new_traj_nonego = events_to_trajectory(scenario,
+    #                                        nonego,
+    #                                        trajectory_nonego,
+    #                                        frame2oldDistance_nonego,
+    #                                        newRuletime2distances_nonego)
+    # new_traj_illegal = events_to_trajectory(scenario,
+    #                                         'ego',
+    #                                         trajectory_ego,
+    #                                         frame2oldDistance_illegal,
+    #                                         newRuletime2distances_illegal)
+
+    new_trajectories = smooth_trajectories(scenario, nonego,
+                                           trajectory_ego, trajectory_nonego,
+                                           frame2oldDistance_ego, frame2oldDistance_nonego, frame2oldDistance_illegal,
+                                           newRuletime2distances_ego, newRuletime2distances_nonego, newRuletime2distances_illegal)
+    new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajectories
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
