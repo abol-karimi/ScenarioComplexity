@@ -581,7 +581,13 @@ def smooth_trajectories(scenario, nonego,
     ruletime_agent = [(r, 'ego') for r in ruletimes_ego]
     ruletime_agent += [(r, 'nonego') for r in ruletimes_nonego]
     ruletime_agent += [(r, 'illegal') for r in ruletimes_illegal]
-    # TODO add events from existing agents in scenario
+
+    # Add ruletimes of events of existing non-egos in scenario
+    old_cars = {car for car in scenario.events.keys() if not car in {
+        'ego', 'illegal'}}
+    for car in old_cars:
+        ruletime_agent += [(frame_to_ruletime(e.frame, scenario.timestep), car)
+                           for e in scenario.events[car]]
 
     ruletime_agent.sort(key=lambda pair: pair[0])
 
@@ -595,15 +601,26 @@ def smooth_trajectories(scenario, nonego,
     for i in range(len(ruletime_agent)-1):
         r1, a1 = ruletime_agent[i]
         r2, a2 = ruletime_agent[i+1]
-        if (r1 < r2) and a1 != a2:
-            T1 = agent2ruletime2ts[a1][r1][-1]
-            T2 = agent2ruletime2ts[a2][r2][0]
-            # ruletime(T) = int(T*2):
-            constraints += [z3.ToInt(T1*2) < z3.ToInt(T2*2)]
+        # Ignore timing relations between events of same agent.
+        # r1,r2 are constants for a1,a2 in old_cars so no constraints.
+        if a1 == a2 or {a1, a2}.issubset(old_cars):
+            continue
+        # We have r1 <= r2 since ruletime_agent is sorted
+        elif (r1 < r2):
+            # ruletime(T) = int(2*T):
+            T1 = r1 if a1 in old_cars else z3.ToInt(
+                2*agent2ruletime2ts[a1][r1][-1])
+            T2 = r2 if a2 in old_cars else z3.ToInt(
+                2*agent2ruletime2ts[a2][r2][0])
+            constraints += [T1 < T2]
         elif r1 == r2:
-            T1 = agent2ruletime2ts[a1][r1][0]
-            T2 = agent2ruletime2ts[a2][r2][-1]
-            constraints += [z3.ToInt(T1*2) == z3.ToInt(T2*2)]
+            T1 = r1 if a1 in old_cars else z3.ToInt(
+                2*agent2ruletime2ts[a1][r1][0])
+            T2 = r2 if a2 in old_cars else z3.ToInt(
+                2*agent2ruletime2ts[a2][r2][-1])
+            constraints += [T1 == T2]
+
+    # TODO enforce max average velocity for stopping at an intersection
 
     # 2. (a)
     # interpolate event points (t, d)
@@ -877,23 +894,7 @@ def solution(scenario, events_all,
     trajectory_ego = sim_ego.trajectory
     trajectory_nonego = sim_nonego.trajectory
 
-    # Interpolate the events to a new trajectory
-    # new_traj_ego = events_to_trajectory(scenario,
-    #                                     'ego',
-    #                                     trajectory_ego,
-    #                                     frame2oldDistance_ego,
-    #                                     newRuletime2distances_ego)
-    # new_traj_nonego = events_to_trajectory(scenario,
-    #                                        nonego,
-    #                                        trajectory_nonego,
-    #                                        frame2oldDistance_nonego,
-    #                                        newRuletime2distances_nonego)
-    # new_traj_illegal = events_to_trajectory(scenario,
-    #                                         'ego',
-    #                                         trajectory_ego,
-    #                                         frame2oldDistance_illegal,
-    #                                         newRuletime2distances_illegal)
-
+    # Find trajectories that preserve the order of events in the logical solution
     new_trajectories = smooth_trajectories(scenario, nonego,
                                            trajectory_ego, trajectory_nonego,
                                            frame2oldDistance_ego, frame2oldDistance_nonego, frame2oldDistance_illegal,
