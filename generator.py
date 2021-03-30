@@ -650,17 +650,17 @@ def smooth_trajectories(scenario, nonego,
     # dr1 and dr2 be the distances for tr+(ts-tr)/3 and tr+2(ts-tr)/3, respectively.
     # Then we require:
     # (tr-tq)(dr1-dr) = (ts-tr)(dr-dq2)
-    for i in range(len(t_vars_ego)-3):
+    for i in range(len(t_vars_ego)-2):
         tq, tr, ts = tuple(t_vars_ego[i:i+3])
         dq2, dr, dr1 = tuple(d_vars_ego[3*i+2:3*i+5])
         constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
-    for i in range(len(t_vars_nonego)-3):
+    for i in range(len(t_vars_nonego)-2):
         tq, tr, ts = tuple(t_vars_nonego[i:i+3])
         dq2, dr, dr1 = tuple(d_vars_nonego[3*i+2:3*i+5])
         constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
-    for i in range(len(t_vars_illegal)-3):
+    for i in range(len(t_vars_illegal)-2):
         tq, tr, ts = tuple(t_vars_illegal[i:i+3])
         dq2, dr, dr1 = tuple(d_vars_illegal[3*i+2:3*i+5])
         constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
