@@ -678,9 +678,6 @@ def smooth_trajectories(scenario, nonego,
     #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
     #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
-    # for c in constraints:
-    #     print(c)
-
     s = z3.Solver()
     s.add(constraints)
     print(s.check())
@@ -706,6 +703,8 @@ def smooth_trajectories(scenario, nonego,
                        for T in t_vars_illegal[1:-1]] + [t_vars_illegal[-1]]
     d_illegal = [d_vars_illegal[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_illegal[i]))
                  for i in range(len(d_vars_illegal))]
+
+    # TODO: update timings of new cars in scenario.events
 
     # Get interpolated points based on the Bezier control points
     from geomdl import BSpline
@@ -991,10 +990,10 @@ def extend(scenario, nonego_maneuver_uid,
         scene, maxSteps=scenario.maxSteps)
 
     # Find a strict extension of the given scenario
-    events = {car: event for car, event in scenario.events.items()}
-    events.update(monitor.events)
+    events_all = {car: event for car, event in scenario.events.items()}
+    events_all.update(monitor.events)
     trajectory = solution(
-        scenario, events,
+        scenario, events_all,
         nonego, nonego_maneuver_uid, nonego_spawn_distance,
         sim_result_ego, sim_result_nonego, maxSpeed,
         extra_constraints)
@@ -1013,6 +1012,6 @@ def extend(scenario, nonego_maneuver_uid,
     scenario_ext.maneuver_uid = {nonego: nonego_maneuver_uid}
     scenario_ext.maneuver_uid.update(scenario.maneuver_uid)
     scenario_ext.trajectory = trajectory
-    scenario_ext.events = events
+    scenario_ext.events = events_all
 
     return scenario_ext
