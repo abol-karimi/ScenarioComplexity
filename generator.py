@@ -38,7 +38,11 @@ def ruletime_to_realtime(T):
 
 
 def realtime_to_frame(t, timestep):
-    return int(t/timestep)
+    return int(realtime_to_frame_float(t, timestep))
+
+
+def realtime_to_frame_float(t, timestep):
+    return t/timestep
 
 
 def frame_to_realtime(frame, timestep):
@@ -697,6 +701,7 @@ def smooth_trajectories(scenario, nonego,
 
     s = z3.Solver()
     s.add(constraints)
+    print('Solving Z3 constraints...')
     print(s.check())
 
     # To convert Z3 rational numbers to Python's floating point reals
@@ -730,8 +735,8 @@ def smooth_trajectories(scenario, nonego,
     t_ego_comp = [t_ego[0]]
     for i in range(len(t_ego)-1):
         ts, te = t_ego[i], t_ego[i+1]
-        ts1 = ts + (te-ts)/3
-        ts2 = ts + 2*(te-ts)/3
+        ts1 = 2*ts/3 + te/3
+        ts2 = ts/3 + 2*te/3
         t_ego_comp += [ts1, ts2, te]
     curve = BSpline.Curve()
     curve.degree = 3
@@ -748,8 +753,8 @@ def smooth_trajectories(scenario, nonego,
     t_nonego_comp = [t_nonego[0]]
     for i in range(len(t_nonego)-1):
         ts, te = t_nonego[i], t_nonego[i+1]
-        ts1 = ts + (te-ts)/3
-        ts2 = ts + 2*(te-ts)/3
+        ts1 = 2*ts/3 + te/3
+        ts2 = ts/3 + 2*te/3
         t_nonego_comp += [ts1, ts2, te]
     curve = BSpline.Curve()
     curve.degree = 3
@@ -767,8 +772,8 @@ def smooth_trajectories(scenario, nonego,
     t_illegal_comp = [t_illegal[0]]
     for i in range(len(t_illegal)-1):
         ts, te = t_illegal[i], t_illegal[i+1]
-        ts1 = ts + (te-ts)/3
-        ts2 = ts + 2*(te-ts)/3
+        ts1 = 2*ts/3 + te/3
+        ts2 = ts/3 + 2*te/3
         t_illegal_comp += [ts1, ts2, te]
     curve = BSpline.Curve()
     curve.degree = 3
@@ -787,18 +792,18 @@ def smooth_trajectories(scenario, nonego,
     fig.suptitle('distance-time curves for ego, nonego, illegal')
     axs[0].plot(frame2oldDistance_ego, 'g')
     axs[0].plot(new2distance_ego)
-    axs[0].scatter([realtime_to_frame(t, scenario.timestep) for t in t_ego_comp], d_ego,
+    axs[0].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_ego_comp], d_ego,
                    c=['r' if i % 3 == 0 else 'b' for i in range(len(d_ego))],
                    s=[10 if i % 3 == 0 else 5 for i in range(len(d_ego))])
     axs[1].plot(frame2oldDistance_nonego, 'g')
     axs[1].plot(new2distance_nonego)
-    axs[1].scatter([realtime_to_frame(t, scenario.timestep) for t in t_nonego_comp], d_nonego,
+    axs[1].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_nonego_comp], d_nonego,
                    c=['r' if i %
                        3 == 0 else 'b' for i in range(len(d_nonego))],
                    s=[10 if i % 3 == 0 else 5 for i in range(len(d_nonego))])
     axs[2].plot(frame2oldDistance_illegal, 'g')
     axs[2].plot(new2distance_illegal)
-    axs[2].scatter([realtime_to_frame(t, scenario.timestep) for t in t_illegal_comp], d_illegal,
+    axs[2].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_illegal_comp], d_illegal,
                    c=['r' if i %
                        3 == 0 else 'b' for i in range(len(d_illegal))],
                    s=[10 if i % 3 == 0 else 5 for i in range(len(d_illegal))])
