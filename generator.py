@@ -556,43 +556,43 @@ def smooth_trajectories(scenario, nonego,
     # 1. (b)
     # Make a mapping from (agent, ruletime) to corresponding list of realtime variables.
     # Make a list (ruletime, agent) and sort it w.r.t ruletime.
-    ruletimes_ego = sorted(logicalTime2distances_ego.keys())
-    newRuletime2ts_ego = {}
-    for ruletime in ruletimes_ego:
-        start = len(newRuletime2ts_ego.values())
-        end = start + len(logicalTime2distances_ego[ruletime])
-        newRuletime2ts_ego[ruletime] = t_vars_ego[1:-1][start:end]
+    logicalTimes_ego = sorted(logicalTime2distances_ego.keys())
+    logicalTime2ts_ego = {}
+    for time in logicalTimes_ego:
+        start = len(logicalTime2ts_ego.values())
+        end = start + len(logicalTime2distances_ego[time])
+        logicalTime2ts_ego[time] = t_vars_ego[1:-1][start:end]
 
-    ruletimes_nonego = sorted(logicalTime2distances_nonego.keys())
-    newRuletime2ts_nonego = {}
-    for ruletime in ruletimes_nonego:
-        start = len(newRuletime2ts_nonego.values())
-        end = start + len(logicalTime2distances_nonego[ruletime])
-        newRuletime2ts_nonego[ruletime] = t_vars_nonego[1:-1][start:end]
+    logicalTimes_nonego = sorted(logicalTime2distances_nonego.keys())
+    logicalTime2ts_nonego = {}
+    for time in logicalTimes_nonego:
+        start = len(logicalTime2ts_nonego.values())
+        end = start + len(logicalTime2distances_nonego[time])
+        logicalTime2ts_nonego[time] = t_vars_nonego[1:-1][start:end]
 
-    ruletimes_illegal = sorted(logicalTime2distances_illegal.keys())
-    newRuletime2ts_illegal = {}
-    for ruletime in ruletimes_illegal:
-        start = len(newRuletime2ts_illegal.values())
-        end = start + len(logicalTime2distances_illegal[ruletime])
-        newRuletime2ts_illegal[ruletime] = t_vars_illegal[1:-1][start:end]
+    logicalTimes_illegal = sorted(logicalTime2distances_illegal.keys())
+    logicalTime2ts_illegal = {}
+    for time in logicalTimes_illegal:
+        start = len(logicalTime2ts_illegal.values())
+        end = start + len(logicalTime2distances_illegal[time])
+        logicalTime2ts_illegal[time] = t_vars_illegal[1:-1][start:end]
 
-    agent2ruletime2ts = {'ego': newRuletime2ts_ego,
-                         'nonego': newRuletime2ts_nonego,
-                         'illegal': newRuletime2ts_illegal}
+    agent2ruletime2ts = {'ego': logicalTime2ts_ego,
+                         'nonego': logicalTime2ts_nonego,
+                         'illegal': logicalTime2ts_illegal}
 
-    ruletime_agent = [(r, 'ego') for r in ruletimes_ego]
-    ruletime_agent += [(r, 'nonego') for r in ruletimes_nonego]
-    ruletime_agent += [(r, 'illegal') for r in ruletimes_illegal]
+    logicalTime_agent = [(r, 'ego') for r in logicalTimes_ego]
+    logicalTime_agent += [(r, 'nonego') for r in logicalTimes_nonego]
+    logicalTime_agent += [(r, 'illegal') for r in logicalTimes_illegal]
 
     # Add ruletimes of events of existing non-egos in scenario
     old_cars = {car for car in scenario.events.keys() if not car in {
         'ego', 'illegal'}}
     for car in old_cars:
-        ruletime_agent += [(frame_to_ruletime(e.frame, scenario.timestep), car)
+        logicalTime_agent += [(frame_to_ruletime(e.frame, scenario.timestep), car)
                            for e in scenario.events[car]]
 
-    ruletime_agent.sort(key=lambda pair: pair[0])
+    logicalTime_agent.sort(key=lambda pair: pair[0])
 
     # 1. (b)
     # (i) If two consecutive ruletimes r1<r2 belong to different agents,
@@ -601,9 +601,9 @@ def smooth_trajectories(scenario, nonego,
     # (ii) If two consecutive ruletimes r1,r2 are equal (and so belong to different agents),
     #   then enforce ruletime(T1) = ruletime(T2)
     #   where T1,T2 are any realtimes associated with r1,r2 respectively.
-    for i in range(len(ruletime_agent)-1):
-        r1, a1 = ruletime_agent[i]
-        r2, a2 = ruletime_agent[i+1]
+    for i in range(len(logicalTime_agent)-1):
+        r1, a1 = logicalTime_agent[i]
+        r2, a2 = logicalTime_agent[i+1]
         # Ignore timing relations between events of same agent.
         # r1,r2 are constants for a1,a2 in old_cars so no constraints.
         if a1 == a2 or {a1, a2}.issubset(old_cars):
