@@ -590,7 +590,7 @@ def smooth_trajectories(scenario, nonego,
         'ego', 'illegal'}}
     for car in old_cars:
         logicalTime_agent += [(frame_to_ruletime(e.frame, scenario.timestep), car)
-                           for e in scenario.events[car]]
+                              for e in scenario.events[car]]
 
     logicalTime_agent.sort(key=lambda pair: pair[0])
 
@@ -841,14 +841,17 @@ def smooth_trajectories(scenario, nonego,
     for frame in range(len(trajectory_ego)):
         new_traj_illegal += [trajectory_ego[new2old[frame]]['ego']]
 
-    return new_traj_ego, new_traj_nonego, new_traj_illegal
+    return (new_traj_ego, new_traj_nonego, new_traj_illegal), (t_ego[1:-1], t_nonego[1:-1], t_illegal[1:-1])
 
 
-def solution(scenario, events_all,
+def solution(scenario, sim_events,
              nonego, nonego_maneuver_uid, nonego_spawn_distance,
              sim_ego, sim_nonego,
              maxSpeed,
              extra_constraints):
+    # All the given and new events
+    events_all = {car: events for car, events in scenario.events.items()}
+    events_all.update(sim_events)  # Add nonego events, update ego events
     import copy
     events_all['illegal'] = []
     for event in events_all['ego']:
@@ -893,11 +896,12 @@ def solution(scenario, events_all,
         logicalTime2distances_illegal[ruletime] = distances_sorted
 
     # Find trajectories that preserve the order of events in the logical solution
-    new_trajectories = smooth_trajectories(scenario, nonego,
-                                           sim_ego.trajectory, sim_nonego.trajectory,
-                                           frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                           logicalTime2distances_ego, logicalTime2distances_nonego, logicalTime2distances_illegal)
-    new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajectories
+    new_trajs, new_ts = smooth_trajectories(scenario, nonego,
+                                            sim_ego.trajectory, sim_nonego.trajectory,
+                                            frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
+                                            logicalTime2distances_ego, logicalTime2distances_nonego, logicalTime2distances_illegal)
+    new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajs
+    t_ego, t_nonego, t_illegal = new_ts
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
@@ -911,6 +915,16 @@ def solution(scenario, events_all,
         traj_prev[frame]['illegal'] = new_traj_illegal[frame]
 
     # Update timing of new cars' events
+    # events_ego = events_all['ego']
+    # for e in events_all['ego']:
+    #     if e.frame in frame2events_ego:
+    #         frame2events_ego[e.frame] += [e]
+    #     else:
+    #         frame2events_ego[e.frame] = [e]
+
+    # for frame, events in frame2events_ego.items():
+    #     1
+
     for ruletime, events in logicalTime2events_ego.items():
         ds = logicalTime2distances_ego[ruletime]
         for event in events:
@@ -935,7 +949,7 @@ def solution(scenario, events_all,
             frame = ruletime_to_frame(
                 ruletime + fraction, scenario.timestep)
             event.frame = frame
-    return traj_prev
+    return traj_prev, events_all
 
 
 def extend(scenario, nonego_maneuver_uid,
@@ -989,10 +1003,8 @@ def extend(scenario, nonego_maneuver_uid,
         scene, maxSteps=scenario.maxSteps)
 
     # Find a strict extension of the given scenario
-    events_all = {car: event for car, event in scenario.events.items()}
-    events_all.update(monitor.events)
-    trajectory = solution(
-        scenario, events_all,
+    trajectory, events_all = solution(
+        scenario, monitor.events,
         nonego, nonego_maneuver_uid, nonego_spawn_distance,
         sim_result_ego, sim_result_nonego, maxSpeed,
         extra_constraints)
