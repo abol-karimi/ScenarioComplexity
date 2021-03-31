@@ -914,41 +914,36 @@ def solution(scenario, sim_events,
         traj_prev[frame][nonego] = new_traj_nonego[frame]
         traj_prev[frame]['illegal'] = new_traj_illegal[frame]
 
-    # Update timing of new cars' events
-    # events_ego = events_all['ego']
-    # for e in events_all['ego']:
-    #     if e.frame in frame2events_ego:
-    #         frame2events_ego[e.frame] += [e]
-    #     else:
-    #         frame2events_ego[e.frame] = [e]
+    # Update timing of sim events
+    events_ego = events_all['ego']
+    prev_frame = events_ego[0].frame
+    j = 0
+    for i in range(len(events_ego)):
+        if prev_frame != events_ego[i].frame:
+            prev_frame = events_ego[i].frame
+            j = j+1
+        events_ego[i].frame = realtime_to_frame(t_ego[j], scenario.timestep)
 
-    # for frame, events in frame2events_ego.items():
-    #     1
+    events_nonego = events_all[nonego]
+    prev_frame = events_nonego[0].frame
+    j = 0
+    for i in range(len(events_nonego)):
+        if prev_frame != events_nonego[i].frame:
+            prev_frame = events_nonego[i].frame
+            j = j+1
+        events_nonego[i].frame = realtime_to_frame(
+            t_nonego[j], scenario.timestep)
 
-    for ruletime, events in logicalTime2events_ego.items():
-        ds = logicalTime2distances_ego[ruletime]
-        for event in events:
-            d = frame2simDistance_ego[event.frame]
-            fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-            frame = ruletime_to_frame(
-                ruletime + fraction, scenario.timestep)
-            event.frame = frame
-    for ruletime, events in logicalTime2events_nonego.items():
-        ds = logicalTime2distances_nonego[ruletime]
-        for event in events:
-            d = frame2simDistance_nonego[event.frame]
-            fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-            frame = ruletime_to_frame(
-                ruletime + fraction, scenario.timestep)
-            event.frame = frame
-    for ruletime, events in logicalTime2events_illegal.items():
-        ds = logicalTime2distances_illegal[ruletime]
-        for event in events:
-            d = frame2simDistance_illegal[event.frame]
-            fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-            frame = ruletime_to_frame(
-                ruletime + fraction, scenario.timestep)
-            event.frame = frame
+    events_illegal = events_all['illegal']
+    prev_frame = events_illegal[0].frame
+    j = 0
+    for i in range(len(events_illegal)):
+        if prev_frame != events_illegal[i].frame:
+            prev_frame = events_illegal[i].frame
+            j = j+1
+        events_illegal[i].frame = realtime_to_frame(
+            t_illegal[j], scenario.timestep)
+
     return traj_prev, events_all
 
 
