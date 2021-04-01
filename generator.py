@@ -434,60 +434,6 @@ def logical_solution(scenario, sim_events,
     return ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal
 
 
-def events_to_trajectory(scenario,
-                         car,
-                         trajectory,
-                         frame2distance,
-                         ruletime2distances):
-    """ Given a new timing of events of 'car' (in keys of 'ruletime2distances'),
-    compute a new trajectory (pose for each frame) that interpolates (new time, event distance)
-    where the event distance is in values of 'ruletime2distances'.
-    """
-    # Interpolate car's trajectory based on
-    #  its new (frame, distance) points:
-    p_f = [0]
-    p_d = [0]
-    ruletimes = sorted(ruletime2distances.keys())  # for np.interp()
-    for ruletime in ruletimes:
-        ds = ruletime2distances[ruletime]
-        for d in ds:
-            fraction = (d-ds[0])/(ds[-1]-ds[0]+1)
-            frame = ruletime_to_frame(
-                ruletime + fraction, scenario.timestep)
-            p_f += [frame]
-            p_d += [d]
-    p_f += [len(frame2distance)-1]
-    p_d += [frame2distance[-1]]
-
-    # Linearly interpolate the (frame, distance) points
-    import numpy as np
-    new2distance = np.interp(range(len(trajectory)), p_f, p_d)
-
-    import matplotlib.pyplot as plt
-    plt.title(f'{car} trajectory')
-    plt.plot(frame2distance, 'g')
-    plt.plot(p_f, p_d, 'ro')
-    plt.plot(new2distance)
-
-    plt.xlabel('frame')
-    plt.ylabel('distance')
-    plt.show()
-
-    # The new trajectory
-    new2old = []
-    old = 0
-    for new in range(len(trajectory)):
-        while old < len(trajectory)-1 and frame2distance[old] < new2distance[new]:
-            old += 1
-        new2old += [old]
-
-    new_traj = []
-    for frame in range(len(trajectory)):
-        new_traj += [trajectory[new2old[frame]][car]]
-
-    return new_traj
-
-
 def smooth_trajectories(scenario, nonego,
                         trajectory_ego, trajectory_nonego,
                         frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
@@ -1012,10 +958,10 @@ def extend(scenario, nonego_maneuver_uid,
     scenario_ext.map_name = scenario.map_name
     scenario_ext.intersection_uid = scenario.intersection_uid
     scenario_ext.rules_path = scenario.rules_path
-    scenario_ext.blueprints = {nonego: nonego_blueprint}
-    scenario_ext.blueprints.update(scenario.blueprints)
-    scenario_ext.maneuver_uid = {nonego: nonego_maneuver_uid}
-    scenario_ext.maneuver_uid.update(scenario.maneuver_uid)
+    scenario_ext.blueprints = dict(
+        scenario.blueprints, **{nonego: nonego_blueprint})
+    scenario_ext.maneuver_uid = dict(
+        scenario.maneuver_uid, **{nonego: nonego_maneuver_uid})
     scenario_ext.trajectory = new_traj
     scenario_ext.events = dict(scenario.events, **new_events)
 
