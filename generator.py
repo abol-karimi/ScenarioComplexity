@@ -332,7 +332,7 @@ def nocollision(network, scenario, nonego,
     return atoms
 
 
-def model_to_events(model, events_all, car):
+def model_to_events(model, events, car):
     """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
     returns a mapping from each new ruletime to corresponding events in 'events_all'.
     """
@@ -341,8 +341,8 @@ def model_to_events(model, events_all, car):
                    'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
 
     # To connect logic solution with events
-    timeless2event = {event.withTime(
-        ''): event for event in events_all[car]}
+    timeless2event = {event.withTime(''): event
+                      for event in events}
 
     # A mapping from new ruletimes to old events
     ruletime2events = {}
@@ -364,7 +364,7 @@ def model_to_events(model, events_all, car):
     return ruletime2events
 
 
-def logical_solution(scenario, events_all,
+def logical_solution(scenario, sim_events,
                      nonego, nonego_maneuver_uid, nonego_spawn_distance,
                      sim_ego, sim_nonego,
                      frame2distance_ego,
@@ -372,7 +372,7 @@ def logical_solution(scenario, events_all,
                      frame2distance_nonego,
                      maxSpeed,
                      extra_constraints):
-    """ Given the events for ego, nonego, and illegal (in 'events_all')
+    """ Given the events for ego, nonego, and illegal (in 'sim_events')
     and their distances along the corresponding car's trajectory (in 'frame2distance_*'),
     find a timing for the events that satisfies the logical constraints.
     """
@@ -390,11 +390,11 @@ def logical_solution(scenario, events_all,
                   for event in scenario.events[car]]
 
     atoms += traj_constraints(scenario,
-                              events_all['ego'], frame2distance_ego, maxSpeed)
+                              sim_events['ego'], frame2distance_ego, maxSpeed)
     atoms += traj_constraints(scenario,
-                              events_all['illegal'], frame2distance_illegal, maxSpeed)
+                              sim_events['illegal'], frame2distance_illegal, maxSpeed)
     atoms += traj_constraints(scenario,
-                              events_all[nonego], frame2distance_nonego, maxSpeed)
+                              sim_events[nonego], frame2distance_nonego, maxSpeed)
 
     # No collision
     atoms += nocollision(network, scenario, nonego,
@@ -426,9 +426,10 @@ def logical_solution(scenario, events_all,
         if atom.name in sol_names:
             print(f'\t{atom}')
 
-    ruletime2events_ego = model_to_events(model, events_all, 'ego')
-    ruletime2events_nonego = model_to_events(model, events_all, nonego)
-    ruletime2events_illegal = model_to_events(model, events_all, 'illegal')
+    ruletime2events_ego = model_to_events(model, sim_events['ego'], 'ego')
+    ruletime2events_nonego = model_to_events(model, sim_events[nonego], nonego)
+    ruletime2events_illegal = model_to_events(
+        model, sim_events['illegal'], 'illegal')
 
     return ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal
 
@@ -850,20 +851,18 @@ def solution(scenario, sim_events,
              maxSpeed,
              extra_constraints):
     # All the given and new events
-    events_all = {car: events for car, events in scenario.events.items()}
-    events_all.update(sim_events)  # Add nonego events, update ego events
     import copy
-    events_all['illegal'] = []
-    for event in events_all['ego']:
+    sim_events['illegal'] = []
+    for event in sim_events['ego']:
         event_ill = copy.copy(event)
         event_ill.vehicle = 'illegal'
-        events_all['illegal'] += [event_ill]
+        sim_events['illegal'] += [event_ill]
 
     frame2simDistance_ego = frame_to_distance(sim_ego, 'ego')
     frame2simDistance_illegal = frame2simDistance_ego
     frame2simDistance_nonego = frame_to_distance(sim_nonego, nonego)
 
-    r2e = logical_solution(scenario, events_all,
+    r2e = logical_solution(scenario, sim_events,
                            nonego, nonego_maneuver_uid, nonego_spawn_distance,
                            sim_ego, sim_nonego,
                            frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
@@ -915,7 +914,7 @@ def solution(scenario, sim_events,
         traj_prev[frame]['illegal'] = new_traj_illegal[frame]
 
     # Update timing of sim events
-    events_ego = events_all['ego']
+    events_ego = sim_events['ego']
     prev_frame = events_ego[0].frame
     j = 0
     for i in range(len(events_ego)):
@@ -924,7 +923,7 @@ def solution(scenario, sim_events,
             j = j+1
         events_ego[i].frame = realtime_to_frame(t_ego[j], scenario.timestep)
 
-    events_nonego = events_all[nonego]
+    events_nonego = sim_events[nonego]
     prev_frame = events_nonego[0].frame
     j = 0
     for i in range(len(events_nonego)):
@@ -934,7 +933,7 @@ def solution(scenario, sim_events,
         events_nonego[i].frame = realtime_to_frame(
             t_nonego[j], scenario.timestep)
 
-    events_illegal = events_all['illegal']
+    events_illegal = sim_events['illegal']
     prev_frame = events_illegal[0].frame
     j = 0
     for i in range(len(events_illegal)):
@@ -944,7 +943,7 @@ def solution(scenario, sim_events,
         events_illegal[i].frame = realtime_to_frame(
             t_illegal[j], scenario.timestep)
 
-    return traj_prev, events_all
+    return traj_prev, sim_events
 
 
 def extend(scenario, nonego_maneuver_uid,
@@ -998,7 +997,7 @@ def extend(scenario, nonego_maneuver_uid,
         scene, maxSteps=scenario.maxSteps)
 
     # Find a strict extension of the given scenario
-    trajectory, events_all = solution(
+    new_traj, new_events = solution(
         scenario, monitor.events,
         nonego, nonego_maneuver_uid, nonego_spawn_distance,
         sim_result_ego, sim_result_nonego, maxSpeed,
@@ -1017,7 +1016,7 @@ def extend(scenario, nonego_maneuver_uid,
     scenario_ext.blueprints.update(scenario.blueprints)
     scenario_ext.maneuver_uid = {nonego: nonego_maneuver_uid}
     scenario_ext.maneuver_uid.update(scenario.maneuver_uid)
-    scenario_ext.trajectory = trajectory
-    scenario_ext.events = events_all
+    scenario_ext.trajectory = new_traj
+    scenario_ext.events = dict(scenario.events, **new_events)
 
     return scenario_ext
