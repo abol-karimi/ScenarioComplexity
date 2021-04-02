@@ -357,20 +357,9 @@ def model_to_events(model, events, car):
             timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
         ruletime = int(str(args[-1]))
         time_event += [(ruletime, timeless2event[timeless])]
-    time_event.sort(key=lambda pair: pair[0])
+    time_event.sort(key=lambda pair: pair[1].frame)
 
-    # Group events by their new logical time
-    from collections import OrderedDict
-    logicalTime2events = OrderedDict()
-    last_time = -1
-    for time, event in time_event:
-        if time != last_time:
-            logicalTime2events[time] = [event]
-            last_time = time
-        else:
-            logicalTime2events[time] += [event]
-
-    return logicalTime2events
+    return time_event
 
 
 def logical_solution(scenario, sim_events,
@@ -435,20 +424,20 @@ def logical_solution(scenario, sim_events,
         if atom.name in sol_names:
             print(f'\t{atom}')
 
-    logicalTime2events_ego = model_to_events(
+    time_event_ego = model_to_events(
         model, sim_events['ego'], 'ego')
-    logicalTime2events_nonego = model_to_events(
+    time_event_nonego = model_to_events(
         model, sim_events[nonego], nonego)
-    logicalTime2events_illegal = model_to_events(
+    time_event_illegal = model_to_events(
         model, sim_events['illegal'], 'illegal')
 
-    return logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal
+    return time_event_ego, time_event_nonego, time_event_illegal
 
 
 def smooth_trajectories(scenario, nonego,
                         trajectory_ego, trajectory_nonego,
                         frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                        logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal):
+                        time_event_ego, time_event_nonego, time_event_illegal):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
       (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
@@ -461,29 +450,52 @@ def smooth_trajectories(scenario, nonego,
       (b) speed is continuous (to model no impact)
       (c) acceleration is bounded (to model bounded torque)
     """
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_ego = {}
-    for time, events in logicalTime2events_ego.items():
-        distances = [frame2simDistance_ego[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_ego[time] = distances_sorted
+    # Distances of events of a new logical time in increasing order
+    from collections import OrderedDict
+    logicalTime2distances_ego = OrderedDict()
+    last_frame = -1
+    last_time = -1
+    for time, event in time_event_ego:
+        if last_frame == event.frame:
+            continue
+        last_frame = event.frame
+        new_distance = frame2simDistance_ego[event.frame]
+        if last_time == time:
+            logicalTime2distances_ego[time] += [new_distance]
+        else:
+            logicalTime2distances_ego[time] = [new_distance]
+            last_time = time
 
     # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_nonego = {}
-    for time, events in logicalTime2events_nonego.items():
-        distances = [frame2simDistance_nonego[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_nonego[time] = distances_sorted
+    logicalTime2distances_nonego = OrderedDict()
+    last_frame = -1
+    last_time = -1
+    for time, event in time_event_nonego:
+        if last_frame == event.frame:
+            continue
+        last_frame = event.frame
+        new_distance = frame2simDistance_nonego[event.frame]
+        if last_time == time:
+            logicalTime2distances_nonego[time] += [new_distance]
+        else:
+            logicalTime2distances_nonego[time] = [new_distance]
+            last_time = time
 
     # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_illegal = {}
-    for time, events in logicalTime2events_illegal.items():
-        distances = [frame2simDistance_illegal[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_illegal[time] = distances_sorted
+    logicalTime2distances_illegal = OrderedDict()
+    last_frame = -1
+    last_time = -1
+    for time, event in time_event_illegal:
+        if last_frame == event.frame:
+            continue
+        last_frame = event.frame
+        new_distance = frame2simDistance_illegal[event.frame]
+        if last_time == time:
+            logicalTime2distances_illegal[time] += [new_distance]
+        else:
+            logicalTime2distances_illegal[time] = [new_distance]
+            last_time = time
+
     distances_ego = [round_down(d)
                      for ds in logicalTime2distances_ego.values()
                      for d in ds]
@@ -850,13 +862,13 @@ def solution(scenario, sim_events,
                            frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
                            maxSpeed,
                            extra_constraints)
-    logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal = l2e
+    time_event_ego, time_event_nonego, time_event_illegal = l2e
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_ts = smooth_trajectories(scenario, nonego,
                                             sim_ego.trajectory, sim_nonego.trajectory,
                                             frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                            logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal)
+                                            time_event_ego, time_event_nonego, time_event_illegal)
     new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajs
     t_ego, t_nonego, t_illegal = new_ts
 
