@@ -361,16 +361,16 @@ def model_to_events(model, events, car):
 
     # Group events by their new logical time
     from collections import OrderedDict
-    ruletime2events = OrderedDict()
+    logicalTime2events = OrderedDict()
     last_time = -1
     for time, event in time_event:
         if time != last_time:
-            ruletime2events[time] = [event]
+            logicalTime2events[time] = [event]
             last_time = time
         else:
-            ruletime2events[time] += [event]
+            logicalTime2events[time] += [event]
 
-    return ruletime2events
+    return logicalTime2events
 
 
 def logical_solution(scenario, sim_events,
@@ -448,7 +448,7 @@ def logical_solution(scenario, sim_events,
 def smooth_trajectories(scenario, nonego,
                         trajectory_ego, trajectory_nonego,
                         frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                        logicalTime2distances_ego, logicalTime2distances_nonego, logicalTime2distances_illegal):
+                        logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
       (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
@@ -461,13 +461,38 @@ def smooth_trajectories(scenario, nonego,
       (b) speed is continuous (to model no impact)
       (c) acceleration is bounded (to model bounded torque)
     """
+    # Distances of events of a new ruletime in increasing order
+    logicalTime2distances_ego = {}
+    for time, events in logicalTime2events_ego.items():
+        distances = [frame2simDistance_ego[event.frame]
+                     for event in events]
+        distances_sorted = sorted(set(distances))
+        logicalTime2distances_ego[time] = distances_sorted
 
-    distances_ego = sorted(
-        [round_down(d) for ds in logicalTime2distances_ego.values() for d in ds])
-    distances_nonego = sorted(
-        [round_down(d) for ds in logicalTime2distances_nonego.values() for d in ds])
-    distances_illegal = sorted(
-        [round_down(d) for ds in logicalTime2distances_illegal.values() for d in ds])
+    # Distances of events of a new ruletime in increasing order
+    logicalTime2distances_nonego = {}
+    for time, events in logicalTime2events_nonego.items():
+        distances = [frame2simDistance_nonego[event.frame]
+                     for event in events]
+        distances_sorted = sorted(set(distances))
+        logicalTime2distances_nonego[time] = distances_sorted
+
+    # Distances of events of a new ruletime in increasing order
+    logicalTime2distances_illegal = {}
+    for time, events in logicalTime2events_illegal.items():
+        distances = [frame2simDistance_illegal[event.frame]
+                     for event in events]
+        distances_sorted = sorted(set(distances))
+        logicalTime2distances_illegal[time] = distances_sorted
+    distances_ego = [round_down(d)
+                     for ds in logicalTime2distances_ego.values()
+                     for d in ds]
+    distances_nonego = [round_down(d)
+                        for ds in logicalTime2distances_nonego.values()
+                        for d in ds]
+    distances_illegal = [round_down(d)
+                         for ds in logicalTime2distances_illegal.values()
+                         for d in ds]
 
     import z3
     t_vars_ego = [0] + [z3.Real(f'T_ego_{i}')
@@ -827,35 +852,11 @@ def solution(scenario, sim_events,
                            extra_constraints)
     logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal = l2e
 
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_ego = {}
-    for time, events in logicalTime2events_ego.items():
-        distances = [frame2simDistance_ego[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_ego[time] = distances_sorted
-
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_nonego = {}
-    for time, events in logicalTime2events_nonego.items():
-        distances = [frame2simDistance_nonego[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_nonego[time] = distances_sorted
-
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_illegal = {}
-    for time, events in logicalTime2events_illegal.items():
-        distances = [frame2simDistance_illegal[event.frame]
-                     for event in events]
-        distances_sorted = sorted(set(distances))
-        logicalTime2distances_illegal[time] = distances_sorted
-
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_ts = smooth_trajectories(scenario, nonego,
                                             sim_ego.trajectory, sim_nonego.trajectory,
                                             frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                            logicalTime2distances_ego, logicalTime2distances_nonego, logicalTime2distances_illegal)
+                                            logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal)
     new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajs
     t_ego, t_nonego, t_illegal = new_ts
 
