@@ -334,7 +334,7 @@ def nocollision(network, scenario, nonego,
 
 def model_to_events(model, events, car):
     """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
-    returns a mapping from each new ruletime to corresponding events in 'events_all'.
+    returns a mapping from each new ruletime to corresponding events in 'events'.
     """
 
     event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
@@ -344,8 +344,8 @@ def model_to_events(model, events, car):
     timeless2event = {event.withTime(''): event
                       for event in events}
 
-    # A mapping from new ruletimes to old events
-    ruletime2events = {}
+    # Tag events by their new logical time
+    time_event = []
     for atom in model:
         name = atom.name
         args = atom.arguments
@@ -356,10 +356,19 @@ def model_to_events(model, events, car):
         else:
             timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
         ruletime = int(str(args[-1]))
-        if not ruletime in ruletime2events:
-            ruletime2events[ruletime] = [timeless2event[timeless]]
+        time_event += [(ruletime, timeless2event[timeless])]
+    time_event.sort(key=lambda pair: pair[0])
+
+    # Group events by their new logical time
+    from collections import OrderedDict
+    ruletime2events = OrderedDict()
+    last_time = -1
+    for time, event in time_event:
+        if time != last_time:
+            ruletime2events[time] = [event]
+            last_time = time
         else:
-            ruletime2events[ruletime] += [timeless2event[timeless]]
+            ruletime2events[time] += [event]
 
     return ruletime2events
 
@@ -426,12 +435,14 @@ def logical_solution(scenario, sim_events,
         if atom.name in sol_names:
             print(f'\t{atom}')
 
-    ruletime2events_ego = model_to_events(model, sim_events['ego'], 'ego')
-    ruletime2events_nonego = model_to_events(model, sim_events[nonego], nonego)
-    ruletime2events_illegal = model_to_events(
+    logicalTime2events_ego = model_to_events(
+        model, sim_events['ego'], 'ego')
+    logicalTime2events_nonego = model_to_events(
+        model, sim_events[nonego], nonego)
+    logicalTime2events_illegal = model_to_events(
         model, sim_events['illegal'], 'illegal')
 
-    return ruletime2events_ego, ruletime2events_nonego, ruletime2events_illegal
+    return logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal
 
 
 def smooth_trajectories(scenario, nonego,
@@ -503,21 +514,21 @@ def smooth_trajectories(scenario, nonego,
     # 1. (b)
     # Make a mapping from (agent, ruletime) to corresponding list of realtime variables.
     # Make a list (ruletime, agent) and sort it w.r.t ruletime.
-    logicalTimes_ego = sorted(logicalTime2distances_ego.keys())
+    logicalTimes_ego = logicalTime2distances_ego.keys()
     logicalTime2ts_ego = {}
     for time in logicalTimes_ego:
         start = len(logicalTime2ts_ego.values())
         end = start + len(logicalTime2distances_ego[time])
         logicalTime2ts_ego[time] = t_vars_ego[1:-1][start:end]
 
-    logicalTimes_nonego = sorted(logicalTime2distances_nonego.keys())
+    logicalTimes_nonego = logicalTime2distances_nonego.keys()
     logicalTime2ts_nonego = {}
     for time in logicalTimes_nonego:
         start = len(logicalTime2ts_nonego.values())
         end = start + len(logicalTime2distances_nonego[time])
         logicalTime2ts_nonego[time] = t_vars_nonego[1:-1][start:end]
 
-    logicalTimes_illegal = sorted(logicalTime2distances_illegal.keys())
+    logicalTimes_illegal = logicalTime2distances_illegal.keys()
     logicalTime2ts_illegal = {}
     for time in logicalTimes_illegal:
         start = len(logicalTime2ts_illegal.values())
@@ -808,37 +819,37 @@ def solution(scenario, sim_events,
     frame2simDistance_illegal = frame2simDistance_ego
     frame2simDistance_nonego = frame_to_distance(sim_nonego, nonego)
 
-    r2e = logical_solution(scenario, sim_events,
+    l2e = logical_solution(scenario, sim_events,
                            nonego, nonego_maneuver_uid, nonego_spawn_distance,
                            sim_ego, sim_nonego,
                            frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
                            maxSpeed,
                            extra_constraints)
-    logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal = r2e
+    logicalTime2events_ego, logicalTime2events_nonego, logicalTime2events_illegal = l2e
 
     # Distances of events of a new ruletime in increasing order
     logicalTime2distances_ego = {}
-    for newRuletime, events in logicalTime2events_ego.items():
+    for time, events in logicalTime2events_ego.items():
         distances = [frame2simDistance_ego[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        logicalTime2distances_ego[newRuletime] = distances_sorted
+        logicalTime2distances_ego[time] = distances_sorted
 
     # Distances of events of a new ruletime in increasing order
     logicalTime2distances_nonego = {}
-    for ruletime, events in logicalTime2events_nonego.items():
+    for time, events in logicalTime2events_nonego.items():
         distances = [frame2simDistance_nonego[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        logicalTime2distances_nonego[ruletime] = distances_sorted
+        logicalTime2distances_nonego[time] = distances_sorted
 
     # Distances of events of a new ruletime in increasing order
     logicalTime2distances_illegal = {}
-    for ruletime, events in logicalTime2events_illegal.items():
+    for time, events in logicalTime2events_illegal.items():
         distances = [frame2simDistance_illegal[event.frame]
                      for event in events]
         distances_sorted = sorted(set(distances))
-        logicalTime2distances_illegal[ruletime] = distances_sorted
+        logicalTime2distances_illegal[time] = distances_sorted
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_ts = smooth_trajectories(scenario, nonego,
