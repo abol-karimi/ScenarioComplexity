@@ -332,7 +332,7 @@ def nocollision(network, scenario, nonego,
     return atoms
 
 
-def model_to_events(model, events, car):
+def model_to_events(model, events, frame2distance, car):
     """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
     returns a mapping from each new ruletime to corresponding events in 'events'.
     """
@@ -344,8 +344,8 @@ def model_to_events(model, events, car):
     timeless2event = {event.withTime(''): event
                       for event in events}
 
-    # Tag events by their new logical time
-    time_event = []
+    # Tag events by their new logical time, and their distance along trajectory
+    time_event_distance = []
     for atom in model:
         name = atom.name
         args = atom.arguments
@@ -355,11 +355,13 @@ def model_to_events(model, events, car):
             timeless = f'{name}({args[0]}, {args[1]}, )'
         else:
             timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
-        ruletime = int(str(args[-1]))
-        time_event += [(ruletime, timeless2event[timeless])]
-    time_event.sort(key=lambda pair: pair[1].frame)
+        logicalTime = int(str(args[-1]))
+        event = timeless2event[timeless]
+        distance = frame2distance[event.frame]
+        time_event_distance += [(logicalTime, event, distance)]
+    time_event_distance.sort(key=lambda triple: triple[1].frame)
 
-    return time_event
+    return time_event_distance
 
 
 def logical_solution(scenario, sim_events,
@@ -424,20 +426,20 @@ def logical_solution(scenario, sim_events,
         if atom.name in sol_names:
             print(f'\t{atom}')
 
-    time_event_ego = model_to_events(
-        model, sim_events['ego'], 'ego')
-    time_event_nonego = model_to_events(
-        model, sim_events[nonego], nonego)
-    time_event_illegal = model_to_events(
-        model, sim_events['illegal'], 'illegal')
+    time_event_distance_ego = model_to_events(
+        model, sim_events['ego'], frame2distance_ego, 'ego')
+    time_event_distance_nonego = model_to_events(
+        model, sim_events[nonego], frame2distance_nonego, nonego)
+    time_event_distance_illegal = model_to_events(
+        model, sim_events['illegal'], frame2distance_illegal, 'illegal')
 
-    return time_event_ego, time_event_nonego, time_event_illegal
+    return time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal
 
 
 def smooth_trajectories(scenario, nonego,
                         trajectory_ego, trajectory_nonego,
                         frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                        time_event_ego, time_event_nonego, time_event_illegal):
+                        time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
       (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
@@ -453,48 +455,27 @@ def smooth_trajectories(scenario, nonego,
     # Distances of events of a new logical time in increasing order
     from collections import OrderedDict
     logicalTime2distances_ego = OrderedDict()
-    last_frame = -1
-    last_time = -1
-    for time, event in time_event_ego:
-        if last_frame == event.frame:
-            continue
-        last_frame = event.frame
-        new_distance = frame2simDistance_ego[event.frame]
-        if last_time == time:
-            logicalTime2distances_ego[time] += [new_distance]
-        else:
-            logicalTime2distances_ego[time] = [new_distance]
-            last_time = time
+    for time, _, distance in time_event_distance_ego:
+        if not (time in logicalTime2distances_ego):
+            logicalTime2distances_ego[time] = [distance]
+        elif logicalTime2distances_ego[time][-1] < distance:
+            logicalTime2distances_ego[time] += [distance]
 
     # Distances of events of a new ruletime in increasing order
     logicalTime2distances_nonego = OrderedDict()
-    last_frame = -1
-    last_time = -1
-    for time, event in time_event_nonego:
-        if last_frame == event.frame:
-            continue
-        last_frame = event.frame
-        new_distance = frame2simDistance_nonego[event.frame]
-        if last_time == time:
-            logicalTime2distances_nonego[time] += [new_distance]
-        else:
-            logicalTime2distances_nonego[time] = [new_distance]
-            last_time = time
+    for time, _, distance in time_event_distance_nonego:
+        if not (time in logicalTime2distances_nonego):
+            logicalTime2distances_nonego[time] = [distance]
+        elif logicalTime2distances_nonego[time][-1] < distance:
+            logicalTime2distances_nonego[time] += [distance]
 
     # Distances of events of a new ruletime in increasing order
     logicalTime2distances_illegal = OrderedDict()
-    last_frame = -1
-    last_time = -1
-    for time, event in time_event_illegal:
-        if last_frame == event.frame:
-            continue
-        last_frame = event.frame
-        new_distance = frame2simDistance_illegal[event.frame]
-        if last_time == time:
-            logicalTime2distances_illegal[time] += [new_distance]
-        else:
-            logicalTime2distances_illegal[time] = [new_distance]
-            last_time = time
+    for time, _, distance in time_event_distance_illegal:
+        if not (time in logicalTime2distances_illegal):
+            logicalTime2distances_illegal[time] = [distance]
+        elif logicalTime2distances_illegal[time][-1] < distance:
+            logicalTime2distances_illegal[time] += [distance]
 
     distances_ego = [round_down(d)
                      for ds in logicalTime2distances_ego.values()
