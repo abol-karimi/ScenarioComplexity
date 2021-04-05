@@ -105,7 +105,7 @@ monitor egoEvents:
 		
 		if (not arrived) and (distance from (front of ego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
-			event_monitor.on_arrival('ego', ego.lane.uid, signal, currentTime)
+			event_monitor.on_arrival('ego', ego.lane.uid, signal.name.lower(), currentTime)
 		if inIntersection and not entered:
 			entered = True
 			event_monitor.on_entrance('ego', ego.lane.uid, currentTime)

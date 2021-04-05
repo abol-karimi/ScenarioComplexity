@@ -22,7 +22,7 @@ class SignaledAtForkEvent:
         self.frame = frame
 
     def withTime(self, t):
-        return f'signaledAtForkAtTime({self.vehicle}, {self.signal.name.lower()}, {self.incoming_lane}, {t})'
+        return f'signaledAtForkAtTime({self.vehicle}, {self.signal}, {self.incoming_lane}, {t})'
 
 
 class StoppedAtForkEvent:
