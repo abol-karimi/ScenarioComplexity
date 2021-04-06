@@ -336,13 +336,13 @@ def model_to_events(model, events, frame2distance, car):
     """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
     returns a mapping from each new ruletime to corresponding events in 'events'.
     """
+    # To connect logic solution with events
+    import copy
+    timeless2event = {event.withTime(''): copy.copy(event)
+                      for event in events}
 
     event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
                    'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-
-    # To connect logic solution with events
-    timeless2event = {event.withTime(''): event
-                      for event in events}
 
     # Tag events by their new logical time, and their distance along trajectory
     time_event_distance = []
@@ -673,7 +673,7 @@ def smooth_trajectories(scenario, nonego,
 
     s = z3.Solver()
     s.add(constraints)
-    print('Solving Z3 constraints...')
+    print('Solving smoothness constraints...')
     print(s.check())
 
     # To convert Z3 rational numbers to Python's floating point reals
@@ -873,19 +873,19 @@ def solution(scenario, sim_events,
     frame2simDistance_illegal = frame2simDistance_ego
     frame2simDistance_nonego = frame_to_distance(sim_nonego, nonego)
 
-    l2e = logical_solution(scenario, sim_events,
-                           nonego, nonego_maneuver_uid, nonego_spawn_distance,
-                           sim_ego, sim_nonego,
-                           frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
-                           maxSpeed,
-                           extra_constraints)
-    time_event_ego, time_event_nonego, time_event_illegal = l2e
+    l_sol = logical_solution(scenario, sim_events,
+                             nonego, nonego_maneuver_uid, nonego_spawn_distance,
+                             sim_ego, sim_nonego,
+                             frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
+                             maxSpeed,
+                             extra_constraints)
+    time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal = l_sol
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_events = smooth_trajectories(scenario, nonego,
                                                 sim_ego.trajectory, sim_nonego.trajectory,
                                                 frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                                time_event_ego, time_event_nonego, time_event_illegal)
+                                                time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal)
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
@@ -924,7 +924,7 @@ def extend(scenario, nonego_maneuver_uid,
               'render': render,
               'event_monitor': monitor}
 
-    print('Sample an ego trajectory...')
+    print('Simulate an ego trajectory...')
     params['car_name'] = 'ego'
     params['maneuver_uid'] = scenario.maneuver_uid['ego']
     params['spawn_distance'] = ego_spawn_distance
@@ -938,7 +938,7 @@ def extend(scenario, nonego_maneuver_uid,
     simulator.world.apply_settings(settings)
     sim_result_ego = simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
-    print('Sample a nonego trajectory...')
+    print('Simulate a nonego trajectory...')
     nonego = f'car{len(scenario.blueprints)}'
     params['car_name'] = nonego
     params['maneuver_uid'] = nonego_maneuver_uid
