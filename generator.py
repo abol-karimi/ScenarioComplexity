@@ -817,7 +817,43 @@ def smooth_trajectories(scenario, nonego,
     for frame in range(len(trajectory_ego)):
         new_traj_illegal += [trajectory_ego[new2old[frame]]['ego']]
 
-    return (new_traj_ego, new_traj_nonego, new_traj_illegal), (t_ego[1:-1], t_nonego[1:-1], t_illegal[1:-1])
+    # New timing of events
+    t_e_d = time_event_distance_ego
+    prev_d = t_e_d[0][2]
+    j = 0
+    for i in range(len(t_e_d)):
+        if prev_d != t_e_d[i][2]:
+            prev_d = t_e_d[i][2]
+            j = j+1
+        t_e_d[i][1].frame = realtime_to_frame(t_ego[j], scenario.timestep)
+
+    t_e_d = time_event_distance_nonego
+    prev_d = t_e_d[0][2]
+    j = 0
+    for i in range(len(t_e_d)):
+        if prev_d != t_e_d[i][2]:
+            prev_d = t_e_d[i][2]
+            j = j+1
+        t_e_d[i][1].frame = realtime_to_frame(t_nonego[j], scenario.timestep)
+
+    t_e_d = time_event_distance_illegal
+    prev_d = t_e_d[0][2]
+    j = 0
+    for i in range(len(t_e_d)):
+        if prev_d != t_e_d[i][2]:
+            prev_d = t_e_d[i][2]
+            j = j+1
+        t_e_d[i][1].frame = realtime_to_frame(t_illegal[j], scenario.timestep)
+
+    new_trajs = {'ego': new_traj_ego,
+                 nonego: new_traj_nonego,
+                 'illegal': new_traj_illegal}
+
+    new_events = {'ego': [ted[1] for ted in time_event_distance_ego],
+                  nonego: [ted[1] for ted in time_event_distance_nonego],
+                  'illegal': [ted[1] for ted in time_event_distance_illegal]}
+
+    return new_trajs, new_events
 
 
 def solution(scenario, sim_events,
@@ -846,53 +882,24 @@ def solution(scenario, sim_events,
     time_event_ego, time_event_nonego, time_event_illegal = l2e
 
     # Find trajectories that preserve the order of events in the logical solution
-    new_trajs, new_ts = smooth_trajectories(scenario, nonego,
-                                            sim_ego.trajectory, sim_nonego.trajectory,
-                                            frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                            time_event_ego, time_event_nonego, time_event_illegal)
-    new_traj_ego, new_traj_nonego, new_traj_illegal = new_trajs
-    t_ego, t_nonego, t_illegal = new_ts
+    new_trajs, new_events = smooth_trajectories(scenario, nonego,
+                                                sim_ego.trajectory, sim_nonego.trajectory,
+                                                frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
+                                                time_event_ego, time_event_nonego, time_event_illegal)
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
     if not traj_prev:
-        traj_prev = [{} for i in range(len(new_traj_ego))]
+        traj_prev = [{} for i in range(len(new_trajs['ego']))]
 
-    # Trajectories of the new vehicles
+    # Update the trajectory
     for frame in range(len(traj_prev)):
-        traj_prev[frame]['ego'] = new_traj_ego[frame]
-        traj_prev[frame][nonego] = new_traj_nonego[frame]
-        traj_prev[frame]['illegal'] = new_traj_illegal[frame]
+        traj_prev[frame]['ego'] = new_trajs['ego'][frame]
+        traj_prev[frame][nonego] = new_trajs[nonego][frame]
+        traj_prev[frame]['illegal'] = new_trajs['illegal'][frame]
 
-    # Update timing of sim events
-    events_ego = sim_events['ego']
-    prev_frame = events_ego[0].frame
-    j = 0
-    for i in range(len(events_ego)):
-        if prev_frame != events_ego[i].frame:
-            prev_frame = events_ego[i].frame
-            j = j+1
-        events_ego[i].frame = realtime_to_frame(t_ego[j], scenario.timestep)
-
-    events_nonego = sim_events[nonego]
-    prev_frame = events_nonego[0].frame
-    j = 0
-    for i in range(len(events_nonego)):
-        if prev_frame != events_nonego[i].frame:
-            prev_frame = events_nonego[i].frame
-            j = j+1
-        events_nonego[i].frame = realtime_to_frame(
-            t_nonego[j], scenario.timestep)
-
-    events_illegal = sim_events['illegal']
-    prev_frame = events_illegal[0].frame
-    j = 0
-    for i in range(len(events_illegal)):
-        if prev_frame != events_illegal[i].frame:
-            prev_frame = events_illegal[i].frame
-            j = j+1
-        events_illegal[i].frame = realtime_to_frame(
-            t_illegal[j], scenario.timestep)
+    # Update the events
+    sim_events.update(new_events)
 
     return traj_prev, sim_events
 
