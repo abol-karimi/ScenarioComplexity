@@ -449,14 +449,6 @@ def logical_solution(scenario, sim_events,
 
     model = solver.solve()
 
-    sol_names = {'violatesRule', 'violatesRightOfForRule',
-                 'arrivedAtForkAtTime', 'signaledAtForkAtTime', 'stoppedAtForkAtTime',
-                 'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-    print("Logical solution: ")
-    for atom in model:
-        if atom.name in sol_names:
-            print(f'\t{atom}')
-
     time_event_distance_ego = model_to_events(
         model, sim_events['ego'], frame2distance_ego, 'ego')
     time_event_distance_nonego = model_to_events(
@@ -467,7 +459,7 @@ def logical_solution(scenario, sim_events,
     return time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal
 
 
-def smooth_trajectories(scenario, nonego,
+def smooth_trajectories(scenario, nonego, maxSpeed,
                         trajectory_ego, trajectory_nonego,
                         frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
                         time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal):
@@ -482,7 +474,8 @@ def smooth_trajectories(scenario, nonego,
       (a) interpolation does not create new events
       (b) speed is continuous (to model no impact)
       (c) speed is small at stop events
-      (d) acceleration is bounded (to model bounded torque)
+      (d) bounds on speed
+      (e) acceleration is bounded (to model bounded torque)
     """
     # Distances of events of a new logical time in increasing order
     from collections import OrderedDict
@@ -734,6 +727,28 @@ def smooth_trajectories(scenario, nonego,
             break
 
     # 2. (d)
+    for i in range(len(t_vars_ego)-1):
+        tq, tr = tuple(t_vars_ego[i:i+2])
+        dq, dq1, dq2, dr = tuple(d_vars_ego[3*i:3*i+4])
+        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
+        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
+
+    for i in range(len(t_vars_nonego)-1):
+        tq, tr = tuple(t_vars_nonego[i:i+2])
+        dq, dq1, dq2, dr = tuple(d_vars_nonego[3*i:3*i+4])
+        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]
+        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]
+
+    for i in range(len(t_vars_illegal)-1):
+        tq, tr = tuple(t_vars_illegal[i:i+2])
+        dq, dq1, dq2, dr = tuple(d_vars_illegal[3*i:3*i+4])
+        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]
+        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]
+
+    # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
@@ -789,8 +804,6 @@ def smooth_trajectories(scenario, nonego,
                        for T in t_vars_illegal[1:-1]] + [t_vars_illegal[-1]]
     d_illegal = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
                  for d in d_vars_illegal]
-
-    # TODO: update timings of new cars in scenario.events
 
     # Get interpolated points based on the Bezier control points
     from geomdl import BSpline
@@ -912,7 +925,7 @@ def smooth_trajectories(scenario, nonego,
     # New timing of events
     t_e_d = time_event_distance_ego
     prev_d = t_e_d[0][2]
-    j = 0
+    j = 1
     for i in range(len(t_e_d)):
         if prev_d != t_e_d[i][2]:
             prev_d = t_e_d[i][2]
@@ -921,7 +934,7 @@ def smooth_trajectories(scenario, nonego,
 
     t_e_d = time_event_distance_nonego
     prev_d = t_e_d[0][2]
-    j = 0
+    j = 1
     for i in range(len(t_e_d)):
         if prev_d != t_e_d[i][2]:
             prev_d = t_e_d[i][2]
@@ -930,7 +943,7 @@ def smooth_trajectories(scenario, nonego,
 
     t_e_d = time_event_distance_illegal
     prev_d = t_e_d[0][2]
-    j = 0
+    j = 1
     for i in range(len(t_e_d)):
         if prev_d != t_e_d[i][2]:
             prev_d = t_e_d[i][2]
@@ -973,11 +986,27 @@ def solution(scenario, sim_events,
                              extra_constraints)
     time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal = l_sol
 
+    print("Logical solution: ")
+    for t, e, d in time_event_distance_ego:
+        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
+    print('')
+    for t, e, d in time_event_distance_nonego:
+        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
+    print('')
+    for t, e, d in time_event_distance_illegal:
+        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
+
     # Find trajectories that preserve the order of events in the logical solution
-    new_trajs, new_events = smooth_trajectories(scenario, nonego,
+    new_trajs, new_events = smooth_trajectories(scenario, nonego, maxSpeed,
                                                 sim_ego.trajectory, sim_nonego.trajectory,
                                                 frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
                                                 time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal)
+
+    print('Solution events:')
+    for events in new_events.values():
+        for e in events:
+            print(f'\t{e.withTime(frame_to_ruletime(e.frame, scenario.timestep))}')
+        print('')
 
     traj_prev = scenario.trajectory
     # When extending an empty scenario
