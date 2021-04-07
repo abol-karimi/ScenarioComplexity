@@ -144,11 +144,13 @@ violatesRightOfForRule(V1, V2, leftTurn):-
 % 21802 (a):
 % The driver of any vehicle approaching a stop sign at the entrance to, or within, an intersection
 %  shall stop as required by Section 22450.
+stoppedAtFork(V, F):-
+  stoppedAtForkAtTime(V, F, T).
+
 violatesRule(V, stopAtSign):-
-  arrivedAtForkAtTime(V, F, T1),
+  arrivedAtFork(V, F),
   hasStopSign(F),
-  enteredForkAtTime(V, F, T2),
-  T2 - T1 < 4. % i.e. < 4*0.5 = 2 seconds
+  not stoppedAtFork(V, F).
 
 % 22526 (a) (Signalized intersection?)
 % Notwithstanding any official traffic control signal indication to proceed,

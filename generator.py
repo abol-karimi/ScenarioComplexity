@@ -157,7 +157,8 @@ def traj_constraints(scenario, events, frame2distance, maxSpeed):
                 f':- {frame_events[i].withTime("T1")}, {frame_events[i+1].withTime("T2")}, T1 != T2')
 
     # Car's non-simultaneous events
-    # Two non-simultaneous events may have the same ruletime (logical time)
+    # Two non-simultaneous events may have the same logical time
+    # TODO use OrderedDic to avoid sorting
     frames = sorted(frame2events.keys())
     for i in range(len(frames)-1):
         ei = frame2events[frames[i]][0]
@@ -345,21 +346,35 @@ def model_to_events(model, events, frame2distance, car):
                    'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
 
     # Tag events by their new logical time, and their distance along trajectory
+    from intersection_monitor import StoppedAtForkEvent
     time_event_distance = []
     for atom in model:
         name = atom.name
         args = atom.arguments
         if not (str(args[0]) == car and name in event_names):
             continue
+        logicalTime = int(str(args[-1]))
         if len(args) == 3:
             timeless = f'{name}({args[0]}, {args[1]}, )'
         else:
             timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
-        logicalTime = int(str(args[-1]))
         event = timeless2event[timeless]
         distance = frame2distance[event.frame]
         time_event_distance += [(logicalTime, event, distance)]
+
     time_event_distance.sort(key=lambda triple: triple[1].frame)
+
+    for atom in model:
+        name = atom.name
+        args = atom.arguments
+        if name != 'stoppedAtForkAtTime' or str(args[0]) != car:
+            continue
+        logicalTime = int(str(args[-1]))
+        t_e_d = (logicalTime,
+                 StoppedAtForkEvent(f'{args[0]}', f'{args[1]}', None),
+                 None)
+        time_event_distance.insert(2, t_e_d)  # After arrival and signal events
+        break
 
     return time_event_distance
 
@@ -411,6 +426,21 @@ def logical_solution(scenario, sim_events,
     atoms += [f':- V != {nonego}, V != ego, violatesRightOf(illegal, V)']
     atoms += [f':- violatesRule(illegal, _)']
 
+    # The event StopppedAtForkAtTime is generated based on the status of traffic rules violations:
+    atoms += [f'{{stoppedAtForkAtTime(V, F, T): time(T), T > T1, T < T2 }} = 1 :-'
+              f'arrivedAtForkAtTime(V, F, T1),'
+              f'enteredForkAtTime(V, F, T2),'
+              f'not violatesRule(V, stopAtSign)']
+    # To guide the search for feasibility
+    atoms += [f':- arrivedAtForkAtTime(V, F, T1),'
+              f'stoppedAtForkAtTime(V, F, _),'
+              f'enteredForkAtTime(V, F, T2),'
+              f'T2-T1 < 4']  # TODO remove magic number 4
+    atoms += [f':- arrivedAtForkAtTime(V, F, T1),'
+              f'enteredForkAtTime(V, F, T2),'
+              f'violatesRule(V, stopAtSign),'
+              f'T2-T1 >= 4']  # TODO remove magic number 4
+
     from solver import Solver
     max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
     solver = Solver(max_ruletime)
@@ -419,7 +449,8 @@ def logical_solution(scenario, sim_events,
 
     model = solver.solve()
 
-    sol_names = {'violatesRule', 'violatesRightOfForRule', 'arrivedAtForkAtTime', 'signaledAtForkAtTime',
+    sol_names = {'violatesRule', 'violatesRightOfForRule',
+                 'arrivedAtForkAtTime', 'signaledAtForkAtTime', 'stoppedAtForkAtTime',
                  'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
     print("Logical solution: ")
     for atom in model:
@@ -450,7 +481,8 @@ def smooth_trajectories(scenario, nonego,
       and (ts+(te-ts)/3, d1) and (ts+2(te-ts)/3, d2) are intermediate control points, such that:
       (a) interpolation does not create new events
       (b) speed is continuous (to model no impact)
-      (c) acceleration is bounded (to model bounded torque)
+      (c) speed is small at stop events
+      (d) acceleration is bounded (to model bounded torque)
     """
     # Distances of events of a new logical time in increasing order
     from collections import OrderedDict
@@ -458,7 +490,7 @@ def smooth_trajectories(scenario, nonego,
     for time, _, distance in time_event_distance_ego:
         if not (time in logicalTime2distances_ego):
             logicalTime2distances_ego[time] = [distance]
-        elif logicalTime2distances_ego[time][-1] < distance:
+        elif logicalTime2distances_ego[time][-1] != distance:
             logicalTime2distances_ego[time] += [distance]
 
     # Distances of events of a new ruletime in increasing order
@@ -466,7 +498,7 @@ def smooth_trajectories(scenario, nonego,
     for time, _, distance in time_event_distance_nonego:
         if not (time in logicalTime2distances_nonego):
             logicalTime2distances_nonego[time] = [distance]
-        elif logicalTime2distances_nonego[time][-1] < distance:
+        elif logicalTime2distances_nonego[time][-1] != distance:
             logicalTime2distances_nonego[time] += [distance]
 
     # Distances of events of a new ruletime in increasing order
@@ -474,25 +506,25 @@ def smooth_trajectories(scenario, nonego,
     for time, _, distance in time_event_distance_illegal:
         if not (time in logicalTime2distances_illegal):
             logicalTime2distances_illegal[time] = [distance]
-        elif logicalTime2distances_illegal[time][-1] < distance:
+        elif logicalTime2distances_illegal[time][-1] != distance:
             logicalTime2distances_illegal[time] += [distance]
 
-    distances_ego = [round_down(d)
+    distances_ego = [round_down(d) if d != None else d
                      for ds in logicalTime2distances_ego.values()
                      for d in ds]
-    distances_nonego = [round_down(d)
+    distances_nonego = [round_down(d) if d != None else d
                         for ds in logicalTime2distances_nonego.values()
                         for d in ds]
-    distances_illegal = [round_down(d)
+    distances_illegal = [round_down(d) if d != None else d
                          for ds in logicalTime2distances_illegal.values()
                          for d in ds]
 
     import z3
-    t_vars_ego = [0] + [z3.Real(f'T_ego_{i}')
+    t_vars_ego = [0] + [z3.Real(f'T_ego_{i+1}')
                         for i in range(len(distances_ego))] + [scenario.maxSteps*scenario.timestep]
-    t_vars_nonego = [0] + [z3.Real(f'T_nonego_{i}')
+    t_vars_nonego = [0] + [z3.Real(f'T_nonego_{i+1}')
                            for i in range(len(distances_nonego))] + [scenario.maxSteps*scenario.timestep]
-    t_vars_illegal = [0] + [z3.Real(f'T_illegal_{i}')
+    t_vars_illegal = [0] + [z3.Real(f'T_illegal_{i+1}')
                             for i in range(len(distances_illegal))] + [scenario.maxSteps*scenario.timestep]
 
     d_vars_ego = [0 for i in range(len(t_vars_ego)*3-2)]
@@ -500,6 +532,8 @@ def smooth_trajectories(scenario, nonego,
     for i in range(1, len(d_vars_ego)-1):
         if i % 3 == 0:     # interpolate event points (t, d)
             d_vars_ego[i] = distances_ego[i//3-1]
+            if d_vars_ego[i] == None:  # no distance constraint for this event
+                d_vars_ego[i] = z3.Real(f'D_ego_{i//3}')
         else:
             d_vars_ego[i] = z3.Real(f'D_ego_{i//3}_{i%3}')
 
@@ -508,6 +542,8 @@ def smooth_trajectories(scenario, nonego,
     for i in range(1, len(d_vars_nonego)-1):
         if i % 3 == 0:
             d_vars_nonego[i] = distances_nonego[i//3-1]
+            if d_vars_nonego[i] == None:  # no distance constraint for this event
+                d_vars_nonego[i] = z3.Real(f'D_nonego_{i//3}')
         else:
             d_vars_nonego[i] = z3.Real(f'D_nonego_{i//3}_{i%3}')
 
@@ -516,8 +552,37 @@ def smooth_trajectories(scenario, nonego,
     for i in range(1, len(d_vars_illegal)-1):
         if i % 3 == 0:
             d_vars_illegal[i] = distances_illegal[i//3-1]
+            if d_vars_illegal[i] == None:  # no distance constraint for this event
+                d_vars_illegal[i] = z3.Real(f'D_illegal_{i//3}')
         else:
             d_vars_illegal[i] = z3.Real(f'D_illegal_{i//3}_{i%3}')
+
+    event2realtimeIndex_ego = {}
+    i = 1
+    last_distance = -1
+    for _, e, d in time_event_distance_ego:
+        if last_distance != d:
+            event2realtimeIndex_ego[e.withTime('')] = i
+            last_distance = d
+            i += 1
+
+    event2realtimeIndex_nonego = {}
+    i = 1
+    last_distance = -1
+    for _, e, d in time_event_distance_nonego:
+        if last_distance != d:
+            event2realtimeIndex_nonego[e.withTime('')] = i
+            last_distance = d
+            i += 1
+
+    event2realtimeIndex_illegal = {}
+    i = 1
+    last_distance = -1
+    for _, e, d in time_event_distance_illegal:
+        if last_distance != d:
+            event2realtimeIndex_illegal[e.withTime('')] = i
+            last_distance = d
+            i += 1
 
     constraints = []
 
@@ -642,6 +707,33 @@ def smooth_trajectories(scenario, nonego,
         constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
     # 2. (c)
+    stop_speed = 1.0  # meters/second
+
+    for _, e, _ in time_event_distance_ego:
+        if e.name == 'stoppedAtForkAtTime':
+            i = event2realtimeIndex_ego[e.withTime('')]
+            delta_t = (t_vars_ego[i+1] - t_vars_ego[i])/3
+            delta_d = d_vars_ego[3*i+1] - d_vars_ego[3*i]
+            constraints += [delta_d/delta_t < stop_speed]
+            break
+
+    for _, e, _ in time_event_distance_nonego:
+        if e.name == 'stoppedAtForkAtTime':
+            i = event2realtimeIndex_nonego[e.withTime('')]
+            delta_t = (t_vars_nonego[i+1] - t_vars_nonego[i])/3
+            delta_d = d_vars_nonego[3*i+1] - d_vars_nonego[3*i]
+            constraints += [delta_d/delta_t < stop_speed]
+            break
+
+    for _, e, _ in time_event_distance_illegal:
+        if e.name == 'stoppedAtForkAtTime':
+            i = event2realtimeIndex_illegal[e.withTime('')]
+            delta_t = (t_vars_illegal[i+1] - t_vars_illegal[i])/3
+            delta_d = d_vars_illegal[3*i+1] - d_vars_illegal[3*i]
+            constraints += [delta_d/delta_t < stop_speed]
+            break
+
+    # 2. (d)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
@@ -685,18 +777,18 @@ def smooth_trajectories(scenario, nonego,
 
     t_ego = [0] + [rat2fp(m.eval(T))
                    for T in t_vars_ego[1:-1]] + [t_vars_ego[-1]]
-    d_ego = [d_vars_ego[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_ego[i]))
-             for i in range(len(d_vars_ego))]
+    d_ego = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
+             for d in d_vars_ego]
 
     t_nonego = [0] + [rat2fp(m.eval(T))
                       for T in t_vars_nonego[1:-1]] + [t_vars_nonego[-1]]
-    d_nonego = [d_vars_nonego[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_nonego[i]))
-                for i in range(len(d_vars_nonego))]
+    d_nonego = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
+                for d in d_vars_nonego]
 
     t_illegal = [0] + [rat2fp(m.eval(T))
                        for T in t_vars_illegal[1:-1]] + [t_vars_illegal[-1]]
-    d_illegal = [d_vars_illegal[i] if i % 3 == 0 else rat2fp(m.eval(d_vars_illegal[i]))
-                 for i in range(len(d_vars_illegal))]
+    d_illegal = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
+                 for d in d_vars_illegal]
 
     # TODO: update timings of new cars in scenario.events
 
