@@ -71,6 +71,34 @@ def frame_to_distance(sim, car):
     return frame2distance
 
 
+def distance_to_pose(distances, sim_distances, traj, car):
+    """ For each frame, we are given a distance in 'sim_distances' and a corresponding pose in 'traj'.
+    We return the poses corresponding to 'distances' by linear interpolation of the above (distance, pose) pairs.
+    """
+    ds, xs, ys, hs = [], [], [], []
+    last_dist = -1
+    for d, state in zip(sim_distances, traj):
+        if last_dist == d:
+            continue
+        last_dist = d
+        # add data points
+        pose = state[car]
+        x, y, h = pose[0].x, pose[0].y, pose[1]
+        ds.append(d), xs.append(x), ys.append(y), hs.append(h)
+
+    import numpy as np
+    pi = np.pi
+    xs_i = np.interp(distances, ds, xs)
+    ys_i = np.interp(distances, ds, ys)
+    hs_i = np.interp(distances, ds, np.unwrap(hs))
+    # wrap headings back to (-pi,pi):
+    hs_i = [(h + pi) % (2*pi) - pi for h in hs_i]
+
+    from scenic.core.vectors import Vector
+    poses = [[Vector(x, y), h] for x, y, h in zip(xs_i, ys_i, hs_i)]
+    return poses
+
+
 def geometry_atoms(network, intersection_uid):
     """Assumes the correct map is loaded in CARLA server."""
     from signals import SignalType
@@ -886,41 +914,15 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
                    s=[10 if i % 3 == 0 else 5 for i in range(len(d_illegal))])
     plt.show()
 
-    # The new ego trajectory
-    new2old = []
-    old = 0
-    for new in range(len(trajectory_ego)):
-        while old < len(trajectory_ego)-1 and frame2simDistance_ego[old] < new2distance_ego[new]:
-            old += 1
-        new2old += [old]
+    # The new trajectories
+    new_traj_ego = distance_to_pose(
+        new2distance_ego, frame2simDistance_ego, trajectory_ego, 'ego')
 
-    new_traj_ego = []
-    for frame in range(len(trajectory_ego)):
-        new_traj_ego += [trajectory_ego[new2old[frame]]['ego']]
+    new_traj_nonego = distance_to_pose(
+        new2distance_nonego, frame2simDistance_nonego, trajectory_nonego, nonego)
 
-    # The new nonego trajectory
-    new2old = []
-    old = 0
-    for new in range(len(trajectory_nonego)):
-        while old < len(trajectory_nonego)-1 and frame2simDistance_nonego[old] < new2distance_nonego[new]:
-            old += 1
-        new2old += [old]
-
-    new_traj_nonego = []
-    for frame in range(len(trajectory_nonego)):
-        new_traj_nonego += [trajectory_nonego[new2old[frame]][nonego]]
-
-    # The new illegal trajectory
-    new2old = []
-    old = 0
-    for new in range(len(trajectory_ego)):
-        while old < len(trajectory_ego)-1 and frame2simDistance_illegal[old] < new2distance_illegal[new]:
-            old += 1
-        new2old += [old]
-
-    new_traj_illegal = []
-    for frame in range(len(trajectory_ego)):
-        new_traj_illegal += [trajectory_ego[new2old[frame]]['ego']]
+    new_traj_illegal = distance_to_pose(
+        new2distance_illegal, frame2simDistance_illegal, trajectory_ego, 'ego')
 
     # New timing of events
     t_e_d = time_event_distance_ego
