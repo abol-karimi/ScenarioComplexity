@@ -11,29 +11,26 @@ intersection = network.elements[replay_scenario.intersection_uid]
 maneuver_uid = replay_scenario.maneuver_uid
 trajectory = replay_scenario.trajectory
 blueprints = replay_scenario.blueprints
+events = replay_scenario.events
 
 import visualization
-from signals import vehicleLightState_from_maneuverType
+from signals import SignalType
 
-behavior SignalBehavior():
-	name = self.name if self.name != 'illegal' else 'ego'
-	l0_uid, l1_uid, l2_uid = maneuver_uid[name]
-	l0 = network.elements[l0_uid]
-	l1 = network.elements[l1_uid]
-	l2 = network.elements[l2_uid]
-	maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
-	lights = vehicleLightState_from_maneuverType(maneuverType)
-	take SetVehicleLightStateAction(lights)
+car2time2signal = {car:{e.frame:e.signal for e in es if e.name == 'signaledAtForkAtTime'} 
+	for car, es in events.items()}
 
 behavior ReplayBehavior():
-	do SignalBehavior()
 	carla_world = simulation().world
 	while True:
-		currentTime = simulation().currentTime
-		state = trajectory[currentTime][self.name]
+		t = simulation().currentTime
+		state = trajectory[t][self.name]
 		take SetTransformAction(state[0], state[1])
+
+		if t in car2time2signal[self.name]:
+			lights = SignalType[car2time2signal[self.name][t].upper()].to_vehicleLightState()
+			take SetVehicleLightStateAction(lights)
+
 		visualization.label_car(carla_world, self)
-		wait
 
 for carName, carState in trajectory[0].items():
 	if not carName in {'ego', 'illegal'}:

@@ -32,6 +32,14 @@ class SignalType(enum.Enum):
         if maneuverType is ManeuverType.U_TURN:
             return SignalType.LEFT
 
+    def to_vehicleLightState(self):
+        if self is SignalType.OFF:
+            return VehicleLightState.NONE
+        if self is SignalType.LEFT:
+            return VehicleLightState.LeftBlinker
+        if self is SignalType.RIGHT:
+            return VehicleLightState.RightBlinker
+
 
 def vehicleLightState_from_maneuverType(maneuverType):
     if maneuverType is ManeuverType.STRAIGHT:
