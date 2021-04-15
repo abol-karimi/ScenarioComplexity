@@ -14,17 +14,15 @@ args = parser.parse_args()
 with open(args.inputfile, 'rb') as inFile:
     scenario = pickle.load(inFile)
 
-params = {'map': scenario.map_path,
-          'carla_map': scenario.map_name,
-          'intersection_uid': scenario.intersection_uid,
-          'maneuver_uid': scenario.maneuver_uid,
-          'timestep': scenario.timestep,
-          'weather': scenario.weather,
-          'render': True}
+params = {'map': scenario.map_path,  # scenic.simulators.carla.model
+          'carla_map': scenario.map_name,  # scenic.simulators.carla.model
+          'timestep': scenario.timestep,  # scenic.simulators.carla.model
+          'weather': scenario.weather,  # scenic.simulators.carla.model
+          'render': True,  # scenic.simulators.carla.model
+          'replay_scenario': scenario
+          }
 
 print('Replay the loaded scenario...')
-params['trajectory'] = scenario.trajectory
-params['blueprints'] = scenario.blueprints
 scenic_scenario = scenic.scenarioFromFile(
     'replay.scenic', params=params)
 scene, _ = scenic_scenario.generate()

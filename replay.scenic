@@ -5,15 +5,12 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection_uid = None
-intersection = network.elements[globalParameters.intersection_uid]
-
-param maneuver_uid = None
-maneuver_uid = globalParameters.maneuver_uid
-
-param trajectory = None
-trajectory = globalParameters.trajectory
-blueprints = globalParameters.blueprints
+param replay_scenario = None
+replay_scenario = globalParameters.replay_scenario
+intersection = network.elements[replay_scenario.intersection_uid]
+maneuver_uid = replay_scenario.maneuver_uid
+trajectory = replay_scenario.trajectory
+blueprints = replay_scenario.blueprints
 
 import visualization
 from signals import vehicleLightState_from_maneuverType
