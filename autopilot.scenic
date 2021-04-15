@@ -6,15 +6,13 @@ param map = localPath('./maps/Town05.xodr')  # or other CARLA map that definitel
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-param intersection_uid = None
-intersection = network.elements[globalParameters.intersection_uid]
-
-param maneuver_uid = None
-maneuver_uid = globalParameters.maneuver_uid
-
-param trajectory = None
-trajectory = globalParameters.trajectory
-blueprints = globalParameters.blueprints
+param replay_scenario = None
+replay_scenario = globalParameters.replay_scenario
+intersection = network.elements[replay_scenario.intersection_uid]
+maneuver_uid = replay_scenario.maneuver_uid
+trajectory = replay_scenario.trajectory
+blueprints = replay_scenario.blueprints
+events = replay_scenario.events
 
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
@@ -30,31 +28,36 @@ from signals import vehicleLightState_from_maneuverType
 
 ARRIVAL_DISTANCE = 4 # meters
 
-behavior SignalBehavior():
-	l0_uid, l1_uid, l2_uid = maneuver_uid[self.name]
-	l0 = network.elements[l0_uid]
-	l1 = network.elements[l1_uid]
-	l2 = network.elements[l2_uid]
-	maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
-	lights = vehicleLightState_from_maneuverType(maneuverType)
-	take SetVehicleLightStateAction(lights)
+car2time2signal = {car:{e.frame:e.signal for e in es if e.name == 'signaledAtForkAtTime'} 
+	for car, es in events.items()}
 
-behavior ReplayBehavior():
-	do SignalBehavior()
+behavior ReplayBehavior(): # for nonegos
 	carla_world = simulation().world
 
 	while True:
-		currentTime = simulation().currentTime
-		state = trajectory[currentTime][self.name]
+		t = simulation().currentTime
+		state = trajectory[t][self.name]
 		take SetTransformAction(state[0], state[1])
+
+		if t in car2time2signal[self.name]:
+			lights = SignalType[car2time2signal[self.name][t].upper()].to_vehicleLightState()
+			take SetVehicleLightStateAction(lights)
+		
 		visualization.label_car(carla_world, self)
-		wait
 
 from agents.navigation.behavior_agent import BehaviorAgent
 from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
 
+from signals import SignalType
+l0_uid, l1_uid, l2_uid = maneuver_uid['ego']
+l0 = network.elements[l0_uid]
+l1 = network.elements[l1_uid]
+l2 = network.elements[l2_uid]
+maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
+signal = SignalType.from_maneuverType(maneuverType)
+
 behavior CarlaBehaviorAgent():
-	do SignalBehavior()
+	take SetVehicleLightStateAction(signal.to_vehicleLightState())
 	take SetAutopilotAction(True)
 	agent = BehaviorAgent(self.carlaActor, behavior=aggressiveness)
 	carla_world = simulation().world
@@ -80,14 +83,6 @@ for carName, carState in trajectory[0].items():
 			with name carName,
 			with blueprint blueprints[carName],
 			with behavior CarlaBehaviorAgent()
-
-from signals import SignalType
-l0_uid, l1_uid, l2_uid = maneuver_uid['ego']
-l0 = network.elements[l0_uid]
-l1 = network.elements[l1_uid]
-l2 = network.elements[l2_uid]
-maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
-signal = SignalType.from_maneuverType(maneuverType)
 
 monitor egoEvents:
 	carla_world = simulation().world

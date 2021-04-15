@@ -20,19 +20,17 @@ with open(args.inputfile, 'rb') as inFile:
 
 monitor = intersection_monitor.Monitor()
 
-params = {'map': scenario.map_path,
-          'carla_map': scenario.map_name,
-          'intersection_uid': scenario.intersection_uid,
-          'maneuver_uid': scenario.maneuver_uid,
-          'timestep': scenario.timestep,
-          'weather': scenario.weather,
-          'render': True,
-          'event_monitor': monitor}
+params = {'map': scenario.map_path,  # scenic.simulators.carla.model
+          'carla_map': scenario.map_name,  # scenic.simulators.carla.model
+          'timestep': scenario.timestep,  # scenic.simulators.carla.model
+          'weather': scenario.weather,  # scenic.simulators.carla.model
+          'render': True,  # scenic.simulators.carla.model
+          'replay_scenario': scenario,
+          'event_monitor': monitor,
+          'stop_speed_threshold': 0.01,  # meters/seconds
+          'aggressiveness': args.aggressiveness}
 
 print('Play an autopilot ego in the scenario...')
-params['trajectory'] = scenario.trajectory
-params['blueprints'] = scenario.blueprints
-params['aggressiveness'] = args.aggressiveness
 scenic_scenario = scenic.scenarioFromFile(
     'autopilot.scenic', params=params)
 scene, _ = scenic_scenario.generate()
