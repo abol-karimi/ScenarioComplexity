@@ -1,12 +1,8 @@
 #!/home/ak/Scenic/.venv/bin/python
+from generator import frame_to_distance
 import matplotlib.pyplot as plt
-from scenic.domains.driving.roads import Network
-from solver import Solver
 import argparse
-from generator import frame_to_ruletime
 import pickle
-import scenic
-from generator import geometry_atoms, frame_to_ruletime
 
 parser = argparse.ArgumentParser(
     description='Plot frame-distance curve of a car.')
@@ -20,12 +16,7 @@ with open(args.inputfile, 'rb') as inFile:
 car = args.car
 trajectory = scenario.trajectory
 events = scenario.events[car]
-# calculate the curve TODO import from generator
-frame2distance = [0]*len(trajectory)
-for i in range(len(trajectory)-1):
-    pi = trajectory[i][car][0]
-    pii = trajectory[i+1][car][0]
-    frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
+frame2distance = frame_to_distance(trajectory, car)
 
 plt.title(f'frame-distance curve for {car}')
 plt.plot(frame2distance)

@@ -59,8 +59,7 @@ def frame_to_ruletime(frame, timestep):
     return realtime_to_ruletime(realtime)
 
 
-def frame_to_distance(sim, car):  # TODO trajectory argument instead of sim
-    trajectory = sim.trajectory
+def frame_to_distance(trajectory, car):
     frame2distance = [0]*len(trajectory)
 
     for i in range(len(trajectory)-1):
@@ -976,9 +975,9 @@ def solution(scenario, sim_events,
         event_ill.vehicle = 'illegal'
         sim_events['illegal'] += [event_ill]
 
-    frame2simDistance_ego = frame_to_distance(sim_ego, 'ego')
+    frame2simDistance_ego = frame_to_distance(sim_ego.trajectory, 'ego')
     frame2simDistance_illegal = frame2simDistance_ego
-    frame2simDistance_nonego = frame_to_distance(sim_nonego, nonego)
+    frame2simDistance_nonego = frame_to_distance(sim_nonego.trajectory, nonego)
 
     l_sol = logical_solution(scenario, sim_events,
                              nonego, nonego_maneuver_uid, nonego_spawn_distance,
