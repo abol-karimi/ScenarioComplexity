@@ -59,7 +59,7 @@ def frame_to_ruletime(frame, timestep):
     return realtime_to_ruletime(realtime)
 
 
-def frame_to_distance(sim, car):
+def frame_to_distance(sim, car):  # TODO trajectory argument instead of sim
     trajectory = sim.trajectory
     frame2distance = [0]*len(trajectory)
 
@@ -170,15 +170,19 @@ def geometry_atoms(network, intersection_uid):
 
 def traj_constraints(scenario, events, frame2distance, maxSpeed):
     # Index car's events by their frame
-    frame2events = {event.frame: [] for event in events}
+    from collections import OrderedDict
+    frame2events = OrderedDict()
     for event in events:
+        if not event.frame in frame2events:
+            frame2events[event.frame] = []
         frame2events[event.frame].append(event)
+    frames = list(frame2events.keys())
 
     # Constrainst atoms
     atoms = []
 
     # Car's simultaneous events
-    for frame in frame2events.keys():
+    for frame in frames:
         frame_events = frame2events[frame]
         for i in range(len(frame_events)-1):
             atoms.append(
@@ -186,8 +190,6 @@ def traj_constraints(scenario, events, frame2distance, maxSpeed):
 
     # Car's non-simultaneous events
     # Two non-simultaneous events may have the same logical time
-    # TODO use OrderedDic to avoid sorting
-    frames = sorted(frame2events.keys())
     for i in range(len(frames)-1):
         ei = frame2events[frames[i]][0]
         eii = frame2events[frames[i+1]][0]
@@ -728,6 +730,7 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
         constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
     # 2. (c)
+    # TODO if no stoppedAtFork event, force a minimum speed
     stop_speed = 1.0  # meters/second
 
     for _, e, _ in time_event_distance_ego:
