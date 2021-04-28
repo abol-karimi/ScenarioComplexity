@@ -2,8 +2,7 @@ import clingo
 
 
 class Solver():
-    def __init__(self, maxtime):
-        self.maxtime = maxtime
+    def __init__(self):
         self.__solution = None
         self.__ctl = clingo.Control()
 
@@ -14,11 +13,11 @@ class Solver():
         program = ""
         for atom in atoms:
             program += f'{atom}.\n'
-        self.__ctl.add("boundedtime", [self.maxtime], program)
+        self.__ctl.add("base", [], program)
 
     def solve(self):
         print("\nSolving...")
-        self.__ctl.ground([("boundedtime", [self.maxtime])])
+        self.__ctl.ground([("base", [])])
         self.__ctl.solve(on_model=self.__on_model,
                          on_finish=self.__on_finish, async_=False)
 

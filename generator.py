@@ -167,59 +167,43 @@ def geometry_atoms(network, intersection_uid):
     return geometry
 
 
-def traj_constraints(scenario, events, frame2distance, maxSpeed):
-    # Index car's events by their frame
-    from collections import OrderedDict
-    frame2events = OrderedDict()
-    for event in events:
-        if not event.frame in frame2events:
-            frame2events[event.frame] = []
-        frame2events[event.frame].append(event)
-    frames = list(frame2events.keys())
-
-    # Constrainst atoms
+def realtime_logicalTime_axioms():
     atoms = []
 
-    # Car's simultaneous events
-    for frame in frames:
-        frame_events = frame2events[frame]
-        for i in range(len(frame_events)-1):
-            atoms.append(
-                f':- {frame_events[i].withTime("T1")}, {frame_events[i+1].withTime("T2")}, T1 != T2')
+    # If logically less-than, then realtime strictly less-than
+    atoms += [f'realLTE(S, T) :- lessThan(S, T)',
+              f':- lessThan(S, T), realLTE(T, S)']
+    # If logically equal, then realtime equal
+    atoms += [f'realLTE(S, T) :- equal(S, T)',
+              f'realLTE(T, S) :- equal(S, T)']
+    # Consistency of logical-time order
+    atoms += [f':- lessThan(S, T), equal(S, T)']
 
-    # Car's non-simultaneous events
-    # Two non-simultaneous events may have the same logical time
-    for i in range(len(frames)-1):
-        ei = frame2events[frames[i]][0]
-        eii = frame2events[frames[i+1]][0]
-        atoms += [f':- {ei.withTime("T1")}, {eii.withTime("T2")}, T1 > T2']
-
-    # Car's speed is bounded between any two events
-    for i in range(len(frames)):
-        ei = frame2events[frames[i]][0]
-        di = frame2distance[frames[i]]
-        # Average speed from begining to ti
-        atoms += [
-            f':- {ei.withTime("T")}, {int(2*di/maxSpeed)+1} > T']
-        dinf = frame2distance[-1]
-        tinf = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
-        # Average speed from ti to the end
-        atoms += [
-            f':- {ei.withTime("T")}, {int(2*(dinf-di)/maxSpeed)+1} > {tinf} - T']
-        # Average speed from ti to later events
-        for j in range(i+1, len(frames)):
-            ej = frame2events[frames[j]][0]
-            dj = frame2distance[frames[j]]
-            delta = int(2*(dj-di)/maxSpeed)+1
-            # 0 < delta <= tj - ti
-            atoms += [
-                f':- {ei.withTime("T1")}, {ej.withTime("T2")}, {delta} > T2 - T1']
-
-    # Generate car events
-    for event in events:
-        atoms += [f'{{ {event.withTime("T")} : time(T) }} = 1']
+    # realLTE is a partial order
+    atoms += [f'realLTE(T1, T3) :- realLTE(T1, T2), realLTE(T2, T3)',
+              f':- realLTE(T1, T2), realLTE(T2, T1), T1 != T2, not equal(T1, T2), not equal(T2, T1)']
 
     return atoms
+
+
+def car_to_time_to_events(sim_events):
+    """Assumes that for each car, its events in sim_events are given in nondecreasing time order."""
+    from collections import OrderedDict
+    car2time2events = {car: OrderedDict() for car in sim_events.keys()}
+
+    for car, events in sim_events.items():
+        last_frame = -1
+        i = -1
+        for e in events:
+            if e.frame != last_frame:
+                i += 1
+                t = f't_{car}_{i}'
+                car2time2events[car][t] = [e]
+                last_frame = e.frame
+            else:
+                car2time2events[car][t] += [e]
+
+    return car2time2events
 
 
 def nocollision_other(car1, car2):
@@ -382,7 +366,7 @@ def model_to_events(model, events, frame2distance, car):
         args = atom.arguments
         if not (str(args[0]) == car and name in event_names):
             continue
-        logicalTime = int(str(args[-1]))
+        logicalTime = str(args[-1])
         if len(args) == 3:
             timeless = f'{name}({args[0]}, {args[1]}, )'
         else:
@@ -423,56 +407,54 @@ def logical_solution(scenario, sim_events,
 
     atoms = extra_constraints
 
+    # TODO store geometry atoms in the scenario to avoid computing them each time.
     from scenic.domains.driving.roads import Network
     network = Network.fromFile(scenario.map_path)
     atoms += geometry_atoms(network, scenario.intersection_uid)
 
+    # Add event atoms of existing nonegos
     old_nonegos = {car for car in scenario.events.keys() if not car in {
         'ego', 'illegal'}}
     for car in old_nonegos:
         atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
                   for event in scenario.events[car]]
 
-    atoms += traj_constraints(scenario,
-                              sim_events['ego'], frame2distance_ego, maxSpeed)
-    atoms += traj_constraints(scenario,
-                              sim_events['illegal'], frame2distance_illegal, maxSpeed)
-    atoms += traj_constraints(scenario,
-                              sim_events[nonego], frame2distance_nonego, maxSpeed)
+    atoms += realtime_logicalTime_axioms()
 
-    # No collision
-    atoms += nocollision(network, scenario, nonego,
-                         nonego_maneuver_uid,
-                         nonego_spawn_distance,
-                         sim_ego, sim_nonego)
+    car2time2events = car_to_time_to_events(sim_events)
+    for car, time2events in car2time2events.items():
+        for t, events in time2events.items():
+            atoms += [f'{e.withTime(t)}' for e in events]
 
-    # Evidence that the new scenario has a solution
+    # # Evidence that the new scenario has a solution
     atoms += [f':- V != illegal, violatesRightOf(ego, V)']
     atoms += [f':- violatesRule(ego, _)']
 
     # Evidence that the new scenario is strictly harder
-    atoms += [f':- not violatesRightOf(illegal, {nonego})']
-    atoms += [f':- V != {nonego}, V != ego, violatesRightOf(illegal, V)']
+    new_nonegos = {car for car in sim_events.keys() if not car in {
+        'ego', 'illegal'}}
+    for nonego in new_nonegos:
+        atoms += [f':- not violatesRightOf(illegal, {nonego})']
+        atoms += [f':- V != {nonego}, V != ego, violatesRightOf(illegal, V)']
     atoms += [f':- violatesRule(illegal, _)']
 
-    # The event StopppedAtForkAtTime is generated based on the status of traffic rules violations:
-    atoms += [f'{{stoppedAtForkAtTime(V, F, T): time(T), T > T1, T < T2 }} = 1 :-'
+    # To generate unique time constants:
+    atoms += [f'#script(python)\n'
+              f'import clingo\n'
+              f'def time(V, Pred, Tm, TM):\n'
+              f'  t = V.name + Pred.name + Tm.name + TM.name\n'
+              f'  return clingo.Function(t, [])\n'
+              f'#end']
+
+    # # The event StopppedAtForkAtTime is generated based on the status of traffic rules violations:
+    atoms += [f'#count {{0:stoppedAtForkAtTime(V, F, @time(V, stop, T1, T2)); 1:lessThan(T1, @time(V, stop, T1, T2)); 2:lessThan(@time(V, stop, T1, T2),  T2) }} = 3 :-'
               f'arrivedAtForkAtTime(V, F, T1),'
+              f'hasStopSign(F),'
               f'enteredForkAtTime(V, F, T2),'
               f'not violatesRule(V, stopAtSign)']
-    # To guide the search for feasibility
-    atoms += [f':- arrivedAtForkAtTime(V, F, T1),'
-              f'stoppedAtForkAtTime(V, F, _),'
-              f'enteredForkAtTime(V, F, T2),'
-              f'T2-T1 < 4']  # TODO remove magic number 4
-    atoms += [f':- arrivedAtForkAtTime(V, F, T1),'
-              f'enteredForkAtTime(V, F, T2),'
-              f'violatesRule(V, stopAtSign),'
-              f'T2-T1 >= 4']  # TODO remove magic number 4
 
     from solver import Solver
-    max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
-    solver = Solver(max_ruletime)
+    solver = Solver()
     solver.load(scenario.rules_path)
     solver.add_atoms(atoms)
 
@@ -685,8 +667,6 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
             T2 = r2 if a2 in old_cars else z3.ToInt(
                 2*agent2ruletime2ts[a2][r2][-1])
             constraints += [T1 == T2]
-
-    # TODO enforce max average velocity for stopping at an intersection
 
     # 2. (a)
     # ds <= d1 <= de, and ds <= d2 <= de
