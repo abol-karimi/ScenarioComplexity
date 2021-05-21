@@ -187,7 +187,11 @@ def realtime_logicalTime_axioms():
 
 
 def car_to_time_to_events(sim_events):
-    """Assumes that for each car, its events in sim_events are given in nondecreasing time order."""
+    """Assumes that for each car, its events in sim_events are given in nondecreasing time order.
+    Each car is mapped to a time2events dictionary.
+    For each distinct frame in the frames of events of a car, a distince time constant is chosen.
+    Each time constant is mapped to the list of corresponding events.
+    """
     from collections import OrderedDict
     car2time2events = {car: OrderedDict() for car in sim_events.keys()}
 
@@ -421,12 +425,19 @@ def logical_solution(scenario, sim_events,
 
     atoms += realtime_logicalTime_axioms()
 
+    # Atoms of spatial events (obtained from simulation)
     car2time2events = car_to_time_to_events(sim_events)
     for car, time2events in car2time2events.items():
         for t, events in time2events.items():
             atoms += [f'{e.withTime(t)}' for e in events]
+    # Realtime precedence of spatial events
+    for time2events in car2time2events.values():
+        t = list(time2events.keys())
+        for i in range(len(t)-1):
+            atoms += [f'realLTE({t[i]}, {t[i+1]})',
+                      f':- realLTE({t[i+1]}, {t[i]})']
 
-    # # Evidence that the new scenario has a solution
+    # Evidence that the new scenario has a solution
     atoms += [f':- V != illegal, violatesRightOf(ego, V)']
     atoms += [f':- violatesRule(ego, _)']
 
