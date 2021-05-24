@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import math
 
 
@@ -396,14 +397,7 @@ def model_to_events(model, events, frame2distance, car):
     return time_event_distance
 
 
-def logical_solution(scenario, sim_events,
-                     nonego, nonego_maneuver_uid, nonego_spawn_distance,
-                     sim_ego, sim_nonego,
-                     frame2distance_ego,
-                     frame2distance_illegal,
-                     frame2distance_nonego,
-                     maxSpeed,
-                     extra_constraints):
+def logical_solution(scenario, sim_events, extra_constraints):
     """ Given the events for ego, nonego, and illegal (in 'sim_events')
     and their distances along the corresponding car's trajectory (in 'frame2distance_*'),
     find a timing for the events that satisfies the logical constraints.
@@ -471,20 +465,47 @@ def logical_solution(scenario, sim_events,
 
     model = solver.solve()
 
-    time_event_distance_ego = model_to_events(
-        model, sim_events['ego'], frame2distance_ego, 'ego')
-    time_event_distance_nonego = model_to_events(
-        model, sim_events[nonego], frame2distance_nonego, nonego)
-    time_event_distance_illegal = model_to_events(
-        model, sim_events['illegal'], frame2distance_illegal, 'illegal')
+    # Extract temporal constraints and the new events
+    order_names = {'realLTE', 'lessThan', 'equal'}
+    constraints = {n: set() for n in order_names}
 
-    return time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal
+    for atom in model:
+        name = str(atom.name)
+        if name in order_names:
+            args = [str(a) for a in atom.arguments]
+            constraints[name].add((args[0], args[1]))
+
+    from intersection_monitor import StoppedAtForkEvent
+    for atom in model:
+        if str(atom.name) == 'stoppedAtForkAtTime':
+            car, fork, time = tuple([str(a) for a in atom.arguments])
+            car2time2events[car][time] = [StoppedAtForkEvent(car, fork, None)]
+
+    # Sort the events by their realtime
+    from functools import cmp_to_key
+
+    def compare(s, t):
+        LTE = constraints['realLTE']
+        lte, gte = (s, t) in LTE, (t, s) in LTE
+        if lte and gte:
+            return 0
+        elif lte and not gte:
+            return -1
+        else:
+            return 1
+    for car, time2events in car2time2events.items():
+        times = list(time2events.keys())
+        times.sort(key=cmp_to_key(compare))
+        car2time2events[car] = OrderedDict(
+            [(t, time2events[t]) for t in times])
+        print(car2time2events[car])
+
+    return constraints, car2time2events
 
 
 def smooth_trajectories(scenario, nonego, maxSpeed,
                         trajectory_ego, trajectory_nonego,
-                        frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                        time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal):
+                        temporal_constraints, car2time2events):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
       (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
@@ -499,6 +520,10 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
       (d) bounds on speed
       (e) acceleration is bounded (to model bounded torque)
     """
+    frame2simDistance_ego = frame_to_distance(trajectory_ego, 'ego')
+    frame2simDistance_illegal = frame2simDistance_ego
+    frame2simDistance_nonego = frame_to_distance(trajectory_nonego, nonego)
+
     # Distances of events of a new logical time in increasing order
     from collections import OrderedDict
     logicalTime2distances_ego = OrderedDict()
@@ -966,33 +991,13 @@ def solution(scenario, sim_events,
         event_ill.vehicle = 'illegal'
         sim_events['illegal'] += [event_ill]
 
-    frame2simDistance_ego = frame_to_distance(sim_ego.trajectory, 'ego')
-    frame2simDistance_illegal = frame2simDistance_ego
-    frame2simDistance_nonego = frame_to_distance(sim_nonego.trajectory, nonego)
-
-    l_sol = logical_solution(scenario, sim_events,
-                             nonego, nonego_maneuver_uid, nonego_spawn_distance,
-                             sim_ego, sim_nonego,
-                             frame2simDistance_ego, frame2simDistance_illegal, frame2simDistance_nonego,
-                             maxSpeed,
-                             extra_constraints)
-    time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal = l_sol
-
-    print("Logical solution: ")
-    for t, e, d in time_event_distance_ego:
-        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
-    print('')
-    for t, e, d in time_event_distance_nonego:
-        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
-    print('')
-    for t, e, d in time_event_distance_illegal:
-        print(f'\t{e.withTime(t):60} distance: {round_down(d) if d != None else d}')
+    constraints, car2time2events = logical_solution(
+        scenario, sim_events, extra_constraints)
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_events = smooth_trajectories(scenario, nonego, maxSpeed,
                                                 sim_ego.trajectory, sim_nonego.trajectory,
-                                                frame2simDistance_ego, frame2simDistance_nonego, frame2simDistance_illegal,
-                                                time_event_distance_ego, time_event_distance_nonego, time_event_distance_illegal)
+                                                constraints, car2time2events)
 
     print('Solution events:')
     for events in new_events.values():
