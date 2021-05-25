@@ -414,6 +414,8 @@ def logical_solution(scenario, sim_events, extra_constraints):
     old_nonegos = {car for car in scenario.events.keys() if not car in {
         'ego', 'illegal'}}
     for car in old_nonegos:
+        # TODO assign time constants to existing events,
+        #  and enforce their order in 'realLTE', 'lessThan', 'equal'
         atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
                   for event in scenario.events[car]]
 
@@ -436,12 +438,11 @@ def logical_solution(scenario, sim_events, extra_constraints):
     atoms += [f':- violatesRule(ego, _)']
 
     # Evidence that the new scenario is strictly harder
-    new_nonegos = {car for car in sim_events.keys() if not car in {
-        'ego', 'illegal'}}
-    for nonego in new_nonegos:
-        atoms += [f':- not violatesRightOf(illegal, {nonego})']
-        atoms += [f':- V != {nonego}, V != ego, violatesRightOf(illegal, V)']
+    new_nonegos = f'{"; ".join(car for car in sim_events.keys() if not car in {"ego", "illegal"})}'
+    atoms += [f':- #count{{ 0:violatesRightOf(illegal, {new_nonegos}) }} = 0']
     atoms += [f':- violatesRule(illegal, _)']
+    for nonego in old_nonegos:
+        atoms += [f':- violatesRightOf(illegal, {nonego})']
 
     # To generate unique time constants:
     atoms += [f'#script(python)\n'
@@ -498,13 +499,12 @@ def logical_solution(scenario, sim_events, extra_constraints):
         times.sort(key=cmp_to_key(compare))
         car2time2events[car] = OrderedDict(
             [(t, time2events[t]) for t in times])
-        print(car2time2events[car])
 
     return constraints, car2time2events
 
 
 def smooth_trajectories(scenario, nonego, maxSpeed,
-                        trajectory_ego, trajectory_nonego,
+                        sim_trajectories,
                         temporal_constraints, car2time2events):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
@@ -520,207 +520,67 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
       (d) bounds on speed
       (e) acceleration is bounded (to model bounded torque)
     """
-    frame2simDistance_ego = frame_to_distance(trajectory_ego, 'ego')
-    frame2simDistance_illegal = frame2simDistance_ego
-    frame2simDistance_nonego = frame_to_distance(trajectory_nonego, nonego)
+    car2frame2simDistance = {car: frame_to_distance(
+        sim_trajectories[car], car) for car in sim_trajectories}
+    car2frame2simDistance['illegal'] = car2frame2simDistance['ego']
 
-    # Distances of events of a new logical time in increasing order
-    from collections import OrderedDict
-    logicalTime2distances_ego = OrderedDict()
-    for time, _, distance in time_event_distance_ego:
-        if not (time in logicalTime2distances_ego):
-            logicalTime2distances_ego[time] = [distance]
-        elif logicalTime2distances_ego[time][-1] != distance:
-            logicalTime2distances_ego[time] += [distance]
+    new_vehicles = list(sim_trajectories.keys()) + ['illegal']
 
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_nonego = OrderedDict()
-    for time, _, distance in time_event_distance_nonego:
-        if not (time in logicalTime2distances_nonego):
-            logicalTime2distances_nonego[time] = [distance]
-        elif logicalTime2distances_nonego[time][-1] != distance:
-            logicalTime2distances_nonego[time] += [distance]
+    time2distance = {}
+    for car, time2events in car2time2events.items():
+        for t, events in time2events.items():
+            f = events[0].frame
+            d = car2frame2simDistance[car][f] if f != None else None
+            time2distance[t] = round_down(d) if d != None else None
 
-    # Distances of events of a new ruletime in increasing order
-    logicalTime2distances_illegal = OrderedDict()
-    for time, _, distance in time_event_distance_illegal:
-        if not (time in logicalTime2distances_illegal):
-            logicalTime2distances_illegal[time] = [distance]
-        elif logicalTime2distances_illegal[time][-1] != distance:
-            logicalTime2distances_illegal[time] += [distance]
-
-    distances_ego = [round_down(d) if d != None else d
-                     for ds in logicalTime2distances_ego.values()
-                     for d in ds]
-    distances_nonego = [round_down(d) if d != None else d
-                        for ds in logicalTime2distances_nonego.values()
-                        for d in ds]
-    distances_illegal = [round_down(d) if d != None else d
-                         for ds in logicalTime2distances_illegal.values()
-                         for d in ds]
+    car2distances = {car: [time2distance[t] for t in car2time2events[car]]
+                     for car in new_vehicles}
 
     import z3
-    t_vars_ego = [0] + [z3.Real(f'T_ego_{i+1}')
-                        for i in range(len(distances_ego))] + [scenario.maxSteps*scenario.timestep]
-    t_vars_nonego = [0] + [z3.Real(f'T_nonego_{i+1}')
-                           for i in range(len(distances_nonego))] + [scenario.maxSteps*scenario.timestep]
-    t_vars_illegal = [0] + [z3.Real(f'T_illegal_{i+1}')
-                            for i in range(len(distances_illegal))] + [scenario.maxSteps*scenario.timestep]
+    maxTime = scenario.maxSteps*scenario.timestep
+    t_list = {}
+    for car in new_vehicles:
+        var_list = [z3.Real(t) for t in car2time2events[car]]
+        t_list[car] = [0] + var_list + [maxTime]
 
-    d_vars_ego = [0 for i in range(len(t_vars_ego)*3-2)]
-    d_vars_ego[-1] = round_down(frame2simDistance_ego[-1])
-    for i in range(1, len(d_vars_ego)-1):
-        if i % 3 == 0:     # interpolate event points (t, d)
-            d_vars_ego[i] = distances_ego[i//3-1]
-            if d_vars_ego[i] == None:  # no distance constraint for this event
-                d_vars_ego[i] = z3.Real(f'D_ego_{i//3}')
-        else:
-            d_vars_ego[i] = z3.Real(f'D_ego_{i//3}_{i%3}')
+    # Index z3 time variables by their name
+    t2var = {}
+    for ts in t_list.values():
+        t2var.update({str(t): t for t in ts[1:-1]})
 
-    d_vars_nonego = [0 for i in range(len(t_vars_nonego)*3-2)]
-    d_vars_nonego[-1] = round_down(frame2simDistance_nonego[-1])
-    for i in range(1, len(d_vars_nonego)-1):
-        if i % 3 == 0:
-            d_vars_nonego[i] = distances_nonego[i//3-1]
-            if d_vars_nonego[i] == None:  # no distance constraint for this event
-                d_vars_nonego[i] = z3.Real(f'D_nonego_{i//3}')
-        else:
-            d_vars_nonego[i] = z3.Real(f'D_nonego_{i//3}_{i%3}')
-
-    d_vars_illegal = [0 for i in range(len(t_vars_illegal)*3-2)]
-    d_vars_illegal[-1] = round_down(frame2simDistance_illegal[-1])
-    for i in range(1, len(d_vars_illegal)-1):
-        if i % 3 == 0:
-            d_vars_illegal[i] = distances_illegal[i//3-1]
-            if d_vars_illegal[i] == None:  # no distance constraint for this event
-                d_vars_illegal[i] = z3.Real(f'D_illegal_{i//3}')
-        else:
-            d_vars_illegal[i] = z3.Real(f'D_illegal_{i//3}_{i%3}')
-
-    event2realtimeIndex_ego = {}
-    i = 1
-    last_distance = -1
-    for _, e, d in time_event_distance_ego:
-        if last_distance != d:
-            event2realtimeIndex_ego[e.withTime('')] = i
-            last_distance = d
-            i += 1
-
-    event2realtimeIndex_nonego = {}
-    i = 1
-    last_distance = -1
-    for _, e, d in time_event_distance_nonego:
-        if last_distance != d:
-            event2realtimeIndex_nonego[e.withTime('')] = i
-            last_distance = d
-            i += 1
-
-    event2realtimeIndex_illegal = {}
-    i = 1
-    last_distance = -1
-    for _, e, d in time_event_distance_illegal:
-        if last_distance != d:
-            event2realtimeIndex_illegal[e.withTime('')] = i
-            last_distance = d
-            i += 1
+    d_list = {}
+    for car in new_vehicles:
+        d_list[car] = [0 for i in range(len(t_list[car])*3-2)]
+        d_list[car][-1] = round_down(car2frame2simDistance[car][-1])
+        for i in range(1, len(d_list[car])-1):
+            if i % 3 == 0:  # Interpolation points
+                d_list[car][i] = car2distances[car][i//3-1]
+                if d_list[car][i] == None:  # no distance constraint for this event
+                    d_list[car][i] = z3.Real(f'D_{car}_{i//3}')
+            else:
+                d_list[car][i] = z3.Real(f'D_{car}_{i//3}_{i%3}')
 
     constraints = []
 
-    # 1. (a)
-    constraints += [t_vars_ego[i] < t_vars_ego[i+1]
-                    for i in range(len(t_vars_ego)-1)]
-    constraints += [t_vars_nonego[i] < t_vars_nonego[i+1]
-                    for i in range(len(t_vars_nonego)-1)]
-    constraints += [t_vars_illegal[i] < t_vars_illegal[i+1]
-                    for i in range(len(t_vars_illegal)-1)]
+    # 1.
+    min_perceptible_time = 0.5  # seconds
 
-    # 1. (b)
-    # Make a mapping from (agent, ruletime) to corresponding list of realtime variables.
-    # Make a list (ruletime, agent) and sort it w.r.t ruletime.
-    logicalTimes_ego = logicalTime2distances_ego.keys()
-    logicalTime2ts_ego = {}
-    for time in logicalTimes_ego:
-        start = len(logicalTime2ts_ego.values())
-        end = start + len(logicalTime2distances_ego[time])
-        logicalTime2ts_ego[time] = t_vars_ego[1:-1][start:end]
-
-    logicalTimes_nonego = logicalTime2distances_nonego.keys()
-    logicalTime2ts_nonego = {}
-    for time in logicalTimes_nonego:
-        start = len(logicalTime2ts_nonego.values())
-        end = start + len(logicalTime2distances_nonego[time])
-        logicalTime2ts_nonego[time] = t_vars_nonego[1:-1][start:end]
-
-    logicalTimes_illegal = logicalTime2distances_illegal.keys()
-    logicalTime2ts_illegal = {}
-    for time in logicalTimes_illegal:
-        start = len(logicalTime2ts_illegal.values())
-        end = start + len(logicalTime2distances_illegal[time])
-        logicalTime2ts_illegal[time] = t_vars_illegal[1:-1][start:end]
-
-    agent2ruletime2ts = {'ego': logicalTime2ts_ego,
-                         'nonego': logicalTime2ts_nonego,
-                         'illegal': logicalTime2ts_illegal}
-
-    logicalTime_agent = [(r, 'ego') for r in logicalTimes_ego]
-    logicalTime_agent += [(r, 'nonego') for r in logicalTimes_nonego]
-    logicalTime_agent += [(r, 'illegal') for r in logicalTimes_illegal]
-
-    # Add ruletimes of events of existing non-egos in scenario
-    old_cars = {car for car in scenario.events.keys() if not car in {
-        'ego', 'illegal'}}
-    for car in old_cars:
-        logicalTime_agent += [(frame_to_ruletime(e.frame, scenario.timestep), car)
-                              for e in scenario.events[car]]
-
-    logicalTime_agent.sort(key=lambda pair: pair[0])
-
-    # 1. (b)
-    # (i) If two consecutive ruletimes r1<r2 belong to different agents,
-    #   then enforce ruletime(T1) < ruletime(T2)
-    #   where T1,T2 are any realtimes associated with r1,r2 respectively.
-    # (ii) If two consecutive ruletimes r1,r2 are equal (and so belong to different agents),
-    #   then enforce ruletime(T1) = ruletime(T2)
-    #   where T1,T2 are any realtimes associated with r1,r2 respectively.
-    for i in range(len(logicalTime_agent)-1):
-        r1, a1 = logicalTime_agent[i]
-        r2, a2 = logicalTime_agent[i+1]
-        # Ignore timing relations between events of same agent.
-        # r1,r2 are constants for a1,a2 in old_cars so no constraints.
-        if a1 == a2 or {a1, a2}.issubset(old_cars):
-            continue
-        # We have r1 <= r2 since ruletime_agent is sorted
-        elif (r1 < r2):
-            # ruletime(T) = int(2*T):
-            T1 = r1 if a1 in old_cars else z3.ToInt(
-                2*agent2ruletime2ts[a1][r1][-1])
-            T2 = r2 if a2 in old_cars else z3.ToInt(
-                2*agent2ruletime2ts[a2][r2][0])
-            constraints += [T1 < T2]
-        elif r1 == r2:
-            T1 = r1 if a1 in old_cars else z3.ToInt(
-                2*agent2ruletime2ts[a1][r1][0])
-            T2 = r2 if a2 in old_cars else z3.ToInt(
-                2*agent2ruletime2ts[a2][r2][-1])
-            constraints += [T1 == T2]
-
+    for car in new_vehicles:
+        constraints += [s < t for s, t in zip(t_list[car], t_list[car][1:])]
+    constraints += [min_perceptible_time <= t2var[t] - t2var[s]
+                    for s, t in temporal_constraints['lessThan']]
+    constraints += [-min_perceptible_time < t2var[t] - t2var[s]
+                    for s, t in temporal_constraints['equal']]
+    constraints += [t2var[t] - t2var[s] < min_perceptible_time
+                    for s, t in temporal_constraints['equal']]
     # 2. (a)
     # ds <= d1 <= de, and ds <= d2 <= de
-    for i in range(0, len(d_vars_ego)-3, 3):
-        constraints += [d_vars_ego[i] <= d_vars_ego[i+1],
-                        d_vars_ego[i+1] <= d_vars_ego[i+3],
-                        d_vars_ego[i] <= d_vars_ego[i+2],
-                        d_vars_ego[i+2] <= d_vars_ego[i+3]]
-    for i in range(0, len(d_vars_nonego)-3, 3):
-        constraints += [d_vars_nonego[i] <= d_vars_nonego[i+1],
-                        d_vars_nonego[i+1] <= d_vars_nonego[i+3],
-                        d_vars_nonego[i] <= d_vars_nonego[i+2],
-                        d_vars_nonego[i+2] <= d_vars_nonego[i+3]]
-    for i in range(0, len(d_vars_illegal)-3, 3):
-        constraints += [d_vars_illegal[i] <= d_vars_illegal[i+1],
-                        d_vars_illegal[i+1] <= d_vars_illegal[i+3],
-                        d_vars_illegal[i] <= d_vars_illegal[i+2],
-                        d_vars_illegal[i+2] <= d_vars_illegal[i+3]]
+    for car in new_vehicles:
+        for i in range(0, len(d_list[car])-3, 3):
+            constraints += [d_list[car][i] <= d_list[car][i+1],
+                            d_list[car][i+1] <= d_list[car][i+3],
+                            d_list[car][i] <= d_list[car][i+2],
+                            d_list[car][i+2] <= d_list[car][i+3]]
 
     # 2. (b)
     # Let dq < dr < ds be three consecutive distances,
@@ -729,70 +589,33 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
     # dr1 and dr2 be the distances for tr+(ts-tr)/3 and tr+2(ts-tr)/3, respectively.
     # Then we require:
     # (tr-tq)(dr1-dr) = (ts-tr)(dr-dq2)
-    for i in range(len(t_vars_ego)-2):
-        tq, tr, ts = tuple(t_vars_ego[i:i+3])
-        dq2, dr, dr1 = tuple(d_vars_ego[3*i+2:3*i+5])
-        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
-
-    for i in range(len(t_vars_nonego)-2):
-        tq, tr, ts = tuple(t_vars_nonego[i:i+3])
-        dq2, dr, dr1 = tuple(d_vars_nonego[3*i+2:3*i+5])
-        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
-
-    for i in range(len(t_vars_illegal)-2):
-        tq, tr, ts = tuple(t_vars_illegal[i:i+3])
-        dq2, dr, dr1 = tuple(d_vars_illegal[3*i+2:3*i+5])
-        constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
+    for car in new_vehicles:
+        for i in range(len(t_list[car])-2):
+            tq, tr, ts = tuple(t_list[car][i:i+3])
+            dq2, dr, dr1 = tuple(d_list[car][3*i+2:3*i+5])
+            constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
 
     # 2. (c)
     # TODO if no stoppedAtFork event, force a minimum speed
     stop_speed = 1.0  # meters/second
 
-    for _, e, _ in time_event_distance_ego:
-        if e.name == 'stoppedAtForkAtTime':
-            i = event2realtimeIndex_ego[e.withTime('')]
-            delta_t = (t_vars_ego[i+1] - t_vars_ego[i])/3
-            delta_d = d_vars_ego[3*i+1] - d_vars_ego[3*i]
-            constraints += [delta_d/delta_t < stop_speed]
-            break
-
-    for _, e, _ in time_event_distance_nonego:
-        if e.name == 'stoppedAtForkAtTime':
-            i = event2realtimeIndex_nonego[e.withTime('')]
-            delta_t = (t_vars_nonego[i+1] - t_vars_nonego[i])/3
-            delta_d = d_vars_nonego[3*i+1] - d_vars_nonego[3*i]
-            constraints += [delta_d/delta_t < stop_speed]
-            break
-
-    for _, e, _ in time_event_distance_illegal:
-        if e.name == 'stoppedAtForkAtTime':
-            i = event2realtimeIndex_illegal[e.withTime('')]
-            delta_t = (t_vars_illegal[i+1] - t_vars_illegal[i])/3
-            delta_d = d_vars_illegal[3*i+1] - d_vars_illegal[3*i]
-            constraints += [delta_d/delta_t < stop_speed]
-            break
+    for car in new_vehicles:
+        for i in range(1, len(t_list[car])-1):
+            e_names = [e.name for e in car2time2events[car]
+                       [str(t_list[car][i])]]
+            if 'stoppedAtForkAtTime' in e_names:
+                delta_t = (t_list[car][i+1] - t_list[car][i])/3
+                delta_d = d_list[car][3*i+1] - d_list[car][3*i]
+                constraints += [delta_d/delta_t < stop_speed]
 
     # 2. (d)
-    for i in range(len(t_vars_ego)-1):
-        tq, tr = tuple(t_vars_ego[i:i+2])
-        dq, dq1, dq2, dr = tuple(d_vars_ego[3*i:3*i+4])
-        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
-        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
-
-    for i in range(len(t_vars_nonego)-1):
-        tq, tr = tuple(t_vars_nonego[i:i+2])
-        dq, dq1, dq2, dr = tuple(d_vars_nonego[3*i:3*i+4])
-        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]
-        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]
-
-    for i in range(len(t_vars_illegal)-1):
-        tq, tr = tuple(t_vars_illegal[i:i+2])
-        dq, dq1, dq2, dr = tuple(d_vars_illegal[3*i:3*i+4])
-        # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-        #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]
-        constraints += [(dr-dq)/(tr-tq) <= maxSpeed]
+    for car in new_vehicles:
+        for i in range(len(t_list[car])-1):
+            tq, tr = tuple(t_list[car][i:i+2])
+            dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
+            # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+            #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
+            constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
 
     # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
@@ -824,10 +647,18 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
     #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
     #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
+    # for c in constraints:
+    #     print(c)
+
     s = z3.Solver()
-    s.add(constraints)
+    s.set(unsat_core=True)
+    for c in constraints:
+        s.assert_and_track(c, str(c))
     print('Solving smoothness constraints...')
     print(s.check())
+    unsat_core = s.unsat_core()
+    if len(unsat_core) > 0:
+        print('unsat_core: ', unsat_core)
 
     # To convert Z3 rational numbers to Python's floating point reals
     def rat2fp(num):
@@ -836,151 +667,75 @@ def smooth_trajectories(scenario, nonego, maxSpeed,
     # Get the model
     m = s.model()
 
-    t_ego = [0] + [rat2fp(m.eval(T))
-                   for T in t_vars_ego[1:-1]] + [t_vars_ego[-1]]
-    d_ego = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
-             for d in d_vars_ego]
-
-    t_nonego = [0] + [rat2fp(m.eval(T))
-                      for T in t_vars_nonego[1:-1]] + [t_vars_nonego[-1]]
-    d_nonego = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
-                for d in d_vars_nonego]
-
-    t_illegal = [0] + [rat2fp(m.eval(T))
-                       for T in t_vars_illegal[1:-1]] + [t_vars_illegal[-1]]
-    d_illegal = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
-                 for d in d_vars_illegal]
+    t, d = {}, {}
+    for car in new_vehicles:
+        t[car] = [0] + [rat2fp(m.eval(T))
+                        for T in t_list[car][1:-1]] + [t_list[car][-1]]
+        d[car] = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
+                  for d in d_list[car]]
 
     # Get interpolated points based on the Bezier control points
     from geomdl import BSpline
 
-    # The new ego distance curve
-    t_ego_comp = [t_ego[0]]
-    for i in range(len(t_ego)-1):
-        ts, te = t_ego[i], t_ego[i+1]
-        ts1 = 2*ts/3 + te/3
-        ts2 = ts/3 + 2*te/3
-        t_ego_comp += [ts1, ts2, te]
-    curve = BSpline.Curve()
-    curve.degree = 3
-    curve.ctrlpts = [[t_ego_comp[i], d_ego[i]] for i in range(len(d_ego))]
-    kv = [0, 0, 0, 0]
-    for i in range(1, len(t_ego)-1):
-        kv += [t_ego[i], t_ego[i], t_ego[i]]
-    kv += [t_ego[-1], t_ego[-1], t_ego[-1], t_ego[-1]]
-    curve.knotvector = kv
-    curve.sample_size = int(scenario.maxSteps)+1
-    new2distance_ego = [p[1] for p in curve.evalpts]
-
-    # The new nonego distance curve
-    t_nonego_comp = [t_nonego[0]]
-    for i in range(len(t_nonego)-1):
-        ts, te = t_nonego[i], t_nonego[i+1]
-        ts1 = 2*ts/3 + te/3
-        ts2 = ts/3 + 2*te/3
-        t_nonego_comp += [ts1, ts2, te]
-    curve = BSpline.Curve()
-    curve.degree = 3
-    curve.ctrlpts = [[t_nonego_comp[i], d_nonego[i]]
-                     for i in range(len(d_nonego))]
-    kv = [0, 0, 0, 0]
-    for i in range(1, len(t_nonego)-1):
-        kv += [t_nonego[i], t_nonego[i], t_nonego[i]]
-    kv += [t_nonego[-1], t_nonego[-1], t_nonego[-1], t_nonego[-1]]
-    curve.knotvector = kv
-    curve.sample_size = int(scenario.maxSteps)+1
-    new2distance_nonego = [p[1] for p in curve.evalpts]
-
-    # The new illegal distance curve
-    t_illegal_comp = [t_illegal[0]]
-    for i in range(len(t_illegal)-1):
-        ts, te = t_illegal[i], t_illegal[i+1]
-        ts1 = 2*ts/3 + te/3
-        ts2 = ts/3 + 2*te/3
-        t_illegal_comp += [ts1, ts2, te]
-    curve = BSpline.Curve()
-    curve.degree = 3
-    curve.ctrlpts = [[t_illegal_comp[i], d_illegal[i]]
-                     for i in range(len(d_illegal))]
-    kv = [0, 0, 0, 0]
-    for i in range(1, len(t_illegal)-1):
-        kv += [t_illegal[i], t_illegal[i], t_illegal[i]]
-    kv += [t_illegal[-1], t_illegal[-1], t_illegal[-1], t_illegal[-1]]
-    curve.knotvector = kv
-    curve.sample_size = int(scenario.maxSteps)+1
-    new2distance_illegal = [p[1] for p in curve.evalpts]
+    t_comp = {}
+    new2distance = {}
+    for car in new_vehicles:
+        # The new ego distance curve
+        t_comp[car] = [t[car][0]]
+        for i in range(len(t[car])-1):
+            ts, te = t[car][i], t[car][i+1]
+            ts1 = 2*ts/3 + te/3
+            ts2 = ts/3 + 2*te/3
+            t_comp[car] += [ts1, ts2, te]
+        curve = BSpline.Curve()
+        curve.degree = 3
+        curve.ctrlpts = [[t_comp[car][i], d[car][i]]
+                         for i in range(len(d[car]))]
+        kv = [0, 0, 0, 0]
+        for i in range(1, len(t[car])-1):
+            kv += [t[car][i], t[car][i], t[car][i]]
+        kv += [t[car][-1], t[car][-1], t[car][-1], t[car][-1]]
+        curve.knotvector = kv
+        curve.sample_size = int(scenario.maxSteps)+1
+        new2distance[car] = [p[1] for p in curve.evalpts]
 
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(3)
-    fig.suptitle('distance-time curves for ego, nonego, illegal')
-    axs[0].plot(new2distance_ego)
-    axs[0].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_ego_comp], d_ego,
-                   c=['r' if i % 3 == 0 else 'b' for i in range(len(d_ego))],
-                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_ego))])
-    axs[1].plot(new2distance_nonego)
-    axs[1].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_nonego_comp], d_nonego,
-                   c=['r' if i %
-                       3 == 0 else 'b' for i in range(len(d_nonego))],
-                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_nonego))])
-    axs[2].plot(new2distance_illegal)
-    axs[2].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_illegal_comp], d_illegal,
-                   c=['r' if i %
-                       3 == 0 else 'b' for i in range(len(d_illegal))],
-                   s=[10 if i % 3 == 0 else 5 for i in range(len(d_illegal))])
+    fig, axs = plt.subplots(len(new_vehicles))
+    fig.suptitle('distance-time curves for ego, illegal, and nonegos')
+    for j, car in enumerate(new_vehicles):
+        axs[j].plot(new2distance[car])
+        axs[j].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_comp[car]], d[car],
+                       c=['r' if i %
+                           3 == 0 else 'b' for i in range(len(d[car]))],
+                       s=[10 if i % 3 == 0 else 5 for i in range(len(d[car]))])
     plt.show()
 
     # The new trajectories
-    new_traj_ego = distance_to_pose(
-        new2distance_ego, frame2simDistance_ego, trajectory_ego, 'ego')
-
-    new_traj_nonego = distance_to_pose(
-        new2distance_nonego, frame2simDistance_nonego, trajectory_nonego, nonego)
-
-    new_traj_illegal = distance_to_pose(
-        new2distance_illegal, frame2simDistance_illegal, trajectory_ego, 'ego')
+    new_traj = {}
+    for car in new_vehicles:
+        alias = 'ego' if car == 'illegal' else car
+        new_traj[car] = distance_to_pose(
+            new2distance[car], car2frame2simDistance[car], sim_trajectories[alias], alias)
 
     # New timing of events
-    t_e_d = time_event_distance_ego
-    prev_d = t_e_d[0][2]
-    j = 1
-    for i in range(len(t_e_d)):
-        if prev_d != t_e_d[i][2]:
-            prev_d = t_e_d[i][2]
-            j = j+1
-        t_e_d[i][1].frame = realtime_to_frame(t_ego[j], scenario.timestep)
+    for car in new_vehicles:
+        for tvar, tval in zip(t_list[car][1:-1], t[car][1:-1]):
+            frame = realtime_to_frame(tval, scenario.timestep)
+            for e in car2time2events[car][str(tvar)]:
+                e.frame = frame
 
-    t_e_d = time_event_distance_nonego
-    prev_d = t_e_d[0][2]
-    j = 1
-    for i in range(len(t_e_d)):
-        if prev_d != t_e_d[i][2]:
-            prev_d = t_e_d[i][2]
-            j = j+1
-        t_e_d[i][1].frame = realtime_to_frame(t_nonego[j], scenario.timestep)
+    new_events = {}
+    for car in new_vehicles:
+        new_events[car] = []
+        for es in car2time2events[car].values():
+            new_events[car] += es
 
-    t_e_d = time_event_distance_illegal
-    prev_d = t_e_d[0][2]
-    j = 1
-    for i in range(len(t_e_d)):
-        if prev_d != t_e_d[i][2]:
-            prev_d = t_e_d[i][2]
-            j = j+1
-        t_e_d[i][1].frame = realtime_to_frame(t_illegal[j], scenario.timestep)
-
-    new_trajs = {'ego': new_traj_ego,
-                 nonego: new_traj_nonego,
-                 'illegal': new_traj_illegal}
-
-    new_events = {'ego': [ted[1] for ted in time_event_distance_ego],
-                  nonego: [ted[1] for ted in time_event_distance_nonego],
-                  'illegal': [ted[1] for ted in time_event_distance_illegal]}
-
-    return new_trajs, new_events
+    return new_traj, new_events
 
 
 def solution(scenario, sim_events,
              nonego, nonego_maneuver_uid, nonego_spawn_distance,
-             sim_ego, sim_nonego,
+             sim_trajectories,
              maxSpeed,
              extra_constraints):
     # All the given and new events
@@ -996,7 +751,7 @@ def solution(scenario, sim_events,
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_events = smooth_trajectories(scenario, nonego, maxSpeed,
-                                                sim_ego.trajectory, sim_nonego.trajectory,
+                                                sim_trajectories,
                                                 constraints, car2time2events)
 
     print('Solution events:')
@@ -1073,10 +828,12 @@ def extend(scenario, nonego_maneuver_uid,
         scene, maxSteps=scenario.maxSteps)
 
     # Find a strict extension of the given scenario
+    sim_trajectories = {'ego': sim_result_ego.trajectory,
+                        nonego: sim_result_nonego.trajectory}
     new_traj, new_events = solution(
         scenario, monitor.events,
         nonego, nonego_maneuver_uid, nonego_spawn_distance,
-        sim_result_ego, sim_result_nonego, maxSpeed,
+        sim_trajectories, maxSpeed,
         extra_constraints)
 
     from scenario import Scenario

@@ -41,8 +41,7 @@ for car in scenario.events.keys():
         event_atoms.append(atom)
 atoms += event_atoms
 
-max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
-solver = Solver(max_ruletime)
+solver = Solver()
 solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 
