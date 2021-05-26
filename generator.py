@@ -411,13 +411,8 @@ def logical_solution(scenario, sim_events, extra_constraints):
     atoms += geometry_atoms(network, scenario.intersection_uid)
 
     # Add event atoms of existing nonegos
-    old_nonegos = {car for car in scenario.events.keys() if not car in {
+    old_nonegos = {car for car in scenario.events if not car in {
         'ego', 'illegal'}}
-    for car in old_nonegos:
-        # TODO assign time constants to existing events,
-        #  and enforce their order in 'realLTE', 'lessThan', 'equal'
-        atoms += [event.withTime(frame_to_ruletime(event.frame, scenario.timestep))
-                  for event in scenario.events[car]]
 
     atoms += realtime_logicalTime_axioms()
 
@@ -438,8 +433,9 @@ def logical_solution(scenario, sim_events, extra_constraints):
     atoms += [f':- violatesRule(ego, _)']
 
     # Evidence that the new scenario is strictly harder
-    new_nonegos = f'{"; ".join(car for car in sim_events.keys() if not car in {"ego", "illegal"})}'
-    atoms += [f':- #count{{ 0:violatesRightOf(illegal, {new_nonegos}) }} = 0']
+    new_nonegos_pool = f'{"; ".join(car for car in sim_events if not car in {"ego", "illegal"})}'
+    atoms += [
+        f':- #count {{ 0:violatesRightOf(illegal, {new_nonegos_pool}) }} = 0']
     atoms += [f':- violatesRule(illegal, _)']
     for nonego in old_nonegos:
         atoms += [f':- violatesRightOf(illegal, {nonego})']
@@ -503,7 +499,7 @@ def logical_solution(scenario, sim_events, extra_constraints):
     return constraints, car2time2events
 
 
-def smooth_trajectories(scenario, nonego, maxSpeed,
+def smooth_trajectories(scenario, maxSpeed,
                         sim_trajectories,
                         temporal_constraints, car2time2events):
     """ Find:
