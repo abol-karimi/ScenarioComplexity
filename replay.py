@@ -1,4 +1,5 @@
 #!/home/ak/Scenic/.venv/bin/python
+from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from solver import Solver
 import argparse
@@ -34,12 +35,27 @@ network = Network.fromFile(scenario.map_path)
 atoms += geometry_atoms(network, scenario.intersection_uid)
 
 event_atoms = []
-for car in scenario.events.keys():
-    for event in scenario.events[car]:
-        ruletime = frame_to_ruletime(event.frame, scenario.timestep)
-        atom = event.withTime(ruletime)
-        event_atoms.append(atom)
+car2time2events = car_to_time_to_events(scenario.events)
+for car, time2events in car2time2events.items():
+    for t, events in time2events.items():
+        event_atoms += [f'{e.withTime(t)}' for e in events]
 atoms += event_atoms
+
+min_perceptible_time = 0.5  # seconds
+sym2val = []
+for car, time2events in car2time2events.items():
+    for t, events in time2events.items():
+        sym2val += [(t, events[0].frame)]
+for i in range(len(sym2val)-1):
+    for j in range(i+1, len(sym2val)):
+        ti, vi = sym2val[i]
+        tj, vj = sym2val[j]
+        if abs(vi-vj) < min_perceptible_time:
+            atoms += [f'equal({ti}, {tj})', f'equal({tj}, {ti})']
+        elif vi-vj <= -min_perceptible_time:
+            atoms += [f'lessThan({ti}, {tj})']
+        else:
+            atoms += [f'lessThan({tj}, {ti})']
 
 solver = Solver()
 solver.load(scenario.rules_path)
