@@ -1,11 +1,12 @@
 #!/home/ak/Scenic/.venv/bin/python
+from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from solver import Solver
 import intersection_monitor
 import scenic
 import pickle
 import argparse
-from generator import geometry_atoms, frame_to_ruletime
+from generator import geometry_atoms
 
 
 parser = argparse.ArgumentParser(
@@ -27,7 +28,7 @@ params = {'map': scenario.map_path,  # scenic.simulators.carla.model
           'render': True,  # scenic.simulators.carla.model
           'replay_scenario': scenario,
           'event_monitor': monitor,
-          'stop_speed_threshold': 0.01,  # meters/seconds
+          'stop_speed_threshold': 0.5,  # meters/seconds
           'aggressiveness': args.aggressiveness}
 
 print('Play an autopilot ego in the scenario...')
@@ -41,32 +42,44 @@ atoms = []
 network = Network.fromFile(scenario.map_path)
 atoms += geometry_atoms(network, scenario.intersection_uid)
 
+all_events = {car: events
+              for car, events in scenario.events.items() if not car in {'ego', 'illegal'}}
+all_events['ego'] = monitor.events['ego']
+
 event_atoms = []
-for event in monitor.events['ego']:
-    ruletime = frame_to_ruletime(event.frame, scenario.timestep)
-    atom = event.withTime(ruletime)
-    event_atoms.append(atom)
-
-for car in scenario.events.keys():
-    if car in {'ego', 'illegal'}:
-        continue
-    for event in scenario.events[car]:
-        ruletime = frame_to_ruletime(event.frame, scenario.timestep)
-        atom = event.withTime(ruletime)
-        event_atoms.append(atom)
-
+car2time2events = car_to_time_to_events(all_events)
+for car, time2events in car2time2events.items():
+    for t, events in time2events.items():
+        event_atoms += [f'{e.withTime(t)}' for e in events]
 atoms += event_atoms
 
-max_ruletime = frame_to_ruletime(scenario.maxSteps, scenario.timestep)
-solver = Solver(max_ruletime)
+# Events:
+for car, events in all_events.items():
+    print(f'{car}:')
+    for e in events:
+        print(f'\t{e.withTime(e.frame)}')
+
+min_perceptible_time = 10  # frames
+sym2val = []
+for car, time2events in car2time2events.items():
+    for t, events in time2events.items():
+        sym2val += [(t, events[0].frame)]
+for i in range(len(sym2val)-1):
+    for j in range(i+1, len(sym2val)):
+        ti, vi = sym2val[i]
+        tj, vj = sym2val[j]
+        if abs(vi-vj) < min_perceptible_time:
+            atoms += [f'equal({ti}, {tj})', f'equal({tj}, {ti})']
+        elif vi-vj <= -min_perceptible_time:
+            atoms += [f'lessThan({ti}, {tj})']
+        else:
+            atoms += [f'lessThan({tj}, {ti})']
+
+solver = Solver()
 solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 
 model = solver.solve()
-
-print('Events:')
-for atom in event_atoms:
-    print(f'\t{atom}')
 
 sol_names = {'violatesRule', 'violatesRightOfForRule'}
 print('Violations:')

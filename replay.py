@@ -3,10 +3,9 @@ from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from solver import Solver
 import argparse
-from generator import frame_to_ruletime
 import pickle
 import scenic
-from generator import geometry_atoms, frame_to_ruletime
+from generator import geometry_atoms
 
 parser = argparse.ArgumentParser(description='play the given scenario.')
 parser.add_argument('inputfile', help='filename of the given scenario')
