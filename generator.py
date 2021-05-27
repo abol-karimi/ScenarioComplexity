@@ -30,14 +30,6 @@ def round_norm_down(r, precision=3):
         return -round_down(-r, precision)
 
 
-def realtime_to_ruletime(t):
-    return int(t*2)
-
-
-def ruletime_to_realtime(T):
-    return T/2
-
-
 def realtime_to_frame(t, timestep):
     return int(realtime_to_frame_float(t, timestep))
 
@@ -48,16 +40,6 @@ def realtime_to_frame_float(t, timestep):
 
 def frame_to_realtime(frame, timestep):
     return frame*timestep
-
-
-def ruletime_to_frame(T, timestep):
-    realtime = ruletime_to_realtime(T)
-    return realtime_to_frame(realtime, timestep)
-
-
-def frame_to_ruletime(frame, timestep):
-    realtime = frame_to_realtime(frame, timestep)
-    return realtime_to_ruletime(realtime)
 
 
 def frame_to_distance(trajectory, car):
@@ -210,52 +192,6 @@ def car_to_time_to_events(sim_events):
                 car2time2events[car][t] += [e]
 
     return car2time2events
-
-
-def model_to_events(model, events, frame2distance, car):
-    """ Given an ASP model 'model', it extracts the new timing of the events of 'car' and
-    returns a mapping from each new ruletime to corresponding events in 'events'.
-    """
-    # To connect logic solution with events
-    import copy
-    timeless2event = {event.withTime(''): copy.copy(event)
-                      for event in events}
-
-    event_names = {'arrivedAtForkAtTime', 'signaledAtForkAtTime',
-                   'enteredLaneAtTime', 'leftLaneAtTime', 'enteredForkAtTime', 'exitedFromAtTime'}
-
-    # Tag events by their new logical time, and their distance along trajectory
-    from intersection_monitor import StoppedAtForkEvent
-    time_event_distance = []
-    for atom in model:
-        name = atom.name
-        args = atom.arguments
-        if not (str(args[0]) == car and name in event_names):
-            continue
-        logicalTime = str(args[-1])
-        if len(args) == 3:
-            timeless = f'{name}({args[0]}, {args[1]}, )'
-        else:
-            timeless = f'{name}({args[0]}, {args[1]}, {args[2]}, )'
-        event = timeless2event[timeless]
-        distance = frame2distance[event.frame]
-        time_event_distance += [(logicalTime, event, distance)]
-
-    time_event_distance.sort(key=lambda triple: triple[1].frame)
-
-    for atom in model:
-        name = atom.name
-        args = atom.arguments
-        if name != 'stoppedAtForkAtTime' or str(args[0]) != car:
-            continue
-        logicalTime = int(str(args[-1]))
-        t_e_d = (logicalTime,
-                 StoppedAtForkEvent(f'{args[0]}', f'{args[1]}', None),
-                 None)
-        time_event_distance.insert(2, t_e_d)  # After arrival and signal events
-        break
-
-    return time_event_distance
 
 
 def logical_solution(scenario, sim_events, extra_constraints):
@@ -620,7 +556,7 @@ def solution(scenario, sim_events,
     print('Solution events:')
     for events in new_events.values():
         for e in events:
-            print(f'\t{e.withTime(frame_to_ruletime(e.frame, scenario.timestep))}')
+            print(f'\t{e.withTime(e.frame)}')
         print('')
 
     traj_prev = scenario.trajectory
