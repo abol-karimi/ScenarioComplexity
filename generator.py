@@ -179,6 +179,7 @@ def realtime_logicalTime_axioms():
               f'realLTE(T, S) :- equal(S, T)']
     # Consistency of logical-time order
     atoms += [f':- lessThan(S, T), equal(S, T)']
+    atoms += [f':- lessThan(S, T), equal(T, S)']
 
     # realLTE is a partial order
     atoms += [f'realLTE(T1, T3) :- realLTE(T1, T2), realLTE(T2, T3)',
