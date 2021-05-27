@@ -533,7 +533,6 @@ def smooth_trajectories(scenario, maxSpeed,
 
 
 def solution(scenario, sim_events,
-             nonego, nonego_maneuver_uid, nonego_spawn_distance,
              sim_trajectories,
              maxSpeed,
              extra_constraints):
@@ -566,9 +565,8 @@ def solution(scenario, sim_events,
 
     # Update the trajectory
     for frame in range(len(traj_prev)):
-        traj_prev[frame]['ego'] = new_trajs['ego'][frame]
-        traj_prev[frame][nonego] = new_trajs[nonego][frame]
-        traj_prev[frame]['illegal'] = new_trajs['illegal'][frame]
+        for car in new_trajs:
+            traj_prev[frame][car] = new_trajs[car][frame]
 
     # Update the events
     sim_events.update(new_events)
@@ -631,7 +629,6 @@ def extend(scenario, nonego_maneuver_uid,
                         nonego: sim_result_nonego.trajectory}
     new_traj, new_events = solution(
         scenario, monitor.events,
-        nonego, nonego_maneuver_uid, nonego_spawn_distance,
         sim_trajectories, maxSpeed,
         extra_constraints)
 
