@@ -15,6 +15,12 @@ args = parser.parse_args()
 with open(args.inputfile, 'rb') as inFile:
     scenario = pickle.load(inFile)
 
+# Events:
+for car, events in scenario.events.items():
+    print(f'{car}:')
+    for e in events:
+        print(f'\t{e.withTime(e.frame)}')
+
 params = {'map': scenario.map_path,  # scenic.simulators.carla.model
           'carla_map': scenario.map_name,  # scenic.simulators.carla.model
           'timestep': scenario.timestep,  # scenic.simulators.carla.model
@@ -41,7 +47,7 @@ for car, time2events in car2time2events.items():
         event_atoms += [f'{e.withTime(t)}' for e in events]
 atoms += event_atoms
 
-min_perceptible_time = 0.5  # seconds
+min_perceptible_time = 10  # frames
 sym2val = []
 for car, time2events in car2time2events.items():
     for t, events in time2events.items():
@@ -62,10 +68,6 @@ solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 
 model = solver.solve()
-
-print('Events:')
-for atom in event_atoms:
-    print(f'\t{atom}')
 
 sol_names = {'violatesRule', 'violatesRightOfForRule'}
 print('Violations:')
