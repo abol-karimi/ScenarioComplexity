@@ -502,34 +502,16 @@ def smooth_trajectories(scenario, maxSpeed,
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
-    # TODO move magic numbers to function arguments. Also, relation with average speed enforced in ASP.
+    # TODO move magic numbers to function arguments.
     # am, aM = -10, 10
-    # for i in range(len(t_vars_ego)-3):
-    #     tr, ts = tuple(t_vars_ego[i:i+2])
-    #     dr, dr1, dr2, ds = tuple(d_vars_ego[3*i:3*i+4])
-    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
-    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
-    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
-    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
-
-    # for i in range(len(t_vars_nonego)-3):
-    #     tr, ts = tuple(t_vars_nonego[i:i+2])
-    #     dr, dr1, dr2, ds = tuple(d_vars_nonego[3*i:3*i+4])
-    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
-    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
-    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
-    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
-
-    # for i in range(len(t_vars_illegal)-3):
-    #     tr, ts = tuple(t_vars_illegal[i:i+2])
-    #     dr, dr1, dr2, ds = tuple(d_vars_illegal[3*i:3*i+4])
-    #     constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
-    #                     6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
-    #                     am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
-    #                     6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
-
-    # for c in constraints:
-    #     print(c)
+    # for car in new_vehicles:
+    #     for i in range(len(t_list[car])-3):
+    #         tr, ts = tuple(t_list[car][i:i+2])
+    #         dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
+    #         constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
+    #                         6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
+    #                         am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
+    #                         6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
     s = z3.Solver()
     s.set(unsat_core=True)
