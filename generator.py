@@ -486,7 +486,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    am, aM = -5, 5
+    am, aM = -4, 4
     for car in new_vehicles:
         for i in range(len(t_list[car])-3):
             tr, ts = tuple(t_list[car][i:i+2])
@@ -559,23 +559,17 @@ def smooth_trajectories(scenario, maxSpeed,
         new_traj[car] = distance_to_pose(
             new2distance[car], car2frame2simDistance[car], sim_trajectories[alias], alias)
 
-    # New timeing of spatial events
+    # New timing of events
     for car in new_vehicles:
-        for events in car2time2events[car].values():
+        for time, events in car2time2events[car].items():
             f = events[0].frame
             if f != None:
                 d_sim = car2frame2simDistance[car][f]
                 t_new = distance_to_time(t[car], d[car], d_sim)
-                f_new = realtime_to_frame(t_new, scenario.timestep)
-                for e in events:
-                    e.frame = f_new
-
-    # New timing of events with temporal constraints
-    for car in new_vehicles:
-        for tvar, tval in zip(t_list[car][1:-1], t[car][1:-1]):
-            frame = realtime_to_frame(tval, scenario.timestep)
-            for e in car2time2events[car][str(tvar)]:
-                e.frame = frame
+            else:
+                t_new = rat2fp(m.eval(t2var[time]))
+            for e in events:
+                e.frame = realtime_to_frame(t_new, scenario.timestep)
 
     new_events = {}
     for car in new_vehicles:
