@@ -1,5 +1,11 @@
 from collections import OrderedDict
 import math
+import z3
+
+
+def rat2fp(num):
+    # Convert Z3 rational numbers to Python's floating point reals
+    return float(num.numerator_as_long())/float(num.denominator_as_long())
 
 
 # Rounds r >=0 down to precision number of decimal places.
@@ -79,6 +85,38 @@ def distance_to_pose(distances, sim_distances, traj, car):
     from scenic.core.vectors import Vector
     poses = [[Vector(x, y), h] for x, y, h in zip(xs_i, ys_i, hs_i)]
     return poses
+
+
+def distance_to_time(t, d, d_val):
+    i = 0
+    while d[3*i+3] < d_val:
+        i += 1
+    # When here, d[3*i] <= d_val <= d[3*i+3]
+    if d_val == d[3*i]:
+        return t[i]
+    elif d_val == d[3*i+3]:
+        return t[i+1]
+
+    # TODO use a numerical solver
+    t_var = z3.Real('t')
+    b0 = (1-t_var)**3
+    b1 = 3*t_var*(1-t_var)**2
+    b2 = 3*t_var*t_var*(1-t_var)
+    b3 = t_var**3
+
+    s = z3.Solver()
+
+    # TODO prove that the solution is unique
+    s.add(t_var > 0, t_var < 1)
+    s.add(d[3*i]*b0 + d[3*i+1]*b1 + d[3*i+2]*b2 + d[3*i+3]*b3 == d_val)
+
+    s.check()
+    m = s.model()
+
+    t_lc = rat2fp(m[t_var].approx(10))
+    t_gb = (1-t_lc)*t[i] + t_lc*t[i+1]
+
+    return t_gb
 
 
 def geometry_atoms(network, intersection_uid):
@@ -344,15 +382,6 @@ def smooth_trajectories(scenario, maxSpeed,
 
     new_vehicles = list(sim_trajectories.keys()) + ['illegal']
 
-    time2distance = {}
-    for car in new_vehicles:
-        for t, events in car2time2events[car].items():
-            f = events[0].frame
-            d = car2frame2simDistance[car][f] if f != None else None
-            time2distance[t] = round_down(d) if d != None else None
-
-    car2distances = {car: [time2distance[t] for t in car2time2events[car]]
-                     for car in new_vehicles}
     t_dom = set()
     for s, t in temporal_constraints['lessThan']:
         t_dom.update({s, t})
@@ -360,7 +389,17 @@ def smooth_trajectories(scenario, maxSpeed,
         t_dom.update({s, t})
     t_dom.update(temporal_constraints['stop'])
 
-    import z3
+    time2distance = {}
+    for car in new_vehicles:
+        for t, events in car2time2events[car].items():
+            if t in t_dom:
+                f = events[0].frame
+                d = car2frame2simDistance[car][f] if f != None else None
+                time2distance[t] = round_down(d) if d != None else None
+
+    car2distances = {car: [time2distance[t] for t in car2time2events[car] if t in t_dom]
+                     for car in new_vehicles}
+
     maxTime = scenario.maxSteps*scenario.timestep
     t_list = {}
     for car in new_vehicles:
@@ -447,7 +486,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    am, aM = -10, 10
+    am, aM = -5, 5
     for car in new_vehicles:
         for i in range(len(t_list[car])-3):
             tr, ts = tuple(t_list[car][i:i+2])
@@ -466,10 +505,6 @@ def smooth_trajectories(scenario, maxSpeed,
     unsat_core = s.unsat_core()
     if len(unsat_core) > 0:
         print('unsat_core: ', unsat_core)
-
-    # To convert Z3 rational numbers to Python's floating point reals
-    def rat2fp(num):
-        return float(num.numerator_as_long())/float(num.denominator_as_long())
 
     # Get the model
     m = s.model()
@@ -524,7 +559,18 @@ def smooth_trajectories(scenario, maxSpeed,
         new_traj[car] = distance_to_pose(
             new2distance[car], car2frame2simDistance[car], sim_trajectories[alias], alias)
 
-    # New timing of events
+    # New timeing of spatial events
+    for car in new_vehicles:
+        for events in car2time2events[car].values():
+            f = events[0].frame
+            if f != None:
+                d_sim = car2frame2simDistance[car][f]
+                t_new = distance_to_time(t[car], d[car], d_sim)
+                f_new = realtime_to_frame(t_new, scenario.timestep)
+                for e in events:
+                    e.frame = f_new
+
+    # New timing of events with temporal constraints
     for car in new_vehicles:
         for tvar, tval in zip(t_list[car][1:-1], t[car][1:-1]):
             frame = realtime_to_frame(tval, scenario.timestep)
