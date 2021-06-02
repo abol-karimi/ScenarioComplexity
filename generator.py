@@ -380,7 +380,7 @@ def smooth_trajectories(scenario, maxSpeed,
         sim_trajectories[car], car) for car in sim_trajectories}
     car2frame2simDistance['illegal'] = car2frame2simDistance['ego']
 
-    new_vehicles = list(sim_trajectories.keys()) + ['illegal']
+    new_cars = list(sim_trajectories.keys()) + ['illegal']
 
     t_dom = set()
     for s, t in temporal_constraints['lessThan']:
@@ -390,7 +390,7 @@ def smooth_trajectories(scenario, maxSpeed,
     t_dom.update(temporal_constraints['stop'])
 
     time2distance = {}
-    for car in new_vehicles:
+    for car in new_cars:
         for t, events in car2time2events[car].items():
             if t in t_dom:
                 f = events[0].frame
@@ -398,11 +398,11 @@ def smooth_trajectories(scenario, maxSpeed,
                 time2distance[t] = round_down(d) if d != None else None
 
     car2distances = {car: [time2distance[t] for t in car2time2events[car] if t in t_dom]
-                     for car in new_vehicles}
+                     for car in new_cars}
 
     maxTime = scenario.maxSteps*scenario.timestep
     t_list = {}
-    for car in new_vehicles:
+    for car in new_cars:
         var_list = [z3.Real(t) for t in car2time2events[car] if t in t_dom]
         t_list[car] = [0] + var_list + [maxTime]
 
@@ -415,7 +415,7 @@ def smooth_trajectories(scenario, maxSpeed,
     t2var.update({t: frame_to_realtime(events[0].frame, scenario.timestep)
                   for car in old_nonegos for t, events in car2time2events[car].items() if t in t_dom})
     d_list = {}
-    for car in new_vehicles:
+    for car in new_cars:
         d_list[car] = [0 for i in range(len(t_list[car])*3-2)]
         d_list[car][-1] = round_down(car2frame2simDistance[car][-1])
         for i in range(1, len(d_list[car])-1):
@@ -431,7 +431,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # 1.
     min_perceptible_time = 0.5  # seconds
 
-    for car in new_vehicles:
+    for car in new_cars:
         constraints += [s < t for s, t in zip(t_list[car], t_list[car][1:])]
     constraints += [min_perceptible_time <= t2var[t] - t2var[s]
                     for s, t in temporal_constraints['lessThan']]
@@ -441,7 +441,7 @@ def smooth_trajectories(scenario, maxSpeed,
                     for s, t in temporal_constraints['equal']]
     # 2. (a)
     # ds <= d1 <= de, and ds <= d2 <= de
-    for car in new_vehicles:
+    for car in new_cars:
         for i in range(0, len(d_list[car])-3, 3):
             constraints += [d_list[car][i] <= d_list[car][i+1],
                             d_list[car][i+1] <= d_list[car][i+3],
@@ -455,7 +455,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # dr1 and dr2 be the distances for tr+(ts-tr)/3 and tr+2(ts-tr)/3, respectively.
     # Then we require:
     # (tr-tq)(dr1-dr) = (ts-tr)(dr-dq2)
-    for car in new_vehicles:
+    for car in new_cars:
         for i in range(len(t_list[car])-2):
             tq, tr, ts = tuple(t_list[car][i:i+3])
             dq2, dr, dr1 = tuple(d_list[car][3*i+2:3*i+5])
@@ -465,7 +465,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # TODO if no stoppedAtFork event, force a minimum speed
     stop_speed = 1.0  # meters/second
 
-    for car in new_vehicles:
+    for car in new_cars:
         for i in range(1, len(t_list[car])-1):
             if str(t_list[car][i]) in temporal_constraints['stop']:
                 delta_t = (t_list[car][i+1] - t_list[car][i])/3
@@ -487,7 +487,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
     am, aM = -4, 4
-    for car in new_vehicles:
+    for car in new_cars:
         for i in range(len(t_list[car])-3):
             tr, ts = tuple(t_list[car][i:i+2])
             dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
@@ -495,6 +495,32 @@ def smooth_trajectories(scenario, maxSpeed,
                             6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
                             am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
                             6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
+
+    # Collision-avoidance
+    min_dist = 4
+    for i in range(len(new_cars)-1):
+        for j in range(i+1, len(new_cars)):
+            car1, car2 = new_cars[i], new_cars[j]
+            if car1 == 'illegal' or car2 == 'illegal':
+                continue
+            for m in range(1, len(t_list[car1])-1):
+                for n in range(1, len(t_list[car2])-1):
+                    dm, dn = d_list[car1][3*m], d_list[car2][3*n]
+                    if type(dm) != int and type(dm) != float:
+                        continue
+                    if type(dn) != int and type(dn) != float:
+                        continue
+                    tm, tn = t_list[car1][m], t_list[car2][n]
+                    f1 = car2time2events[car1][str(tm)][0].frame
+                    f2 = car2time2events[car2][str(tn)][0].frame
+                    pose1 = sim_trajectories[car1][f1][car1]
+                    pose2 = sim_trajectories[car2][f2][car2]
+                    x1, y1 = pose1[0].x, pose1[0].y
+                    x2, y2 = pose2[0].x, pose2[0].y
+                    dist = math.sqrt((x1-x2)**2+(y1-y2)**2)
+                    if dist < min_dist:
+                        delta = round_down(1/(min_dist - dist))
+                        constraints += [z3.Or(tm-tn > delta, tm-tn < -delta)]
 
     s = z3.Solver()
     s.set(unsat_core=True)
@@ -510,7 +536,7 @@ def smooth_trajectories(scenario, maxSpeed,
     m = s.model()
 
     t, d = {}, {}
-    for car in new_vehicles:
+    for car in new_cars:
         t[car] = [0] + [rat2fp(m.eval(T))
                         for T in t_list[car][1:-1]] + [t_list[car][-1]]
         d[car] = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
@@ -521,7 +547,7 @@ def smooth_trajectories(scenario, maxSpeed,
 
     t_comp = {}
     new2distance = {}
-    for car in new_vehicles:
+    for car in new_cars:
         # The new ego distance curve
         t_comp[car] = [t[car][0]]
         for i in range(len(t[car])-1):
@@ -542,9 +568,9 @@ def smooth_trajectories(scenario, maxSpeed,
         new2distance[car] = [p[1] for p in curve.evalpts]
 
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(len(new_vehicles))
+    fig, axs = plt.subplots(len(new_cars))
     fig.suptitle('distance-time curves for ego, illegal, and nonegos')
-    for j, car in enumerate(new_vehicles):
+    for j, car in enumerate(new_cars):
         axs[j].plot(new2distance[car])
         axs[j].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_comp[car]], d[car],
                        c=['r' if i %
@@ -554,13 +580,13 @@ def smooth_trajectories(scenario, maxSpeed,
 
     # The new trajectories
     new_traj = {}
-    for car in new_vehicles:
+    for car in new_cars:
         alias = 'ego' if car == 'illegal' else car
         new_traj[car] = distance_to_pose(
             new2distance[car], car2frame2simDistance[car], sim_trajectories[alias], alias)
 
     # New timing of events
-    for car in new_vehicles:
+    for car in new_cars:
         for time, events in car2time2events[car].items():
             f = events[0].frame
             if f != None:
@@ -572,7 +598,7 @@ def smooth_trajectories(scenario, maxSpeed,
                 e.frame = realtime_to_frame(t_new, scenario.timestep)
 
     new_events = {}
-    for car in new_vehicles:
+    for car in new_cars:
         new_events[car] = []
         for es in car2time2events[car].values():
             new_events[car] += es
