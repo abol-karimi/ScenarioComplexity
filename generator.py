@@ -406,14 +406,6 @@ def smooth_trajectories(scenario, maxSpeed,
         var_list = [z3.Real(t) for t in car2time2events[car] if t in t_dom]
         t_list[car] = [0] + var_list + [maxTime]
 
-    # Index z3 time variables by their name
-    t2var = {}
-    for ts in t_list.values():
-        t2var.update({str(t): t for t in ts[1:-1]})
-    old_nonegos = {car for car in scenario.events if not car in {
-        'ego', 'illegal'}}
-    t2var.update({t: frame_to_realtime(events[0].frame, scenario.timestep)
-                  for car in old_nonegos for t, events in car2time2events[car].items() if t in t_dom})
     d_list = {}
     for car in new_cars:
         d_list[car] = [0 for i in range(len(t_list[car])*3-2)]
@@ -425,6 +417,47 @@ def smooth_trajectories(scenario, maxSpeed,
                     d_list[car][i] = z3.Real(f'D_{car}_{i//3}')
             else:
                 d_list[car][i] = z3.Real(f'D_{car}_{i//3}_{i%3}')
+
+    # Index z3 time variables by their name
+    old_nonegos = {car for car in scenario.events if not car in {
+        'ego', 'illegal'}}
+    t2var = {}
+    for ts in t_list.values():
+        t2var.update({str(t): t for t in ts[1:-1]})
+    t2var.update({t: frame_to_realtime(events[0].frame, scenario.timestep)
+                  for car in old_nonegos for t, events in car2time2events[car].items() if t in t_dom})
+
+    # Add extra control points to increase the flexibility of the curve
+    max_separation = 40.
+    t_list_augmented = {}
+    d_list_augmented = {}
+    for car in new_cars:
+        t_list_augmented[car] = []
+        d_list_augmented[car] = []
+        for i in range(len(t_list[car])-1):
+            ti = t_list[car][i]
+            di, di_0, di_1, dii = d_list[car][3*i:3*i+4]
+
+            t_list_augmented[car] += [ti]
+            d_list_augmented[car] += [di, di_0, di_1]
+
+            if isinstance(di, z3.ExprRef) or isinstance(dii, z3.ExprRef):
+                continue
+            if dii-di <= max_separation:
+                continue
+            n = int((dii-di)/max_separation)
+            t_list_augmented[car] += [z3.Real(f'{ti}_aug_{j}')
+                                      for j in range(n)]
+            for j in range(3*n):
+                if j % 3 == 0:
+                    d_list_augmented[car] += [di+(j//3+1)*max_separation]
+                else:
+                    d_list_augmented[car] += [z3.Real(f'D_{car}_{i}_aug_{j}')]
+        t_list_augmented[car] += [t_list[car][-1]]
+        d_list_augmented[car] += [d_list[car][-1]]
+
+    t_list = t_list_augmented
+    d_list = d_list_augmented
 
     constraints = []
 
@@ -486,7 +519,7 @@ def smooth_trajectories(scenario, maxSpeed,
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    am, aM = -4, 4
+    am, aM = -8, 4
     for car in new_cars:
         for i in range(len(t_list[car])-3):
             tr, ts = tuple(t_list[car][i:i+2])
