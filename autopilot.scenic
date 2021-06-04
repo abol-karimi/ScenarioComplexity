@@ -17,14 +17,19 @@ events = replay_scenario.events
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
-param stop_speed_threshold = 0.01  # meters/seconds
+param stop_speed_threshold = 0.5  # meters/seconds
 stop_speed_threshold = globalParameters.stop_speed_threshold
 
 param aggressiveness = 'normal'
 aggressiveness = globalParameters.aggressiveness
 
+param rss_enabled = False
+rss_enabled = globalParameters.rss_enabled
+
 import visualization
 from signals import vehicleLightState_from_maneuverType
+from rss_sensor import RssSensor
+import carla
 
 ARRIVAL_DISTANCE = 4 # meters
 
@@ -64,9 +69,19 @@ behavior CarlaBehaviorAgent():
 	src = scenicToCarlaLocation(trajectory[0][self.name][0], world=carla_world)
 	dest = scenicToCarlaLocation(trajectory[-1][self.name][0], world=carla_world)
 	agent.set_destination(src, dest, clean=True)
+	if rss_enabled:
+		transforms = [pair[0].transform for pair in agent._local_planner.waypoints_queue]
+		rss_sensor = RssSensor(self.carlaActor, carla_world, None, None, None, routing_targets=transforms)
+		restrictor = carla.RssRestrictor()
+		vehicle_physics = self.carlaActor.get_physics_control()
 	agent.update_information()
 	while agent.incoming_waypoint:
 		control = agent.run_step()
+		if rss_enabled:
+			rss_proper_response = rss_sensor.proper_response if rss_sensor.response_valid else None
+			if rss_proper_response:
+				control = restrictor.restrict_vehicle_control(
+						control, rss_proper_response, rss_sensor.ego_dynamics_on_route, vehicle_physics)
 		self.carlaActor.apply_control(control)
 		wait
 		agent.update_information()

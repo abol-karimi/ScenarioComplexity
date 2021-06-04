@@ -473,7 +473,7 @@ def smooth_trajectories(scenario, maxSpeed,
                 constraints += [delta_d/delta_t < stop_speed]
 
     # 2. (d)
-    # for car in new_vehicles:
+    # for car in new_cars:
     #     for i in range(len(t_list[car])-1):
     #         tq, tr = tuple(t_list[car][i:i+2])
     #         dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
@@ -497,30 +497,32 @@ def smooth_trajectories(scenario, maxSpeed,
                             6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
     # Collision-avoidance
-    min_dist = 4
-    for i in range(len(new_cars)-1):
-        for j in range(i+1, len(new_cars)):
-            car1, car2 = new_cars[i], new_cars[j]
-            if car1 == 'illegal' or car2 == 'illegal':
-                continue
-            for m in range(1, len(t_list[car1])-1):
-                for n in range(1, len(t_list[car2])-1):
-                    dm, dn = d_list[car1][3*m], d_list[car2][3*n]
-                    if type(dm) != int and type(dm) != float:
-                        continue
-                    if type(dn) != int and type(dn) != float:
-                        continue
-                    tm, tn = t_list[car1][m], t_list[car2][n]
-                    f1 = car2time2events[car1][str(tm)][0].frame
-                    f2 = car2time2events[car2][str(tn)][0].frame
-                    pose1 = sim_trajectories[car1][f1][car1]
-                    pose2 = sim_trajectories[car2][f2][car2]
-                    x1, y1 = pose1[0].x, pose1[0].y
-                    x2, y2 = pose2[0].x, pose2[0].y
-                    dist = math.sqrt((x1-x2)**2+(y1-y2)**2)
-                    if dist < min_dist:
-                        delta = round_down(1/(min_dist - dist))
-                        constraints += [z3.Or(tm-tn > delta, tm-tn < -delta)]
+    # min_dist = 2
+    # for i in range(len(new_cars)-1):
+    #     for j in range(i+1, len(new_cars)):
+    #         car1, car2 = new_cars[i], new_cars[j]
+    #         if car1 == 'illegal' or car2 == 'illegal':
+    #             continue
+    #         for m in range(1, len(t_list[car1])-1):
+    #             for n in range(1, len(t_list[car2])-1):
+    #                 dm, dn = d_list[car1][3*m], d_list[car2][3*n]
+    #                 if type(dm) != int and type(dm) != float:
+    #                     continue
+    #                 if type(dn) != int and type(dn) != float:
+    #                     continue
+    #                 tm, tn = t_list[car1][m], t_list[car2][n]
+    #                 f1 = car2time2events[car1][str(tm)][0].frame
+    #                 f2 = car2time2events[car2][str(tn)][0].frame
+    #                 pose1 = sim_trajectories[car1][f1][car1]
+    #                 pose2 = sim_trajectories[car2][f2][car2]
+    #                 x1, y1 = pose1[0].x, pose1[0].y
+    #                 x2, y2 = pose2[0].x, pose2[0].y
+    #                 dist = math.sqrt((x1-x2)**2+(y1-y2)**2)
+    #                 if dist < min_dist:
+    #                     delta = round_down(1/(min_dist - dist))
+    #                     print(
+    #                         f'Collision constraint: {z3.Or(tm-tn > delta, tm-tn < -delta)}')
+    #                     constraints += [z3.Or(tm-tn > delta, tm-tn < -delta)]
 
     s = z3.Solver()
     s.set(unsat_core=True)

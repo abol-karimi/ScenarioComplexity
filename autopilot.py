@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('inputfile', help='filename of the given scenario')
 parser.add_argument('-a', '--aggressiveness', choices=['cautious', 'normal', 'aggressive'],
                     default='normal', help='aggressiveness of Carla BehaviorAgent')
+parser.add_argument('--rss', action='store_true', help='enable RSS restrictor')
 args = parser.parse_args()
 
 with open(args.inputfile, 'rb') as inFile:
@@ -29,7 +30,8 @@ params = {'map': scenario.map_path,  # scenic.simulators.carla.model
           'replay_scenario': scenario,
           'event_monitor': monitor,
           'stop_speed_threshold': 0.5,  # meters/seconds
-          'aggressiveness': args.aggressiveness}
+          'aggressiveness': args.aggressiveness,
+          'rss_enabled': args.rss}
 
 print('Play an autopilot ego in the scenario...')
 scenic_scenario = scenic.scenarioFromFile(
