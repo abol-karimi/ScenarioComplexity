@@ -466,7 +466,7 @@ def smooth_trajectories(scenario, maxSpeed,
 
     for car in new_cars:
         constraints += [s < t for s, t in zip(t_list[car], t_list[car][1:])]
-    constraints += [min_perceptible_time <= t2var[t] - t2var[s]
+    constraints += [min_perceptible_time*2 <= t2var[t] - t2var[s]  # *2 to get a crisper constrast
                     for s, t in temporal_constraints['lessThan']]
     constraints += [-min_perceptible_time < t2var[t] - t2var[s]
                     for s, t in temporal_constraints['equal']]
@@ -506,28 +506,28 @@ def smooth_trajectories(scenario, maxSpeed,
                 constraints += [delta_d/delta_t < stop_speed]
 
     # 2. (d)
-    # for car in new_cars:
-    #     for i in range(len(t_list[car])-1):
-    #         tq, tr = tuple(t_list[car][i:i+2])
-    #         dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
-    #         # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-    #         #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
-    #         constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
+    for car in new_cars:
+        for i in range(len(t_list[car])-1):
+            tq, tr = tuple(t_list[car][i:i+2])
+            dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
+            # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+            #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
+            constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
 
     # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    am, aM = -8, 4
-    for car in new_cars:
-        for i in range(len(t_list[car])-3):
-            tr, ts = tuple(t_list[car][i:i+2])
-            dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
-            constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
-                            6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
-                            am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
-                            6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
+    # am, aM = -8, 4
+    # for car in new_cars:
+    #     for i in range(len(t_list[car])-3):
+    #         tr, ts = tuple(t_list[car][i:i+2])
+    #         dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
+    #         constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
+    #                         6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
+    #                         am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
+    #                         6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
 
     # Collision-avoidance
     # min_dist = 2
@@ -655,6 +655,17 @@ def solution(scenario, sim_events,
 
     constraints, car2time2events = logical_solution(
         scenario, sim_events, extra_constraints)
+
+    print('Logical solution:')
+    for car, t2e in car2time2events.items():
+        print(f'{car}"s events:')
+        for t, es in t2e.items():
+            for e in es:
+                print(f'\t{e.withTime(t)}')
+    for c, ext in constraints.items():
+        print(f'{c}:')
+        for elem in ext:
+            print(f'\t{elem}')
 
     # Find trajectories that preserve the order of events in the logical solution
     new_trajs, new_events = smooth_trajectories(scenario, maxSpeed,
