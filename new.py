@@ -53,7 +53,7 @@ parser.add_argument('-c', '--constraints', nargs='+', type=str, default=[],
 args = parser.parse_args()
 
 if args.nonego_blueprint:
-    nonego_blueprint = args.blueprints
+    nonego_blueprint = args.nonego_blueprint
 
 scenario = Scenario()
 
