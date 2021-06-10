@@ -15,11 +15,10 @@ args = parser.parse_args()
 with open(args.inputfile, 'rb') as inFile:
     scenario = pickle.load(inFile)
 
-# Events:
-for car, events in scenario.events.items():
-    print(f'{car}:')
+event2frame = {}
+for events in scenario.events.values():
     for e in events:
-        print(f'\t{e.withTime(e.frame)}')
+        event2frame[e.withTime('')] = e.frame
 
 monitor = intersection_monitor.Monitor()
 
@@ -40,47 +39,11 @@ scene, _ = scenic_scenario.generate()
 simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
-# Events:
-for car, events in monitor.events.items():
-    print(f'{car}:')
+for events in monitor.events.values():
     for e in events:
-        print(f'\t{e.withTime(e.frame)}')
-
-# atoms = []
-# network = Network.fromFile(scenario.map_path)
-# atoms += geometry_atoms(network, scenario.intersection_uid)
-
-# event_atoms = []
-# car2time2events = car_to_time_to_events(scenario.events)
-# for car, time2events in car2time2events.items():
-#     for t, events in time2events.items():
-#         event_atoms += [f'{e.withTime(t)}' for e in events]
-# atoms += event_atoms
-
-# min_perceptible_time = 10  # frames
-# sym2val = []
-# for car, time2events in car2time2events.items():
-#     for t, events in time2events.items():
-#         sym2val += [(t, events[0].frame)]
-# for i in range(len(sym2val)-1):
-#     for j in range(i+1, len(sym2val)):
-#         ti, vi = sym2val[i]
-#         tj, vj = sym2val[j]
-#         if abs(vi-vj) < min_perceptible_time:
-#             atoms += [f'equal({ti}, {tj})', f'equal({tj}, {ti})']
-#         elif vi-vj <= -min_perceptible_time:
-#             atoms += [f'lessThan({ti}, {tj})']
-#         else:
-#             atoms += [f'lessThan({tj}, {ti})']
-
-# solver = Solver()
-# solver.load(scenario.rules_path)
-# solver.add_atoms(atoms)
-
-# model = solver.solve()
-
-# sol_names = {'violatesRule', 'violatesRightOfForRule'}
-# print('Violations:')
-# for atom in model:
-#     if atom.name in sol_names:
-#         print(f'\t{atom}')
+        if e.name == 'signaledAtForkAtTime':
+            continue
+        e_id = e.withTime('')
+        t0 = event2frame[e_id]
+        t1 = e.frame
+        print(f'{e_id:60} {t0} --> {t1}')
