@@ -24,8 +24,6 @@ def numeral_to_fp(num):
         rat = num.approx()
         fr = rat.as_fraction()
         return fr.numerator/fr.denominator
-    # elif isinstance(num, pysmt.fnode.FNode):
-    #     return float(str(num).replace('?', ''))
     else:
         print('Incompatible type: ', num, type(num))
         return None
@@ -312,7 +310,8 @@ def logical_solution(scenario, sim_events, extra_constraints):
     atoms += [f':- violatesRule(ego, _)']
 
     # Evidence that the new scenario is strictly harder
-    new_nonegos_pool = f'{"; ".join(car for car in sim_events if not car in {"ego", "illegal"})}'
+    new_nonegos = [car for car in sim_events if not car in {'ego', 'illegal'}]
+    new_nonegos_pool = f'{"; ".join(car for car in new_nonegos)}'
     atoms += [
         f':- #count {{ 0:violatesRightOf(illegal, {new_nonegos_pool}) }} = 0']
     atoms += [f':- violatesRule(illegal, _)']
@@ -327,12 +326,14 @@ def logical_solution(scenario, sim_events, extra_constraints):
               f'  return clingo.Function(t, [])\n'
               f'#end']
 
-    # # The event StopppedAtForkAtTime is generated based on the status of traffic rules violations:
-    atoms += [f'#count {{0:stoppedAtForkAtTime(V, F, @time(V, stop, T1, T2)); 1:lessThan(T1, @time(V, stop, T1, T2)); 2:lessThan(@time(V, stop, T1, T2),  T2) }} = 3 :-'
-              f'arrivedAtForkAtTime(V, F, T1),'
-              f'hasStopSign(F),'
-              f'enteredForkAtTime(V, F, T2),'
-              f'not violatesRule(V, stopAtSign)']
+    # The event StopppedAtForkAtTime is generated for new cars,
+    #  based on the status of traffic rules violations:
+    for car in new_nonegos+['ego', 'illegal']:
+        atoms += [f'#count {{0:stoppedAtForkAtTime({car}, F, @time({car}, stop, T1, T2)); 1:lessThan(T1, @time({car}, stop, T1, T2)); 2:lessThan(@time({car}, stop, T1, T2),  T2) }} = 3 :-'
+                  f'arrivedAtForkAtTime({car}, F, T1),'
+                  f'hasStopSign(F),'
+                  f'enteredForkAtTime({car}, F, T2),'
+                  f'not violatesRule({car}, stopAtSign)']
 
     from solver import Solver
     solver = Solver()
@@ -431,6 +432,7 @@ def smooth_trajectories(scenario, maxSpeed,
         var_list = [Symbol(t, REAL)
                     for t in car2time2events[car] if t in t_dom]
         t_list[car] = [Real(0)] + var_list + [Real(maxTime)]
+        print(t_list[car])
 
     d_list = {}
     for car in new_cars:
@@ -540,28 +542,28 @@ def smooth_trajectories(scenario, maxSpeed,
                 constraints += [delta_d/delta_t < Real(stop_speed)]
 
     # 2. (d)
-    for car in new_cars:
-        for i in range(len(t_list[car])-1):
-            tq, tr = tuple(t_list[car][i:i+2])
-            dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
-            # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-            #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
-            constraints += [(dr-dq)/(tr-tq) <= Real(maxSpeed)]  # average speed
+    # for car in new_cars:
+    #     for i in range(len(t_list[car])-1):
+    #         tq, tr = tuple(t_list[car][i:i+2])
+    #         dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
+    #         # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+    #         #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
+    #         constraints += [(dr-dq)/(tr-tq) <= Real(maxSpeed)]  # average speed
 
     # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    # am, aM = -8, 4
-    # for car in new_cars:
-    #     for i in range(len(t_list[car])-3):
-    #         tr, ts = tuple(t_list[car][i:i+2])
-    #         dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
-    #         constraints += [am*(ts-tr)**2 <= 6*(dr-2*dr1+dr2),
-    #                         6*(dr-2*dr1+dr2) <= aM*(ts-tr)**2,
-    #                         am*(ts-tr)**2 <= 6*(dr1-2*dr2+ds),
-    #                         6*(dr1-2*dr2+ds) <= aM*(ts-tr)**2]
+    am, aM = Real(-8), Real(4)
+    for car in new_cars:
+        for i in range(len(t_list[car])-3):
+            tr, ts = tuple(t_list[car][i:i+2])
+            dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
+            constraints += [am*(ts-tr)*(ts-tr) <= 6*(dr-2*dr1+dr2),
+                            6*(dr-2*dr1+dr2) <= aM*(ts-tr)*(ts-tr),
+                            am*(ts-tr)*(ts-tr) <= 6*(dr1-2*dr2+ds),
+                            6*(dr1-2*dr2+ds) <= aM*(ts-tr)*(ts-tr)]
 
     # Collision-avoidance
     # min_dist = 2
@@ -594,6 +596,9 @@ def smooth_trajectories(scenario, maxSpeed,
     print('Solving smoothness constraints...')
     with Solver(name=solver_name, logic=QF_NRA):
         m = get_model(And(constraints))
+        if m == None:
+            print('Unsatisfiable!')
+            exit(1)
 
     t, d = {}, {}
     for car in new_cars:
