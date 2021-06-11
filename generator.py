@@ -2,6 +2,16 @@ from collections import OrderedDict
 import math
 import z3
 
+from pysmt.logics import QF_NRA
+from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Real
+from pysmt.typing import REAL
+
+solver_name = "mathsat-binary"
+path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
+logics = [QF_NRA]
+env = get_env()
+env.factory.add_generic_solver(solver_name, path, logics)
+
 
 def rat2fp(num):
     # Convert Z3 rational numbers to Python's floating point reals
@@ -88,6 +98,10 @@ def distance_to_pose(distances, sim_distances, traj, car):
 
 
 def distance_to_time(t, d, d_val):
+    """t, d: array of coordinates of the control points of the composite Bezier curve.
+    d_val: the d-value to at which the curve is projected to the t-axis.
+    returns the projection.
+    """
     i = 0
     while d[3*i+3] < d_val:
         i += 1
@@ -98,25 +112,24 @@ def distance_to_time(t, d, d_val):
         return t[i+1]
 
     # TODO use a numerical solver
-    t_var = z3.Real('t')
-    b0 = (1-t_var)**3
-    b1 = 3*t_var*(1-t_var)**2
+    t_var = Symbol('t', REAL)
+    b0 = (1-t_var)*(1-t_var)*(1-t_var)
+    b1 = 3*t_var*(1-t_var)*(1-t_var)
     b2 = 3*t_var*t_var*(1-t_var)
-    b3 = t_var**3
+    b3 = t_var*t_var*t_var
 
-    s = z3.Solver()
+    constraints = [t_var > 0,
+                   t_var < 1,
+                   Equals(Real(d_val), d[3*i]*b0 + d[3*i+1]*b1 + d[3*i+2]*b2 + d[3*i+3]*b3)]
 
-    # TODO prove that the solution is unique
-    s.add(t_var > 0, t_var < 1)
-    s.add(d[3*i]*b0 + d[3*i+1]*b1 + d[3*i+2]*b2 + d[3*i+3]*b3 == d_val)
+    t_global = None
+    with Solver(name=solver_name, logic=QF_NRA):
+        m = get_model(And(constraints))
+        numeral = m.get_py_value(t_var)
+        t_local = float(str(numeral).replace('?', ''))
+        t_global = (1-t_local)*t[i] + t_local*t[i+1]
 
-    s.check()
-    m = s.model()
-
-    t_lc = rat2fp(m[t_var].approx(10))
-    t_gb = (1-t_lc)*t[i] + t_lc*t[i+1]
-
-    return t_gb
+    return t_global
 
 
 def geometry_atoms(network, intersection_uid):
