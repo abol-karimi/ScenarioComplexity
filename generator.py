@@ -1,11 +1,15 @@
 from collections import OrderedDict
 import math
-import z3
+from os import replace
 
 from pysmt.logics import QF_NRA
 from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Real
 from pysmt.typing import REAL
+import pysmt
+import fractions
 
+# solver_name = "z3-binary"
+# path = ["/home/ak/Downloads/z3-4.8.10-x64-ubuntu-18.04/bin/z3", "-in", "-smt2"]
 solver_name = "mathsat-binary"
 path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
 logics = [QF_NRA]
@@ -13,9 +17,18 @@ env = get_env()
 env.factory.add_generic_solver(solver_name, path, logics)
 
 
-def rat2fp(num):
-    # Convert Z3 rational numbers to Python's floating point reals
-    return float(num.numerator_as_long())/float(num.denominator_as_long())
+def numeral_to_fp(num):
+    if isinstance(num, fractions.Fraction):
+        return num.numerator/num.denominator
+    elif isinstance(num, pysmt.constants.Numeral):
+        rat = num.approx()
+        fr = rat.as_fraction()
+        return fr.numerator/fr.denominator
+    # elif isinstance(num, pysmt.fnode.FNode):
+    #     return float(str(num).replace('?', ''))
+    else:
+        print('Incompatible type: ', num, type(num))
+        return None
 
 
 # Rounds r >=0 down to precision number of decimal places.
@@ -126,7 +139,7 @@ def distance_to_time(t, d, d_val):
     with Solver(name=solver_name, logic=QF_NRA):
         m = get_model(And(constraints))
         numeral = m.get_py_value(t_var)
-        t_local = float(str(numeral).replace('?', ''))
+        t_local = numeral_to_fp(numeral)
         t_global = (1-t_local)*t[i] + t_local*t[i+1]
 
     return t_global
@@ -407,8 +420,7 @@ def smooth_trajectories(scenario, maxSpeed,
         for t, events in car2time2events[car].items():
             if t in t_dom:
                 f = events[0].frame
-                d = car2frame2simDistance[car][f] if f != None else None
-                time2distance[t] = round_down(d) if d != None else None
+                time2distance[t] = car2frame2simDistance[car][f] if f != None else None
 
     car2distances = {car: [time2distance[t] for t in car2time2events[car] if t in t_dom]
                      for car in new_cars}
@@ -416,22 +428,26 @@ def smooth_trajectories(scenario, maxSpeed,
     maxTime = scenario.maxSteps*scenario.timestep
     t_list = {}
     for car in new_cars:
-        var_list = [z3.Real(t) for t in car2time2events[car] if t in t_dom]
-        t_list[car] = [0] + var_list + [maxTime]
+        var_list = [Symbol(t, REAL)
+                    for t in car2time2events[car] if t in t_dom]
+        t_list[car] = [Real(0)] + var_list + [Real(maxTime)]
 
     d_list = {}
     for car in new_cars:
         d_list[car] = [0 for i in range(len(t_list[car])*3-2)]
-        d_list[car][-1] = round_down(car2frame2simDistance[car][-1])
+        d_list[car][0] = Real(0)
+        d_list[car][-1] = Real(round_down(car2frame2simDistance[car][-1]))
         for i in range(1, len(d_list[car])-1):
             if i % 3 == 0:  # Interpolation points
                 d_list[car][i] = car2distances[car][i//3-1]
                 if d_list[car][i] == None:  # no distance constraint for this event
-                    d_list[car][i] = z3.Real(f'D_{car}_{i//3}')
+                    d_list[car][i] = Symbol(f'D_{car}_{i//3}', REAL)
+                else:
+                    d_list[car][i] = Real(round_down(d_list[car][i]))
             else:
-                d_list[car][i] = z3.Real(f'D_{car}_{i//3}_{i%3}')
+                d_list[car][i] = Symbol(f'D_{car}_{i//3}_{i%3}', REAL)
 
-    # Index z3 time variables by their name
+    # Index realtime variables by their name
     old_nonegos = {car for car in scenario.events if not car in {
         'ego', 'illegal'}}
     t2var = {}
@@ -454,18 +470,23 @@ def smooth_trajectories(scenario, maxSpeed,
             t_list_augmented[car] += [ti]
             d_list_augmented[car] += [di, di_0, di_1]
 
-            if isinstance(di, z3.ExprRef) or isinstance(dii, z3.ExprRef):
+            if not (di.is_constant() and dii.is_constant()):
                 continue
-            if dii-di <= max_separation:
+
+            di_fp = numeral_to_fp(di.constant_value())
+            dii_fp = numeral_to_fp(dii.constant_value())
+            if dii_fp-di_fp <= max_separation:
                 continue
-            n = int((dii-di)/max_separation)
-            t_list_augmented[car] += [z3.Real(f'{ti}_aug_{j}')
+            n = int((dii_fp-di_fp)/max_separation)
+            t_list_augmented[car] += [Symbol(f'{ti}_aug_{j}', REAL)
                                       for j in range(n)]
             for j in range(3*n):
                 if j % 3 == 0:
-                    d_list_augmented[car] += [di+(j//3+1)*max_separation]
+                    d_list_augmented[car] += [
+                        Real(round_down(di_fp+(j//3+1)*max_separation))]
                 else:
-                    d_list_augmented[car] += [z3.Real(f'D_{car}_{i}_aug_{j}')]
+                    d_list_augmented[car] += [
+                        Symbol(f'D_{car}_{i}_aug_{j}', REAL)]
         t_list_augmented[car] += [t_list[car][-1]]
         d_list_augmented[car] += [d_list[car][-1]]
 
@@ -505,7 +526,7 @@ def smooth_trajectories(scenario, maxSpeed,
         for i in range(len(t_list[car])-2):
             tq, tr, ts = tuple(t_list[car][i:i+3])
             dq2, dr, dr1 = tuple(d_list[car][3*i+2:3*i+5])
-            constraints += [(tr-tq)*(dr1-dr) == (ts-tr)*(dr-dq2)]
+            constraints += [Equals((tr-tq)*(dr1-dr), (ts-tr)*(dr-dq2))]
 
     # 2. (c)
     # TODO if no stoppedAtFork event, force a minimum speed
@@ -516,7 +537,7 @@ def smooth_trajectories(scenario, maxSpeed,
             if str(t_list[car][i]) in temporal_constraints['stop']:
                 delta_t = (t_list[car][i+1] - t_list[car][i])/3
                 delta_d = d_list[car][3*i+1] - d_list[car][3*i]
-                constraints += [delta_d/delta_t < stop_speed]
+                constraints += [delta_d/delta_t < Real(stop_speed)]
 
     # 2. (d)
     for car in new_cars:
@@ -525,7 +546,7 @@ def smooth_trajectories(scenario, maxSpeed,
             dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
             # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
             #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
-            constraints += [(dr-dq)/(tr-tq) <= maxSpeed]  # average speed
+            constraints += [(dr-dq)/(tr-tq) <= Real(maxSpeed)]  # average speed
 
     # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
@@ -570,25 +591,14 @@ def smooth_trajectories(scenario, maxSpeed,
     #                         f'Collision constraint: {z3.Or(tm-tn > delta, tm-tn < -delta)}')
     #                     constraints += [z3.Or(tm-tn > delta, tm-tn < -delta)]
 
-    s = z3.Solver()
-    s.set(unsat_core=True)
-    for c in constraints:
-        s.assert_and_track(c, str(c))
     print('Solving smoothness constraints...')
-    print(s.check())
-    unsat_core = s.unsat_core()
-    if len(unsat_core) > 0:
-        print('unsat_core: ', unsat_core)
-
-    # Get the model
-    m = s.model()
+    with Solver(name=solver_name, logic=QF_NRA):
+        m = get_model(And(constraints))
 
     t, d = {}, {}
     for car in new_cars:
-        t[car] = [0] + [rat2fp(m.eval(T))
-                        for T in t_list[car][1:-1]] + [t_list[car][-1]]
-        d[car] = [rat2fp(m.eval(d)) if isinstance(d, z3.ExprRef) else d
-                  for d in d_list[car]]
+        t[car] = [numeral_to_fp(m.get_py_value(T)) for T in t_list[car]]
+        d[car] = [numeral_to_fp(m.get_py_value(D)) for D in d_list[car]]
 
     # Get interpolated points based on the Bezier control points
     from geomdl import BSpline
@@ -641,7 +651,7 @@ def smooth_trajectories(scenario, maxSpeed,
                 d_sim = car2frame2simDistance[car][f]
                 t_new = distance_to_time(t[car], d[car], d_sim)
             else:
-                t_new = rat2fp(m.eval(t2var[time]))
+                t_new = numeral_to_fp(m.get_py_value(t2var[time]))
             for e in events:
                 e.frame = realtime_to_frame(t_new, scenario.timestep)
 
