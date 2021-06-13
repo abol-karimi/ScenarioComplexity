@@ -10,8 +10,17 @@ import fractions
 
 # solver_name = "z3-binary"
 # path = ["/home/ak/Downloads/z3-4.8.10-x64-ubuntu-18.04/bin/z3", "-in", "-smt2"]
-solver_name = "mathsat-binary"
-path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
+
+# solver_name = "mathsat-binary"
+# path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
+
+solver_name = "cvc4-binary"
+path = ["/home/ak/Downloads/cvc4-1.8-x86_64-linux-opt",
+        "--lang=smt2", "--produce-models", "--no-interactive-prompt"]
+
+# solver_name = "yices-binary"
+# path = ["yices-smt2"]
+
 logics = [QF_NRA]
 env = get_env()
 env.factory.add_generic_solver(solver_name, path, logics)
