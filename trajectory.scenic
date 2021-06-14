@@ -28,7 +28,7 @@ import carla
 from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
 		
 #CONSTANTS
-SPEED = 4
+SPEED = 2
 ARRIVAL_DISTANCE = 4 # meters
 
 behavior PassBehavior(speed, trajectory, maneuverType):
