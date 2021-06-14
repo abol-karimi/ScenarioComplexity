@@ -41,13 +41,13 @@ def numeral_to_fp(num):
 # Rounds r >=0 down to precision number of decimal places.
 def round_up(r, precision=3):
     coeff = 10**precision
-    return math.ceil(r*coeff)/coeff
+    return fractions.Fraction(math.ceil(r*coeff), coeff)
 
 
 # Rounds r >=0 down to precision number of decimal places.
 def round_down(r, precision=3):
     coeff = 10**precision
-    return math.floor(r*coeff)/coeff
+    return fractions.Fraction(math.floor(r*coeff), coeff)
 
 
 # Returns sign(r)*round_up(abs(r), precision)
@@ -441,7 +441,6 @@ def smooth_trajectories(scenario, maxSpeed,
         var_list = [Symbol(t, REAL)
                     for t in car2time2events[car] if t in t_dom]
         t_list[car] = [Real(0)] + var_list + [Real(maxTime)]
-        print(t_list[car])
 
     d_list = {}
     for car in new_cars:
@@ -449,13 +448,13 @@ def smooth_trajectories(scenario, maxSpeed,
         d_list[car][0] = Real(0)
         d_list[car][-1] = Real(round_down(car2frame2simDistance[car][-1]))
         for i in range(1, len(d_list[car])-1):
-            if i % 3 == 0:  # Interpolation points
-                d_list[car][i] = car2distances[car][i//3-1]
-                if d_list[car][i] == None:  # no distance constraint for this event
+            if i % 3 == 0:  # Interpolation point
+                di = car2distances[car][i//3-1]
+                if di == None:  # no distance constraint for this event
                     d_list[car][i] = Symbol(f'D_{car}_{i//3}', REAL)
                 else:
-                    d_list[car][i] = Real(round_down(d_list[car][i]))
-            else:
+                    d_list[car][i] = Real(round_down(di))
+            else:  # Bezier control point
                 d_list[car][i] = Symbol(f'D_{car}_{i//3}_{i%3}', REAL)
 
     # Index realtime variables by their name
@@ -468,7 +467,7 @@ def smooth_trajectories(scenario, maxSpeed,
                   for car in old_nonegos for t, events in car2time2events[car].items() if t in t_dom})
 
     # Add extra control points to increase the flexibility of the curve
-    max_separation = 40.
+    max_separation = 30.
     t_list_augmented = {}
     d_list_augmented = {}
     for car in new_cars:
@@ -488,19 +487,20 @@ def smooth_trajectories(scenario, maxSpeed,
             dii_fp = numeral_to_fp(dii.constant_value())
             if dii_fp-di_fp <= max_separation:
                 continue
-            n = int((dii_fp-di_fp)/max_separation)
-            t_list_augmented[car] += [Symbol(f'{ti}_aug_{j}', REAL)
-                                      for j in range(n)]
-            for j in range(3*n):
+            n = math.ceil((dii_fp-di_fp)/max_separation)
+            separation = (dii_fp-di_fp)/n
+            t_base = f'{car}_{ti}' if ti.is_constant() else ti
+            t_list_augmented[car] += [Symbol(f'{t_base}_aug_{j}', REAL)
+                                      for j in range(n-1)]
+            for j in range(3*(n-1)):
                 if j % 3 == 0:
                     d_list_augmented[car] += [
-                        Real(round_down(di_fp+(j//3+1)*max_separation))]
+                        Real(round_down(di_fp+(j//3+1)*separation))]
                 else:
                     d_list_augmented[car] += [
                         Symbol(f'D_{car}_{i}_aug_{j}', REAL)]
         t_list_augmented[car] += [t_list[car][-1]]
         d_list_augmented[car] += [d_list[car][-1]]
-
     t_list = t_list_augmented
     d_list = d_list_augmented
 
