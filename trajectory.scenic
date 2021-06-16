@@ -28,14 +28,16 @@ import carla
 from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
 		
 #CONSTANTS
-SPEED = 2
+SPEED = 4
 ARRIVAL_DISTANCE = 4 # meters
 
 behavior PassBehavior(speed, trajectory, maneuverType):
 	lights = vehicleLightState_from_maneuverType(maneuverType)
 	take SetVehicleLightStateAction(lights)
-	while (distance from self to trajectory[2].centerline[-1]) > 5:
+	try:
 		do FollowTrajectoryBehavior(speed, trajectory)
+	interrupt when (distance from self to trajectory[2].centerline[-1]) <= 5:
+		abort
 	take SetBrakeAction(1)
 
 #Ego vehicle
