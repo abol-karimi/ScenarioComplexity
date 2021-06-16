@@ -551,28 +551,28 @@ def smooth_trajectories(scenario, maxSpeed,
                 constraints += [delta_d/delta_t < Real(stop_speed)]
 
     # 2. (d)
-    # for car in new_cars:
-    #     for i in range(len(t_list[car])-1):
-    #         tq, tr = tuple(t_list[car][i:i+2])
-    #         dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
-    #         # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
-    #         #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
-    #         constraints += [(dr-dq)/(tr-tq) <= Real(maxSpeed)]  # average speed
+    for car in new_cars:
+        for i in range(len(t_list[car])-1):
+            tq, tr = tuple(t_list[car][i:i+2])
+            dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
+            # constraints += [3*(dq1-dq)/(tr-tq) <= maxSpeed,
+            #                 3*(dr-dq2)/(tr-tq) <= maxSpeed]  # instantaneous speed
+            constraints += [(dr-dq)/(tr-tq) <= Real(maxSpeed)]  # average speed
 
     # 2. (e)
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
     # TODO move magic numbers to function arguments.
-    am, aM = Real(-8), Real(4)
-    for car in new_cars:
-        for i in range(len(t_list[car])-3):
-            tr, ts = tuple(t_list[car][i:i+2])
-            dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
-            constraints += [am*(ts-tr)*(ts-tr) <= 6*(dr-2*dr1+dr2),
-                            6*(dr-2*dr1+dr2) <= aM*(ts-tr)*(ts-tr),
-                            am*(ts-tr)*(ts-tr) <= 6*(dr1-2*dr2+ds),
-                            6*(dr1-2*dr2+ds) <= aM*(ts-tr)*(ts-tr)]
+    # am, aM = Real(-8), Real(4)
+    # for car in new_cars:
+    #     for i in range(len(t_list[car])-3):
+    #         tr, ts = tuple(t_list[car][i:i+2])
+    #         dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
+    #         constraints += [am*(ts-tr)*(ts-tr) <= 6*(dr-2*dr1+dr2),
+    #                         6*(dr-2*dr1+dr2) <= aM*(ts-tr)*(ts-tr),
+    #                         am*(ts-tr)*(ts-tr) <= 6*(dr1-2*dr2+ds),
+    #                         6*(dr1-2*dr2+ds) <= aM*(ts-tr)*(ts-tr)]
 
     # Collision-avoidance
     # min_dist = 2
@@ -731,63 +731,45 @@ def solution(scenario, sim_events,
     return traj_prev, sim_events
 
 
-def extend(scenario, nonego_maneuver_uid,
-           ego_spawn_distance=25,
-           nonego_spawn_distance=10,
-           nonego_blueprint='vehicle.tesla.model3',
-           maxSpeed=8,
-           extra_constraints=[]):
+def extend(scenario, config):
     import intersection_monitor
     monitor = intersection_monitor.Monitor()
 
     import scenic
-    render = False
-
     params = {'map': scenario.map_path,
               'carla_map': scenario.map_name,
               'intersection_uid': scenario.intersection_uid,
               'timestep': scenario.timestep,
               'weather': scenario.weather,
-              'render': render,
+              'render': False,
               'event_monitor': monitor}
-
-    print('Simulate an ego trajectory...')
-    params['car_name'] = 'ego'
-    params['maneuver_uid'] = scenario.maneuver_uid['ego']
-    params['spawn_distance'] = ego_spawn_distance
-    params['car_blueprint'] = scenario.blueprints['ego']
-    scenic_scenario = scenic.scenarioFromFile(
-        'trajectory.scenic', params=params)
-    scene, _ = scenic_scenario.generate()
-    simulator = scenic_scenario.getSimulator()
-    settings = simulator.world.get_settings()
-    settings.no_rendering_mode = True
-    simulator.world.apply_settings(settings)
-    sim_result_ego = simulator.simulate(scene, maxSteps=scenario.maxSteps)
-
-    print('Simulate a nonego trajectory...')
-    nonego = f'car{len(scenario.blueprints)}'
-    params['car_name'] = nonego
-    params['maneuver_uid'] = nonego_maneuver_uid
-    params['spawn_distance'] = nonego_spawn_distance
-    params['car_blueprint'] = nonego_blueprint
-    scenic_scenario = scenic.scenarioFromFile(
-        'trajectory.scenic', params=params)
-    scene, _ = scenic_scenario.generate()
-    simulator = scenic_scenario.getSimulator()
-    settings = simulator.world.get_settings()
-    settings.no_rendering_mode = True
-    simulator.world.apply_settings(settings)
-    sim_result_nonego = simulator.simulate(
-        scene, maxSteps=scenario.maxSteps)
+    sim_result = {}
+    config['ego']['maneuver_uid'] = scenario.maneuver_uid['ego']
+    config['ego']['blueprint'] = scenario.blueprints['ego']
+    for car in config['cars']:
+        print(f'Simulate {car}\'s trajectory...')
+        params['car_name'] = car
+        params['maneuver_uid'] = config[car]['maneuver_uid']
+        params['spawn_distance'] = config[car]['spawn_distance']
+        params['car_blueprint'] = config[car]['blueprint']
+        scenic_scenario = scenic.scenarioFromFile(
+            'trajectory.scenic', params=params)
+        scene, _ = scenic_scenario.generate()
+        simulator = scenic_scenario.getSimulator()
+        settings = simulator.world.get_settings()
+        settings.no_rendering_mode = True
+        simulator.world.apply_settings(settings)
+        sim_result[car] = simulator.simulate(scene, maxSteps=scenario.maxSteps)
+        del scenic_scenario, scene
 
     # Find a strict extension of the given scenario
-    sim_trajectories = {'ego': sim_result_ego.trajectory,
-                        nonego: sim_result_nonego.trajectory}
+    sim_trajectories = {car: sim_result[car].trajectory for car in sim_result}
     new_traj, new_events = solution(
-        scenario, monitor.events,
-        sim_trajectories, maxSpeed,
-        extra_constraints)
+        scenario,
+        monitor.events,
+        sim_trajectories,
+        config['max_speed'],
+        config['constraints'])
 
     from scenario import Scenario
     scenario_ext = Scenario()
@@ -799,10 +781,28 @@ def extend(scenario, nonego_maneuver_uid,
     scenario_ext.intersection_uid = scenario.intersection_uid
     scenario_ext.rules_path = scenario.rules_path
     scenario_ext.blueprints = dict(
-        scenario.blueprints, **{nonego: nonego_blueprint})
+        scenario.blueprints, **{car: config[car]['blueprint'] for car in config['cars']})
     scenario_ext.maneuver_uid = dict(
-        scenario.maneuver_uid, **{nonego: nonego_maneuver_uid})
+        scenario.maneuver_uid, **{car: config[car]['maneuver_uid'] for car in config['cars']})
     scenario_ext.trajectory = new_traj
     scenario_ext.events = dict(scenario.events, **new_events)
 
     return scenario_ext
+
+
+def new(config):
+    from scenario import Scenario
+    scenario = Scenario()
+    scenario.maxSteps = config['maxSteps']
+    scenario.timestep = config['timestep']
+    scenario.weather = config['weather']
+    scenario.map_path = config['map_path']
+    scenario.map_name = config['map_name']
+    scenario.intersection_uid = config['intersection_uid']
+    scenario.rules_path = config['rules_path']
+    scenario.blueprints = {}
+    scenario.maneuver_uid = {}
+    scenario.trajectory = None
+    scenario.events = {}
+
+    return extend(scenario, config)
