@@ -320,9 +320,8 @@ def logical_solution(scenario, sim_events, extra_constraints):
 
     # Evidence that the new scenario is strictly harder
     new_nonegos = [car for car in sim_events if not car in {'ego', 'illegal'}]
-    new_nonegos_pool = f'{"; ".join(car for car in new_nonegos)}'
-    atoms += [
-        f':- #count {{ 0:violatesRightOf(illegal, {new_nonegos_pool}) }} = 0']
+    atoms += [':- ' +
+              ', '.join(f'not violatesRightOf(illegal, {car})' for car in new_nonegos)]
     atoms += [f':- violatesRule(illegal, _)']
     for nonego in old_nonegos:
         atoms += [f':- violatesRightOf(illegal, {nonego})']
@@ -695,7 +694,7 @@ def solution(scenario, sim_events,
 
     print('Logical solution:')
     for car, t2e in car2time2events.items():
-        print(f'{car}"s events:')
+        print(f'{car}\'s events:')
         for t, es in t2e.items():
             for e in es:
                 print(f'\t{e.withTime(t)}')
@@ -800,8 +799,10 @@ def new(config):
     scenario.map_name = config['map_name']
     scenario.intersection_uid = config['intersection_uid']
     scenario.rules_path = config['rules_path']
-    scenario.blueprints = {}
-    scenario.maneuver_uid = {}
+    scenario.blueprints = {car: config[car]
+                           ['blueprint'] for car in config['cars']}
+    scenario.maneuver_uid = {
+        car: config[car]['maneuver_uid'] for car in config['cars']}
     scenario.trajectory = None
     scenario.events = {}
 
