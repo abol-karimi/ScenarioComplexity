@@ -1,9 +1,6 @@
-#program boundedtime(maxtime).
-
-%---------------Time domain------------
-time(0..maxtime).
-
-%------Geometry (T-intersection)-------
+%----------------------------------------------
+%---Auxiliary predicates for geometric facts---
+%----------------------------------------------
 branchOf(Lane, Fork):-
   laneFromTo(Lane, Fork, _).
 
@@ -14,30 +11,23 @@ forkOnContinuingHighway(F):-
 forkOnTerminatingHighway(F):-
   hasStopSign(F).
 
-%----------Events (quantified)---------
-arrivedAtTime(V, T):-
-  arrivedAtForkAtTime(V, _, T).
+forkOnOppositeDirection(F1, F2):-
+  isOnRightOf(F2, F),
+  isOnRightOf(F, F1).
+forkOnOppositeDirection(F1, F2):-
+  forkOnOppositeDirection(F2, F1).
 
+%---------------------------------------------
+%---Auxiliary predicates for traffic events---
+%---------------------------------------------
 arrivedAtFork(Vehicle, Fork):-
   arrivedAtForkAtTime(Vehicle, Fork, _).
 
+arrivedAtTime(V, T):-
+  arrivedAtForkAtTime(V, _, T).
+
 enteredAtTime(V, T):-
   enteredForkAtTime(V, _, T).
-  
-enteredByTime(V, T):-
-  enteredForkAtTime(V, _, T1),
-  time(T),
-  T1 <= T.
-
-leftLaneByTime(V, L, T):-
-  leftLaneAtTime(V, L, T1),
-  time(T),
-  T1 <= T.
-
-enteredLaneByTime(V, L, T):-
-  enteredLaneAtTime(V, L, T1),
-  time(T),
-  T1 <= T.
 
 signaledAtFork(V, S, F):-
   signaledAtForkAtTime(V, S, F, _).
@@ -45,15 +35,13 @@ signaledAtFork(V, S, F):-
 signaledLeft(V):-
   signaledAtFork(V, left, _).
 
-%------------------------------------------
-%--------Rules auxiliary-definitions-------
-%------------------------------------------
-arrivedFromOppositeDirection(V1, V2):- % TODO fix for multi-lane highway
+%--------------------------------------------
+%---Auxiliary predicates for traffic rules---
+%--------------------------------------------
+arrivedFromOppositeDirection(V1, V2):-
   arrivedAtFork(V1, F1),
-  forkOnContinuingHighway(F1),
   arrivedAtFork(V2, F2),
-  forkOnContinuingHighway(F2),
-  F1 != F2.
+  forkOnOppositeDirection(F1, F2).
 
 arrivedFromContinuingHighway(V):-
   arrivedAtFork(V, F),
@@ -77,23 +65,40 @@ requestedLane(Vehicle, Lane):-
 %  which are close enough to constitute a hazard at any time during the turning movement,
 %  and shall continue to yield the right-of-way to the approaching vehicles
 %  until the left turn or U-turn can be made with reasonable safety.
-mustYieldToForRuleAtTime(V1, V2, leftTurnFromContinuingHighway, T):-
+violatesRightOfForRule(V1, V2, leftTurnFromContinuingHighway):-
   V1 != V2,
   signaledLeft(V1),
   arrivedFromOppositeDirection(V1, V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
-  arrivedAtTime(V2, T1),
-  time(T),
-  T1 <= T,
-  not enteredLaneByTime(V1, L2, T1),
-  not leftLaneByTime(V2, L1, T).
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1),
+  lessThan(Ta, Te1),
+  leftLaneAtTime(V2, L1, Tl2),
+  lessThan(Te1, Tl2).
 
-violatesRightOfForRule(V1, V2, leftTurnFromContinuingHighway):-
-  mustYieldToForRuleAtTime(V1, V2, leftTurnFromContinuingHighway, T),
+#count {0:equal(Ta, Te1); 1:lessThan(Ta, Te1); 2:lessThan(Te1, Ta)} = 1 :-
+  V1 != V2,
+  signaledLeft(V1),
+  arrivedFromOppositeDirection(V1, V2),
+  requestedLane(V1, L1),
   requestedLane(V2, L2),
-  enteredLaneByTime(V1, L2, T).
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1).
+
+#count {0:equal(Tl2, Te1); 1:lessThan(Tl2, Te1); 2:lessThan(Te1, Tl2)} = 1 :-
+  V1 != V2,
+  signaledLeft(V1),
+  arrivedFromOppositeDirection(V1, V2),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1),
+  lessThan(Ta, Te1),
+  leftLaneAtTime(V2, L1, Tl2).
 
 % 21801 (b):
 % A driver having yielded as prescribed in subdivision (a),
@@ -101,23 +106,42 @@ violatesRightOfForRule(V1, V2, leftTurnFromContinuingHighway):-
 %  may turn left or complete a U-turn,
 %  and the drivers of vehicles approaching the intersection from the opposite direction
 %  shall yield the right-of-way to the turning vehicle.
-mustYieldToForRuleAtTime(V2, V1, yieldToLeftTurnFromContinuingHighway, T):-
+violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
   V1 != V2,
   signaledLeft(V1),
   arrivedFromOppositeDirection(V1, V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
-  arrivedAtTime(V2, T1),
-  enteredLaneByTime(V1, L2, T1),
-  time(T),
-  T >= T1,
-  not leftLaneByTime(V1, L2, T).
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1),
+  lessThan(Te1, Ta), % V1 enters the overlap earlier than V2 arrives at the intersection
+  leftLaneAtTime(V1, L2, Tl1),
+  enteredLaneAtTime(V2, L1, Te2),
+  lessThan(Te2, Tl1). % V2 enters the overlap earlier than V1 leaves it
 
-violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
-  mustYieldToForRuleAtTime(V2, V1, yieldToLeftTurnFromContinuingHighway, T),
+#count {0:equal(Ta, Te1); 1:lessThan(Ta, Te1); 2:lessThan(Te1, Ta)} = 1 :-
+  V1 != V2,
+  signaledLeft(V1),
+  arrivedFromOppositeDirection(V1, V2),
   requestedLane(V1, L1),
-  enteredLaneByTime(V2, L1, T).
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1).
+
+#count {0:equal(Tl1, Te2); 1:lessThan(Tl1, Te2); 2:lessThan(Te2, Tl1)} = 1 :-
+  V1 != V2,
+  signaledLeft(V1),
+  arrivedFromOppositeDirection(V1, V2),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredLaneAtTime(V1, L2, Te1),
+  lessThan(Te1, Ta), % V1 enters the overlap earlier than V2 arrives at the intersection
+  leftLaneAtTime(V1, L2, Tl1),
+  enteredLaneAtTime(V2, L1, Te2).
 
 % 22450 (a):
 % The driver of any vehicle approaching a stop sign at the entrance to, or within, an intersection
@@ -128,33 +152,55 @@ violatesRightOfForRule(V2, V1, yieldToLeftTurnFromContinuingHighway):-
 % 21802 (a):
 % The driver of any vehicle approaching a stop sign at the entrance to, or within, an intersection
 %  shall stop as required by Section 22450.
+stoppedAtFork(V, F):-
+  stoppedAtForkAtTime(V, F, T).
+
 violatesRule(V, stopAtSign):-
-  arrivedAtForkAtTime(V, F, T1),
+  arrivedAtFork(V, F),
   hasStopSign(F),
-  enteredForkAtTime(V, F, T2),
-  T2 - T1 < 4. % i.e. < 4*0.5 = 2 seconds
+  not stoppedAtFork(V, F).
  
 % The driver shall then yield the right-of-way
 %  to any vehicles which have approached from another highway,
 %  or which are approaching so closely as to constitute an immediate hazard,
 %  and shall continue to yield the right-of-way to those vehicles until he or she can proceed with reasonable safety.
-mustYieldToForRuleAtTime(V1, V2, fromTerminatingHighway, T):-
+violatesRightOfForRule(V1, V2, yieldToCrossing):-
   V1 != V2,
   arrivedFromTerminatingHighway(V1),
   arrivedFromContinuingHighway(V2),
   requestedLane(V1, L1),
   requestedLane(V2, L2),
   overlaps(L1, L2),
-  arrivedAtTime(V2, T1),
-  time(T),
-  T1 <= T,
-  not enteredByTime(V1, T1),
-  not leftLaneByTime(V2, L1, T).
+  arrivedAtTime(V2, Ta),
+  enteredAtTime(V1, Te),
+  lessThan(Ta, Te), % V2 arrives earlier than V1 enters
+  enteredLaneAtTime(V1, L2, Tle),
+  leftLaneAtTime(V2, L1, Tll),
+  lessThan(Tle, Tll). % V1 enters the overlap earlier than V2 leaves it
 
-violatesRightOfForRule(V1, V2, fromTerminatingHighway):-
-  mustYieldToForRuleAtTime(V1, V2, fromTerminatingHighway, T),
+#count {0:equal(Ta, Te); 1:lessThan(Ta, Te); 2:lessThan(Te, Ta)} = 1 :-
+  V1 != V2,
+  arrivedFromTerminatingHighway(V1),
+  arrivedFromContinuingHighway(V2),
+  requestedLane(V1, L1),
   requestedLane(V2, L2),
-  enteredLaneByTime(V1, L2, T).
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredAtTime(V1, Te).
+
+#count {0:equal(Tll, Tle); 1:lessThan(Tll, Tle); 2:lessThan(Tle, Tll)} = 1 :-
+  V1 != V2,
+  arrivedFromTerminatingHighway(V1),
+  arrivedFromContinuingHighway(V2),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  arrivedAtTime(V2, Ta),
+  enteredAtTime(V1, Te),
+  lessThan(Ta, Te), % V2 arrives earlier than V1 enters
+  enteredLaneAtTime(V1, L2, Tle),
+  leftLaneAtTime(V2, L1, Tll).
+
 % 21802 (b):
 % A driver having yielded as prescribed in subdivision (a) may proceed to enter the intersection,
 %  and the drivers of all other approaching vehicles shall yield the right-of-way
