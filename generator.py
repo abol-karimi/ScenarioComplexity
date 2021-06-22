@@ -189,13 +189,14 @@ def geometry_atoms(network, intersection_uid):
     # Assuming the order is CCW, then:
     import math
     for i in range(len(roads)):
-        j = (i+1) % len(roads)
+        ii = (i+1) % len(roads)  # cyclic order
         lefts = road2incomings[roads[i].uid]
-        rights = road2incomings[roads[j].uid]
+        rights = road2incomings[roads[ii].uid]
         l0 = network.elements[lefts[0]]
         r0 = network.elements[rights[0]]
-        hl = l0.centerline[-1] - l0.centerline[-2]
-        hr = r0.centerline[-1] - r0.centerline[-2]
+        hl = l0.centerline[-1] - l0.centerline[-2]  # heading
+        hr = r0.centerline[-1] - r0.centerline[-2]  # heading
+        # Ignore roads on opposing directions:
         if abs(math.pi - abs(hr.angleWith(hl))) < math.pi/6:
             continue
         geometry += [
