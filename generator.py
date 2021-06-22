@@ -641,9 +641,10 @@ def smooth_trajectories(scenario, maxSpeed,
 
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(len(new_cars))
-    fig.suptitle('distance-time curves for ego, illegal, and nonegos')
+    fig.suptitle('time-distance curves')
     for j, car in enumerate(new_cars):
         axs[j].plot(new2distance[car])
+        axs[j].set_title(car)
         axs[j].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_comp[car]], d[car],
                        c=['r' if i %
                            3 == 0 else 'b' for i in range(len(d[car]))],
