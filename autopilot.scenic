@@ -10,9 +10,13 @@ param replay_scenario = None
 replay_scenario = globalParameters.replay_scenario
 intersection = network.elements[replay_scenario.intersection_uid]
 maneuver_uid = replay_scenario.maneuver_uid
-trajectory = replay_scenario.trajectory
 blueprints = replay_scenario.blueprints
 events = replay_scenario.events
+curves = replay_scenario.curves
+sim_trajs = replay_scenario.sim_trajectories
+sample_size = int(replay_scenario.maxSteps)+1
+from spline_to_traj import curves_to_trajectories
+trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
@@ -41,7 +45,7 @@ behavior ReplayBehavior(): # for nonegos
 
 	while True:
 		t = simulation().currentTime
-		state = trajectory[t][self.name]
+		state = trajectory[self.name][t]
 		take SetTransformAction(state[0], state[1])
 
 		if t in car2time2signal[self.name]:
@@ -66,8 +70,8 @@ behavior CarlaBehaviorAgent():
 	take SetAutopilotAction(True)
 	agent = BehaviorAgent(self.carlaActor, behavior=aggressiveness)
 	carla_world = simulation().world
-	src = scenicToCarlaLocation(trajectory[0][self.name][0], world=carla_world)
-	dest = scenicToCarlaLocation(trajectory[-1][self.name][0], world=carla_world)
+	src = scenicToCarlaLocation(trajectory[self.name][0][0], world=carla_world)
+	dest = scenicToCarlaLocation(trajectory[self.name][-1][0], world=carla_world)
 	agent.set_destination(src, dest, clean=True)
 	if rss_enabled:
 		transforms = [pair[0].transform for pair in agent._local_planner.waypoints_queue]
@@ -86,7 +90,8 @@ behavior CarlaBehaviorAgent():
 		wait
 		agent.update_information()
 
-for carName, carState in trajectory[0].items():
+for carName, traj in trajectory.items():
+	carState = traj[0]
 	if not carName in {'ego', 'illegal'}:
 		car = Car at carState[0], facing carState[1],
 			with name carName,
