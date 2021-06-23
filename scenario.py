@@ -8,5 +8,6 @@ class Scenario():
     rules_path = None
     blueprints = None
     maneuver_uid = None
-    trajectory = None
     events = None
+    curves = None
+    sim_trajectories = None

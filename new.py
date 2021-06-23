@@ -1,7 +1,6 @@
 #!/home/ak/Scenic/.venv/bin/python
 import pickle
 import generator
-from scenario import Scenario
 import argparse
 import importlib
 

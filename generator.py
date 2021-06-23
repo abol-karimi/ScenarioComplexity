@@ -78,29 +78,28 @@ def frame_to_realtime(frame, timestep):
     return frame*timestep
 
 
-def frame_to_distance(trajectory, car):
+def frame_to_distance(trajectory):
     frame2distance = [0]*len(trajectory)
 
     for i in range(len(trajectory)-1):
-        pi = trajectory[i][car][0]
-        pii = trajectory[i+1][car][0]
+        pi = trajectory[i][0]
+        pii = trajectory[i+1][0]
         frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
 
     return frame2distance
 
 
-def distance_to_pose(distances, sim_distances, traj, car):
+def distance_to_pose(distances, sim_distances, traj):
     """ For each frame, we are given a distance in 'sim_distances' and a corresponding pose in 'traj'.
     We return the poses corresponding to 'distances' by linear interpolation of the above (distance, pose) pairs.
     """
     ds, xs, ys, hs = [], [], [], []
     last_dist = -1
-    for d, state in zip(sim_distances, traj):
+    for d, pose in zip(sim_distances, traj):
         if last_dist == d:
             continue
         last_dist = d
         # add data points
-        pose = state[car]
         x, y, h = pose[0].x, pose[0].y, pose[1]
         ds.append(d), xs.append(x), ys.append(y), hs.append(h)
 
@@ -412,11 +411,10 @@ def smooth_trajectories(scenario, maxSpeed,
       (d) bounds on speed
       (e) acceleration is bounded (to model bounded torque)
     """
-    car2frame2simDistance = {car: frame_to_distance(
-        sim_trajectories[car], car) for car in sim_trajectories}
-    car2frame2simDistance['illegal'] = car2frame2simDistance['ego']
+    car2frame2simDistance = {car: frame_to_distance(sim_trajectories[car])
+                             for car in sim_trajectories}
 
-    new_cars = list(sim_trajectories.keys()) + ['illegal']
+    new_cars = list(sim_trajectories.keys())
 
     t_dom = set()
     for s, t in temporal_constraints['lessThan']:
@@ -614,49 +612,25 @@ def smooth_trajectories(scenario, maxSpeed,
         t[car] = [numeral_to_fp(m.get_py_value(T)) for T in t_list[car]]
         d[car] = [numeral_to_fp(m.get_py_value(D)) for D in d_list[car]]
 
-    # Get interpolated points based on the Bezier control points
-    from geomdl import BSpline
-
-    t_comp = {}
-    new2distance = {}
+    # Store parameters of the composite Bezier curves
+    curves = {}
     for car in new_cars:
-        # The new ego distance curve
-        t_comp[car] = [t[car][0]]
+        curves[car] = {}
+        # car's new time-distance curve
+        t_comp = [t[car][0]]
         for i in range(len(t[car])-1):
             ts, te = t[car][i], t[car][i+1]
             ts1 = 2*ts/3 + te/3
             ts2 = ts/3 + 2*te/3
-            t_comp[car] += [ts1, ts2, te]
-        curve = BSpline.Curve()
-        curve.degree = 3
-        curve.ctrlpts = [[t_comp[car][i], d[car][i]]
-                         for i in range(len(d[car]))]
+            t_comp += [ts1, ts2, te]
+        curves[car]['degree'] = 3
+        curves[car]['ctrlpts'] = [[t_comp[i], d[car][i]]
+                                  for i in range(len(d[car]))]
         kv = [0, 0, 0, 0]
         for i in range(1, len(t[car])-1):
             kv += [t[car][i], t[car][i], t[car][i]]
         kv += [t[car][-1], t[car][-1], t[car][-1], t[car][-1]]
-        curve.knotvector = kv
-        curve.sample_size = int(scenario.maxSteps)+1
-        new2distance[car] = [p[1] for p in curve.evalpts]
-
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(len(new_cars))
-    fig.suptitle('time-distance curves')
-    for j, car in enumerate(new_cars):
-        axs[j].plot(new2distance[car])
-        axs[j].set_title(car)
-        axs[j].scatter([realtime_to_frame_float(t, scenario.timestep) for t in t_comp[car]], d[car],
-                       c=['r' if i %
-                           3 == 0 else 'b' for i in range(len(d[car]))],
-                       s=[10 if i % 3 == 0 else 5 for i in range(len(d[car]))])
-    plt.show()
-
-    # The new trajectories
-    new_traj = {}
-    for car in new_cars:
-        alias = 'ego' if car == 'illegal' else car
-        new_traj[car] = distance_to_pose(
-            new2distance[car], car2frame2simDistance[car], sim_trajectories[alias], alias)
+        curves[car]['knotvector'] = kv
 
     # New timing of events
     for car in new_cars:
@@ -676,7 +650,7 @@ def smooth_trajectories(scenario, maxSpeed,
         for es in car2time2events[car].values():
             new_events[car] += es
 
-    return new_traj, new_events
+    return new_events, curves
 
 
 def solution(scenario, sim_events,
@@ -706,9 +680,9 @@ def solution(scenario, sim_events,
             print(f'\t{elem}')
 
     # Find trajectories that preserve the order of events in the logical solution
-    new_trajs, new_events = smooth_trajectories(scenario, maxSpeed,
-                                                sim_trajectories,
-                                                constraints, car2time2events)
+    new_events, curves = smooth_trajectories(scenario, maxSpeed,
+                                             sim_trajectories,
+                                             constraints, car2time2events)
 
     print('Solution events:')
     for events in new_events.values():
@@ -716,20 +690,10 @@ def solution(scenario, sim_events,
             print(f'\t{e.withTime(e.frame)}')
         print('')
 
-    traj_prev = scenario.trajectory
-    # When extending an empty scenario
-    if not traj_prev:
-        traj_prev = [{} for i in range(len(new_trajs['ego']))]
-
-    # Update the trajectory
-    for frame in range(len(traj_prev)):
-        for car in new_trajs:
-            traj_prev[frame][car] = new_trajs[car][frame]
-
     # Update the events
     sim_events.update(new_events)
 
-    return traj_prev, sim_events
+    return sim_events, curves
 
 
 def extend(scenario, config):
@@ -764,8 +728,13 @@ def extend(scenario, config):
         del scenic_scenario, scene
 
     # Find a strict extension of the given scenario
-    sim_trajectories = {car: sim_result[car].trajectory for car in sim_result}
-    new_traj, new_events = solution(
+    sim_trajectories = {}
+    for car in config['cars']:
+        sim_trajectories[car] = [state[car]
+                                 for state in sim_result[car].trajectory]
+    sim_trajectories['illegal'] = sim_trajectories['ego']
+
+    new_events, new_curves = solution(
         scenario,
         monitor.events,
         sim_trajectories,
@@ -785,8 +754,10 @@ def extend(scenario, config):
         scenario.blueprints, **{car: config[car]['blueprint'] for car in config['cars']})
     scenario_ext.maneuver_uid = dict(
         scenario.maneuver_uid, **{car: config[car]['maneuver_uid'] for car in config['cars']})
-    scenario_ext.trajectory = new_traj
     scenario_ext.events = dict(scenario.events, **new_events)
+    scenario_ext.curves = dict(scenario.curves, **new_curves)
+    scenario_ext.sim_trajectories = dict(
+        scenario.sim_trajectories, **sim_trajectories)
 
     return scenario_ext
 
@@ -805,7 +776,8 @@ def new(config):
                            ['blueprint'] for car in config['cars']}
     scenario.maneuver_uid = {
         car: config[car]['maneuver_uid'] for car in config['cars']}
-    scenario.trajectory = None
     scenario.events = {}
+    scenario.curves = {}
+    scenario.sim_trajectories = {}
 
     return extend(scenario, config)

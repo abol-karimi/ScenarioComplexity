@@ -1,25 +1,37 @@
 #!/home/ak/Scenic/.venv/bin/python
-from generator import frame_to_distance
+from generator import realtime_to_frame_float
 import matplotlib.pyplot as plt
 import argparse
 import pickle
+from geomdl import BSpline
 
 parser = argparse.ArgumentParser(
     description='Plot frame-distance curve of a car.')
 parser.add_argument('inputfile', help='filename of the given scenario')
-parser.add_argument('car', help='name of the car')
 args = parser.parse_args()
 
 with open(args.inputfile, 'rb') as inFile:
     scenario = pickle.load(inFile)
 
-car = args.car
-trajectory = scenario.trajectory
-events = scenario.events[car]
-frame2distance = frame_to_distance(trajectory, car)
+curves = scenario.curves
+frame2distance = {}
+for car, params in curves.items():
+    curve = BSpline.Curve()
+    curve.degree = params['degree']
+    curve.ctrlpts = params['ctrlpts']
+    curve.knotvector = params['knotvector']
+    curve.sample_size = int(scenario.maxSteps)+1
+    frame2distance[car] = [p[1] for p in curve.evalpts]
 
-plt.title(f'frame-distance curve for {car}')
-plt.plot(frame2distance)
-plt.scatter([e.frame for e in events],
-            [frame2distance[e.frame] for e in events], c='r')
+fig, axs = plt.subplots(len(curves))
+fig.suptitle('time-distance curves')
+for j, car in enumerate(curves):
+    axs[j].set_title(car)
+    axs[j].plot(frame2distance[car])
+    points = curves[car]['ctrlpts']
+    t = [realtime_to_frame_float(p[0], scenario.timestep) for p in points]
+    d = [p[1] for p in points]
+    axs[j].scatter(t, d,
+                   c=['r' if i % 3 == 0 else 'b' for i in range(len(points))],
+                   s=[10 if i % 3 == 0 else 5 for i in range(len(points))])
 plt.show()

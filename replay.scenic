@@ -9,9 +9,14 @@ param replay_scenario = None
 replay_scenario = globalParameters.replay_scenario
 intersection = network.elements[replay_scenario.intersection_uid]
 maneuver_uid = replay_scenario.maneuver_uid
-trajectory = replay_scenario.trajectory
 blueprints = replay_scenario.blueprints
 events = replay_scenario.events
+curves = replay_scenario.curves
+sim_trajs = replay_scenario.sim_trajectories
+sample_size = int(replay_scenario.maxSteps)+1
+
+from spline_to_traj import curves_to_trajectories
+trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
 import visualization
 from signals import SignalType
@@ -23,7 +28,7 @@ behavior ReplayBehavior():
 	carla_world = simulation().world
 	while True:
 		t = simulation().currentTime
-		state = trajectory[t][self.name]
+		state = trajectory[self.name][t]
 		take SetTransformAction(state[0], state[1])
 
 		if t in car2time2signal[self.name]:
@@ -32,7 +37,8 @@ behavior ReplayBehavior():
 
 		visualization.label_car(carla_world, self)
 
-for carName, carState in trajectory[0].items():
+for carName, traj in trajectory.items():
+	carState = traj[0]
 	if not carName in {'ego', 'illegal'}:
 		car = Car at carState[0], facing carState[1],
 			with name carName,
