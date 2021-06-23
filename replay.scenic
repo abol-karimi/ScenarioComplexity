@@ -43,12 +43,14 @@ for carName, traj in trajectory.items():
 		car = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
+			with color Color(0, 0, 1),
 			with behavior ReplayBehavior(),
 			with physics False
 	elif carName == 'ego':
 		ego = Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
+			with color Color(0, 1, 0),
 			with behavior ReplayBehavior(),
 			with physics False
 
