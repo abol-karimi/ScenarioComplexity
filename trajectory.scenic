@@ -38,7 +38,7 @@ behavior PassBehavior(speed, trajectory, maneuverType):
 		do FollowTrajectoryBehavior(speed, trajectory)
 	interrupt when (distance from self to trajectory[2].centerline[-1]) <= 5:
 		abort
-	take SetBrakeAction(1)
+	do FollowLaneBehavior(target_speed=1)
 
 #Ego vehicle
 l0_uid, l1_uid, l2_uid = maneuver_uid
