@@ -47,20 +47,22 @@ for car, time2events in car2time2events.items():
 atoms += event_atoms
 
 min_perceptible_time = 10  # frames
-sym2val = []
-for car, time2events in car2time2events.items():
-    for t, events in time2events.items():
-        sym2val += [(t, events[0].frame)]
-for i in range(len(sym2val)-1):
-    for j in range(i+1, len(sym2val)):
-        ti, vi = sym2val[i]
-        tj, vj = sym2val[j]
-        if abs(vi-vj) < min_perceptible_time:
-            atoms += [f'equal({ti}, {tj})', f'equal({tj}, {ti})']
-        elif vi-vj <= -min_perceptible_time:
-            atoms += [f'lessThan({ti}, {tj})']
-        else:
-            atoms += [f'lessThan({tj}, {ti})']
+sym2val = {t: events[0].frame
+           for time2events in car2time2events.values() for t, events in time2events.items()}
+atoms += [f'#script(python)\n'
+          f'import clingo\n'
+          f'sym2val = {sym2val}\n'
+          f'def lessThan(S, T):\n'
+          f'  lt = sym2val[S.name] + {min_perceptible_time} < sym2val[T.name]\n'
+          f'  return clingo.Number(1) if lt else clingo.Number(0)\n'
+          f'def equal(S, T):\n'
+          f'  eq = abs(sym2val[S.name] - sym2val[T.name]) < {min_perceptible_time}\n'
+          f'  return clingo.Number(1) if eq else clingo.Number(0)\n'
+          f'#end']
+for s in sym2val:
+    for t in sym2val:
+        atoms += [f':- lessThan({s}, {t}), 0 = @lessThan({s}, {t})',
+                  f':- equal({s}, {t}), 0 = @equal({s}, {t})']
 
 solver = Solver()
 solver.load(scenario.rules_path)
