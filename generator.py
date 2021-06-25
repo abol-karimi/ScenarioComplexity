@@ -298,15 +298,15 @@ def logical_solution(scenario, sim_events, extra_constraints):
         'ego', 'illegal'}}
     sym2val = {t: events[0].frame
                for car in old_nonegos for t, events in car2time2events[car].items()}
+    min_perceptible_time = 10  # frames
     atoms += [f'#script(python)\n'
               f'import clingo\n'
               f'sym2val = {sym2val}\n'
-              f'min_perceptible_time = 10\n'  # frames
               f'def lessThan(S, T):\n'
-              f'  lt = sym2val[S.name] + min_perceptible_time < sym2val[T.name]\n'
+              f'  lt = sym2val[S.name] + {min_perceptible_time} < sym2val[T.name]\n'
               f'  return clingo.Number(1) if lt else clingo.Number(0)\n'
               f'def equal(S, T):\n'
-              f'  eq = abs(sym2val[S.name] - sym2val[T.name]) < min_perceptible_time\n'
+              f'  eq = abs(sym2val[S.name] - sym2val[T.name]) < {min_perceptible_time}\n'
               f'  return clingo.Number(1) if eq else clingo.Number(0)\n'
               f'#end']
     for s in sym2val:
