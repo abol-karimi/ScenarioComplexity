@@ -26,6 +26,7 @@ images = globalParameters.images
 import visualization
 import carla
 import utils
+from PIL import ImageDraw, ImageFont
 
 behavior ReplayBehavior():
 	carla_world = simulation().world
@@ -59,6 +60,12 @@ illegal = Car ahead of ego by ego.length,
 	with behavior ReplayBehavior(),
 	with physics False
 
+key_events = {f: '' for f in keyframes}
+for events in replay_scenario.events.values():
+	for e in events:
+		if e.frame in keyframes:
+				key_events[e.frame] += e.withTime(e.frame) + '\n'
+
 cameras = []
 
 def cam_callback(image):
@@ -72,6 +79,10 @@ def cam_callback(image):
 		print(f'Captured image at frame {t}')
 		cars = [obj for obj in simulation().objects if isinstance(obj, Car)]
 		images[t] = utils.draw_names(cars, image, cam)
+		# Draw events
+		d = ImageDraw.Draw(images[t])
+		fnt = ImageFont.truetype("Pillow/Tests/fonts/FreeMono.ttf", 30)
+		d.multiline_text((0,0), key_events[t], font=fnt, stroke_width=1, fill=(255, 255, 255))
 
 def setup_camera():
 	carla_world = simulation().world
@@ -84,7 +95,7 @@ def setup_camera():
 	cam_bp = carla_world.get_blueprint_library().find('sensor.camera.rgb')
 	cam_bp.set_attribute("image_size_x",str(1920))
 	cam_bp.set_attribute("image_size_y",str(1080))
-	cam_bp.set_attribute("fov",str(105))
+	cam_bp.set_attribute("fov",str(110))
 	over_cam = carla_world.spawn_actor(cam_bp, cam_transform)
 	over_cam.listen(cam_callback)
 	cameras.append(over_cam)

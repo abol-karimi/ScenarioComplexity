@@ -65,6 +65,17 @@ for atom in model:
 keyframes = {sym2val[t] for t in t_dom}
 print(f'keyframes: {sorted(keyframes)}')
 
+key_events = {f: set() for f in keyframes}
+for events in scenario.events.values():
+    for e in events:
+        if e.frame in keyframes:
+            key_events[e.frame].add(e.withTime(e.frame))
+with open(f'{args.inputfile.replace(".sc", "")}_events.log', 'w') as outFile:
+    for t, events in key_events.items():
+        outFile.write(f'At frame {t}:\n')
+        for e in events:
+            outFile.write(f'\t{e}\n')
+
 images = {}
 params = {'map': scenario.map_path,  # scenic.simulators.carla.model
           'carla_map': scenario.map_name,  # scenic.simulators.carla.model
@@ -84,6 +95,6 @@ simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
 for frame, image in images.items():
-    image.save(f'{args.inputfile}_{frame}.jpg')
+    image.save(f'{args.inputfile.replace(".sc", "")}_{frame}.jpg')
 
 # TODO get the events for each picture
