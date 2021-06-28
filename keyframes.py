@@ -60,10 +60,10 @@ order_names = {'lessThan', 'equal'}
 for atom in model:
     name = str(atom.name)
     if name in order_names:
-        args = [str(a) for a in atom.arguments]
-        t_dom.update({args[0], args[1]})
+        arguments = [str(a) for a in atom.arguments]
+        t_dom.update({arguments[0], arguments[1]})
 keyframes = {sym2val[t] for t in t_dom}
-print(f'keyframes: {keyframes}')
+print(f'keyframes: {sorted(keyframes)}')
 
 images = {}
 params = {'map': scenario.map_path,  # scenic.simulators.carla.model
@@ -84,5 +84,6 @@ simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
 
 for frame, image in images.items():
-    print(f'Saving image with frame {frame}')
-    image.save_to_disk(f'{frame}.6d.jpg')
+    image.save(f'{args.inputfile}_{frame}.jpg')
+
+# TODO get the events for each picture

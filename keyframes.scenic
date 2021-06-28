@@ -25,6 +25,7 @@ images = globalParameters.images
 
 import visualization
 import carla
+import utils
 
 behavior ReplayBehavior():
 	carla_world = simulation().world
@@ -61,15 +62,16 @@ illegal = Car ahead of ego by ego.length,
 cameras = []
 
 def cam_callback(image):
+	cam = cameras[0]
 	try:
 		t = simulation().currentTime
 	except AssertionError:
-		for cam in cameras:
-			cam.destroy()
+		cam.destroy()
 		return
 	if t in keyframes:
 		print(f'Captured image at frame {t}')
-		images[t] = image
+		cars = [obj for obj in simulation().objects if isinstance(obj, Car)]
+		images[t] = utils.draw_names(cars, image, cam)
 
 def setup_camera():
 	carla_world = simulation().world
