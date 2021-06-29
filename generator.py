@@ -616,8 +616,7 @@ def smooth_trajectories(scenario, maxSpeed,
     with Solver(name=solver_name, logic=QF_NRA):
         m = get_model(And(constraints))
         if m == None:
-            print('Unsatisfiable!')
-            exit(1)
+            raise NoSMTSolutionError()
 
     t, d = {}, {}
     for car in new_cars:
@@ -682,28 +681,17 @@ def solution(scenario, sim_events,
             scenario, sim_events, extra_constraints)
     except NoASPSolutionError as err:
         print(err.message)
-
-    print('Logical solution:')
-    for car, t2e in car2time2events.items():
-        print(f'{car}\'s events:')
-        for t, es in t2e.items():
-            for e in es:
-                print(f'\t{e.withTime(t)}')
-    for c, ext in constraints.items():
-        print(f'{c}:')
-        for elem in ext:
-            print(f'\t{elem}')
+        raise
 
     # Find trajectories that preserve the order of events in the logical solution
-    new_events, curves = smooth_trajectories(scenario, maxSpeed,
-                                             sim_trajectories,
-                                             constraints, car2time2events)
-
-    print('Solution events:')
-    for events in new_events.values():
-        for e in events:
-            print(f'\t{e.withTime(e.frame)}')
-        print('')
+    try:
+        new_events, curves = smooth_trajectories(scenario, maxSpeed,
+                                                 sim_trajectories,
+                                                 constraints, car2time2events)
+    except NoSMTSolutionError as err:
+        # TODO try different solvers, or change to a different logical solution if exists
+        print(err.message)
+        raise
 
     # Update the events
     sim_events.update(new_events)
