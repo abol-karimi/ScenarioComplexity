@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import math
 from os import replace
+from solver import NoASPSolutionError
 
 from pysmt.logics import QF_NRA
 from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Real
@@ -24,6 +25,17 @@ path = ["/home/ak/Downloads/cvc4-1.8-x86_64-linux-opt",
 logics = [QF_NRA]
 env = get_env()
 env.factory.add_generic_solver(solver_name, path, logics)
+
+
+class NoSMTSolutionError(Exception):
+    """Exception raised for errors in SMT solving.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
 
 
 def numeral_to_fp(num):
@@ -343,8 +355,8 @@ def logical_solution(scenario, sim_events, extra_constraints):
                   f'enteredForkAtTime({car}, F, T2),'
                   f'not violatesRule({car}, stopAtSign)']
 
-    from solver import Solver
-    solver = Solver()
+    from solver import ASPSolver
+    solver = ASPSolver()
     solver.load(scenario.rules_path)
     solver.add_atoms(atoms)
 
@@ -665,8 +677,11 @@ def solution(scenario, sim_events,
         event_ill.vehicle = 'illegal'
         sim_events['illegal'] += [event_ill]
 
-    constraints, car2time2events = logical_solution(
-        scenario, sim_events, extra_constraints)
+    try:
+        constraints, car2time2events = logical_solution(
+            scenario, sim_events, extra_constraints)
+    except NoASPSolutionError as err:
+        print(err.message)
 
     print('Logical solution:')
     for car, t2e in car2time2events.items():

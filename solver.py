@@ -1,7 +1,18 @@
 import clingo
 
 
-class Solver():
+class NoASPSolutionError(Exception):
+    """Exception raised for errors in ASP solving.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message):
+        self.message = message
+
+
+class ASPSolver():
     def __init__(self):
         self.__solution = None
         self.__ctl = clingo.Control()
@@ -18,19 +29,19 @@ class Solver():
     def solve(self):
         print("\nSolving...")
         self.__ctl.ground([("base", [])])
-        self.__ctl.solve(on_model=self.__on_model,
-                         on_finish=self.__on_finish, async_=False)
+        result = self.__ctl.solve(on_model=self.__on_model, async_=False)
+
+        if not result.satisfiable:
+            message = f''
+            f'Exhausted = {result.exhausted}\n'
+            f'Interrupted = {result.interrupted}\n'
+            f'Satisfiable = {result.satisfiable}\n'
+            f'Unknown = {result.unknown}\n'
+            f'Unsatisfiable = {result.unsatisfiable}'
+            raise NoASPSolutionError(message)
 
         return self.__solution
 
     def __on_model(self, model):
         print('ASP model found!')
         self.__solution = model.symbols(atoms=True)
-
-    def __on_finish(self, result):
-        if not result.satisfiable:
-            print(f'Exhausted = {result.exhausted}')
-            print(f'Interrupted = {result.interrupted}')
-            print(f'Satisfiable = {result.satisfiable}')
-            print(f'Unknown = {result.unknown}')
-            print(f'Unsatisfiable = {result.unsatisfiable}')

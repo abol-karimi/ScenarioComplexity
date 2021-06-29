@@ -1,7 +1,7 @@
 #!/home/ak/Scenic/.venv/bin/python
 from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
-from solver import Solver
+from solver import ASPSolver
 import intersection_monitor
 import scenic
 import pickle
@@ -77,7 +77,7 @@ for i in range(len(sym2val)-1):
         else:
             atoms += [f'lessThan({tj}, {ti})']
 
-solver = Solver()
+solver = ASPSolver()
 solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 

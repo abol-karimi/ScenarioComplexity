@@ -1,7 +1,7 @@
 #!/home/ak/Scenic/.venv/bin/python
 from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
-from solver import Solver
+from solver import ASPSolver
 import argparse
 import pickle
 import scenic
@@ -64,7 +64,7 @@ for s in sym2val:
         atoms += [f':- lessThan({s}, {t}), 0 = @lessThan({s}, {t})',
                   f':- equal({s}, {t}), 0 = @equal({s}, {t})']
 
-solver = Solver()
+solver = ASPSolver()
 solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 
