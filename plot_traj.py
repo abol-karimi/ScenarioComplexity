@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 import pickle
 from geomdl import BSpline
+from mscatter import mscatter
 
 parser = argparse.ArgumentParser(
     description='Plot frame-distance curve of a car.')
@@ -31,7 +32,8 @@ for j, car in enumerate(curves):
     points = curves[car]['ctrlpts']
     t = [realtime_to_frame_float(p[0], scenario.timestep) for p in points]
     d = [p[1] for p in points]
-    axs[j].scatter(t, d,
-                   c=['r' if i % 3 == 0 else 'b' for i in range(len(points))],
-                   s=[10 if i % 3 == 0 else 5 for i in range(len(points))])
+    c = ['r' if i % 3 == 0 else 'c' for i in range(len(points))]
+    s = [20 if i % 3 == 0 else 10 for i in range(len(points))]
+    m = ['d' if i % 3 == 0 else 'o' for i in range(len(points))]
+    mscatter(t, d, c=c, s=s, m=m, ax=axs[j])
 plt.show()
