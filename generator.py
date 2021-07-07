@@ -277,13 +277,14 @@ def car_to_time_to_events(sim_events):
     return car2time2events
 
 
-def logical_solution(scenario, sim_events, extra_constraints):
+def logical_solution(scenario, config, sim_events):
     """ Given the events for ego, nonego, and illegal (in 'sim_events')
     and their distances along the corresponding car's trajectory (in 'frame2distance_*'),
     find a timing for the events that satisfies the logical constraints.
     """
 
-    atoms = extra_constraints
+    atoms = []
+    atoms += config['constraints']
 
     # TODO store geometry atoms in the scenario to avoid computing them each time.
     from scenic.domains.driving.roads import Network
@@ -406,9 +407,10 @@ def logical_solution(scenario, sim_events, extra_constraints):
     return constraints, car2time2events
 
 
-def smooth_trajectories(scenario, maxSpeed,
+def smooth_trajectories(scenario, config,
                         sim_trajectories,
-                        temporal_constraints, car2time2events):
+                        temporal_constraints,
+                        car2time2events):
     """ Find:
     1. A realtime for each (ego, illegal, nonego) event distance s.t.
       (a) for each new agent, realtime is an increasing function of distance (no backing or teleportation)
@@ -562,6 +564,7 @@ def smooth_trajectories(scenario, maxSpeed,
 
     # 2. (d)
     for car in new_cars:
+        maxSpeed = config[car]['maxSpeed']
         for i in range(len(t_list[car])-1):
             tq, tr = tuple(t_list[car][i:i+2])
             dq, dq1, dq2, dr = tuple(d_list[car][3*i:3*i+4])
@@ -573,9 +576,9 @@ def smooth_trajectories(scenario, maxSpeed,
     # Let am<0 and aM>0 be maximum deceleration and acceleration. Then we require
     # am <= 6(dr-2dr1+dr2)/(ts-tr)**2 <= aM and
     # am <= 6(dr1-2dr2+ds)/(ts-tr)**2 <= aM.
-    # TODO move magic numbers to function arguments.
-    # am, aM = Real(-8), Real(4)
     # for car in new_cars:
+    #     am = Real(config[car]['minAcceleration']) # -8 is used in RSS
+    #     aM = Real(config[car]['maxAcceleration']) # 4 is used in RSS
     #     for i in range(len(t_list[car])-3):
     #         tr, ts = tuple(t_list[car][i:i+2])
     #         dr, dr1, dr2, ds = tuple(d_list[car][3*i:3*i+4])
@@ -664,10 +667,9 @@ def smooth_trajectories(scenario, maxSpeed,
     return new_events, curves
 
 
-def solution(scenario, sim_events,
-             sim_trajectories,
-             maxSpeed,
-             extra_constraints):
+def solution(scenario, config,
+             sim_events,
+             sim_trajectories):
     # All the given and new events
     import copy
     sim_events['illegal'] = []
@@ -678,14 +680,14 @@ def solution(scenario, sim_events,
 
     try:
         constraints, car2time2events = logical_solution(
-            scenario, sim_events, extra_constraints)
+            scenario, config, sim_events)
     except NoASPSolutionError as err:
         print(err.message)
         raise
 
     # Find trajectories that preserve the order of events in the logical solution
     try:
-        new_events, curves = smooth_trajectories(scenario, maxSpeed,
+        new_events, curves = smooth_trajectories(scenario, config,
                                                  sim_trajectories,
                                                  constraints, car2time2events)
     except NoSMTSolutionError as err:
@@ -739,10 +741,9 @@ def extend(scenario, config):
 
     new_events, new_curves = solution(
         scenario,
+        config,
         monitor.events,
-        sim_trajectories,
-        config['max_speed'],
-        config['constraints'])
+        sim_trajectories)
 
     from scenario import Scenario
     scenario_ext = Scenario()
