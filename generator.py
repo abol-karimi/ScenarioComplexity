@@ -8,16 +8,17 @@ from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Rea
 from pysmt.typing import REAL
 import pysmt
 import fractions
+import clingo
 
-# solver_name = "z3-binary"
-# path = ["/home/ak/Downloads/z3-4.8.10-x64-ubuntu-18.04/bin/z3", "-in", "-smt2"]
+solver_name = "z3-binary"
+path = ["/home/ak/Downloads/z3-4.8.10-x64-ubuntu-18.04/bin/z3", "-in", "-smt2"]
 
 # solver_name = "mathsat-binary"
 # path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
 
-solver_name = "cvc4-binary"
-path = ["/home/ak/Downloads/cvc4-1.8-x86_64-linux-opt",
-        "--lang=smt2", "--produce-models", "--no-interactive-prompt"]
+# solver_name = "cvc4-binary"
+# path = ["/home/ak/Downloads/cvc4-1.8-x86_64-linux-opt",
+#         "--lang=smt2", "--produce-models", "--no-interactive-prompt"]
 
 # solver_name = "yices-binary"
 # path = ["yices-smt2"]
@@ -356,12 +357,26 @@ def logical_solution(scenario, config, sim_events):
                   f'enteredForkAtTime({car}, F, T2),'
                   f'not violatesRule({car}, stopAtSign)']
 
-    from solver import ASPSolver
-    solver = ASPSolver()
-    solver.load(scenario.rules_path)
-    solver.add_atoms(atoms)
+    program = ""
+    for atom in atoms:
+        program += f'{atom}.\n'
 
-    model = solver.solve()
+    ctl = clingo.Control()
+    ctl.load(scenario.rules_path)
+    ctl.add("base", [], program)
+    ctl.ground([("base", [])])
+    ctl.configuration.solve.models = "0"
+    models = []
+    with ctl.solve(yield_=True) as handle:
+        for model in handle:
+            models.append(model.symbols(atoms=True))
+
+    print(f'Number of ASP models found: {len(models)}')
+
+    return models, car2time2events
+
+
+def model_to_constraints(model, car2time2events, old_nonegos):
 
     # Extract temporal constraints and the new events
     order_names = {'realLTE', 'lessThan', 'equal'}
@@ -615,11 +630,11 @@ def smooth_trajectories(scenario, config,
     #                         f'Collision constraint: {z3.Or(tm-tn > delta, tm-tn < -delta)}')
     #                     constraints += [z3.Or(tm-tn > delta, tm-tn < -delta)]
 
-    print('Solving smoothness constraints...')
     with Solver(name=solver_name, logic=QF_NRA):
         m = get_model(And(constraints))
         if m == None:
-            raise NoSMTSolutionError()
+            raise NoSMTSolutionError(
+                f'SMT solver {solver_name} found no solutions.')
 
     t, d = {}, {}
     for car in new_cars:
@@ -678,22 +693,27 @@ def solution(scenario, config,
         event_ill.vehicle = 'illegal'
         sim_events['illegal'] += [event_ill]
 
-    try:
-        constraints, car2time2events = logical_solution(
-            scenario, config, sim_events)
-    except NoASPSolutionError as err:
-        print(err.message)
-        raise
+    models, car2time2events = logical_solution(scenario, config, sim_events)
+
+    if len(models) == 0:
+        raise NoASPSolutionError('No ASP solution found!')
 
     # Find trajectories that preserve the order of events in the logical solution
-    try:
-        new_events, curves = smooth_trajectories(scenario, config,
-                                                 sim_trajectories,
-                                                 constraints, car2time2events)
-    except NoSMTSolutionError as err:
-        # TODO try different solvers, or change to a different logical solution if exists
-        print(err.message)
-        raise
+    import copy
+    old_nonegos = {car for car in scenario.events if not car in {
+        'ego', 'illegal'}}
+    for i, model in enumerate(models):
+        constraints, car2time2events_updated = model_to_constraints(
+            model, copy.deepcopy(car2time2events), old_nonegos)
+
+        print(f'Generating smooth trajecotries for {i}th ASP model...')
+        try:
+            new_events, curves = smooth_trajectories(scenario, config,
+                                                     sim_trajectories,
+                                                     constraints, car2time2events_updated)
+            break
+        except NoSMTSolutionError as err:
+            print(err.message)
 
     # Update the events
     sim_events.update(new_events)
