@@ -490,7 +490,7 @@ def smooth_trajectories(scenario, config,
     t2var = {}
     for ts in t_list.values():
         t2var.update({str(t): t for t in ts[1:-1]})
-    t2var.update({t: frame_to_realtime(events[0].frame, scenario.timestep)
+    t2var.update({t: Real(round_down(frame_to_realtime(events[0].frame, scenario.timestep)))
                   for car in old_nonegos for t, events in car2time2events[car].items() if t in t_dom})
 
     # Add extra control points to increase the flexibility of the curve
@@ -702,6 +702,7 @@ def solution(scenario, config,
     import copy
     old_nonegos = {car for car in scenario.events if not car in {
         'ego', 'illegal'}}
+    new_events = None
     for i, model in enumerate(models):
         constraints, car2time2events_updated = model_to_constraints(
             model, copy.deepcopy(car2time2events), old_nonegos)
@@ -714,6 +715,9 @@ def solution(scenario, config,
             break
         except NoSMTSolutionError as err:
             print(err.message)
+    if not new_events:
+        raise NoSMTSolutionError(
+            'No SMT solution found for the ASP solutions!')
 
     # Update the events
     sim_events.update(new_events)
