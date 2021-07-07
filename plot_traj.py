@@ -1,5 +1,5 @@
 #!/home/ak/Scenic/.venv/bin/python
-from generator import realtime_to_frame_float
+from generator import frame_to_realtime
 import matplotlib.pyplot as plt
 import argparse
 import pickle
@@ -28,9 +28,12 @@ fig, axs = plt.subplots(len(curves))
 fig.suptitle('time-distance curves')
 for j, car in enumerate(curves):
     axs[j].set_title(car)
-    axs[j].plot(frame2distance[car])
+    t = [frame_to_realtime(f, scenario.timestep)
+         for f in range(scenario.maxSteps+1)]
+    d = frame2distance[car]
+    axs[j].plot(t, d)
     points = curves[car]['ctrlpts']
-    t = [realtime_to_frame_float(p[0], scenario.timestep) for p in points]
+    t = [p[0] for p in points]
     d = [p[1] for p in points]
     c = ['r' if i % 3 == 0 else 'c' for i in range(len(points))]
     s = [20 if i % 3 == 0 else 10 for i in range(len(points))]
