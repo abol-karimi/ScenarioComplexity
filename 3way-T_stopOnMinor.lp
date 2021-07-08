@@ -207,7 +207,32 @@ violatesRightOfForRule(V1, V2, yieldToCrossing):-
 %  to the vehicle entering or crossing the intersection.
 % 21802 (c):
 % This section does not apply where stop signs are erected upon all approaches to an intersection.
+violatesRightOfForRule(V2, V1, yieldToYieldedToCrossing):-
+  V1 != V2,
+  arrivedFromTerminatingHighway(V1),
+  arrivedFromContinuingHighway(V2),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  enteredAtTime(V1, Te),
+  arrivedAtTime(V2, Ta),
+  lessThan(Te, Ta), % V1 enters before V2 arrives
+  enteredLaneAtTime(V2, L1, Tle),
+  leftLaneAtTime(V1, L2, Tll),
+  lessThan(Tle, Tll). % V2 enters the overlap earlier than V1 leaves it
 
+#count {0:equal(Tll, Tle); 1:lessThan(Tll, Tle); 2:lessThan(Tle, Tll)} = 1 :-
+  V1 != V2,
+  arrivedFromTerminatingHighway(V1),
+  arrivedFromContinuingHighway(V2),
+  requestedLane(V1, L1),
+  requestedLane(V2, L2),
+  overlaps(L1, L2),
+  enteredAtTime(V1, Te),
+  arrivedAtTime(V2, Ta),
+  lessThan(Te, Ta), % V1 enters before V2 arrives
+  enteredLaneAtTime(V2, L1, Tle),
+  leftLaneAtTime(V1, L2, Tll).
 
 %-------------------------------------------------
 violatesRightOf(V1, V2):-
