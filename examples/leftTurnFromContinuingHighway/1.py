@@ -36,34 +36,44 @@ night = {'cloudiness': 0.0,
          }
 
 config = {}
-config['maxSteps'] = 500
+config['maxSteps'] = 700
 config['timestep'] = 0.05
 config['weather'] = 'CloudySunset'
-config['map_path'] = './maps/Town07.xodr'
-config['map_name'] = 'Town07'
-config['intersection_uid'] = 'intersection358'
-config['rules_path'] = '3way-uncontrolled.lp'
-config['constraints'] = []  # ASP statements
-config['cars'] = ['ego', 'car1', 'car2']
+config['map_path'] = './maps/Town05.xodr'
+config['map_name'] = 'Town05'
+config['intersection_uid'] = 'intersection224'
+config['rules_path'] = '3way-T_stopOnMinor.lp'
+config['constraints'] = [f'lessThan(T1, T2) :- arrivedAtForkAtTime(car1, F, T1), arrivedAtForkAtTime(car2, F, T2)',
+                         f'lessThan(T1, T2) :- arrivedAtForkAtTime(car2, F, T1), arrivedAtForkAtTime(car3, F, T2)',
+                         f'lessThan(T1, T2) :- leftLaneAtTime(car1, L, T1), enteredLaneAtTime(car2, L, T2)',
+                         f'lessThan(T1, T2) :- leftLaneAtTime(car2, L, T1), enteredLaneAtTime(car3, L, T2)']  # ASP statements
+config['cars'] = ['ego', 'car1', 'car2', 'car3']
 
 config['ego'] = {}
 config['ego']['blueprint'] = car_blueprints[2]
-config['ego']['from_to'] = ('road41_lane1', 'road40_lane1')
-config['ego']['spawn_distance'] = 20
+config['ego']['from_to'] = ('road20_lane1', 'road48_lane1')
+config['ego']['spawn_distance'] = 25
 config['ego']['maxSpeed'] = 8  # m/s
 config['illegal'] = config['ego']
 
 config['car1'] = {}
-config['car1']['blueprint'] = car_blueprints[5]
-config['car1']['from_to'] = ('road40_lane0', 'road35_lane1')
-config['car1']['spawn_distance'] = 20
-config['car1']['maxSpeed'] = 8  # m/s
+config['car1']['blueprint'] = 'vehicle.jeep.wrangler_rubicon'
+config['car1']['from_to'] = ('road19_lane0', 'road20_lane0')
+config['car1']['spawn_distance'] = 8
+config['car1']['maxSpeed'] = 4  # m/s
 
 config['car2'] = {}
-config['car2']['blueprint'] = car_blueprints[9]
-config['car2']['from_to'] = ('road35_lane0', 'road41_lane0')
-config['car2']['spawn_distance'] = 15
-config['car2']['maxSpeed'] = 8  # m/s
+config['car2']['blueprint'] = 'vehicle.mini.cooperst'
+config['car2']['from_to'] = ('road19_lane0', 'road20_lane0')
+config['car2']['spawn_distance'] = 16
+config['car2']['maxSpeed'] = 4  # m/s
+
+config['car3'] = {}
+config['car3']['blueprint'] = 'vehicle.mercedes-benz.coupe'
+config['car3']['from_to'] = ('road19_lane0', 'road20_lane0')
+config['car3']['spawn_distance'] = 40
+config['car3']['maxSpeed'] = 4  # m/s
+
 
 network = Network.fromFile(config['map_path'])
 for car in config['cars']:

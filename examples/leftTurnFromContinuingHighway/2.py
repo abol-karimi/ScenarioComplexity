@@ -39,25 +39,27 @@ config = {}
 config['maxSteps'] = 700
 config['timestep'] = 0.05
 config['weather'] = 'CloudySunset'
-config['map_path'] = './maps/Town07.xodr'
-config['map_name'] = 'Town07'
-config['intersection_uid'] = 'intersection358'
-config['rules_path'] = '3way-Y_uncontrolled.lp'
-config['constraints'] = []  # ASP statements
-config['cars'] = ['ego', 'car1']
+config['map_path'] = './maps/Town05.xodr'
+config['map_name'] = 'Town05'
+config['intersection_uid'] = 'intersection224'
+config['rules_path'] = '3way-T_stopOnMinor.lp'
+config['constraints'] = [f'lessThan(T1, T2) :- arrivedAtForkAtTime(car3, F, T1), arrivedAtForkAtTime(car4, F, T2)',
+                         f'lessThan(T1, T2) :- leftLaneAtTime(car3, L, T1), enteredLaneAtTime(car4, L, T2)']  # ASP statements
+config['cars'] = ['ego', 'car4']
 
 config['ego'] = {}
 config['ego']['blueprint'] = car_blueprints[2]
-config['ego']['from_to'] = ('road41_lane1', 'road40_lane1')
+config['ego']['from_to'] = ('road20_lane1', 'road48_lane1')
 config['ego']['spawn_distance'] = 25
 config['ego']['maxSpeed'] = 8  # m/s
 config['illegal'] = config['ego']
 
-config['car1'] = {}
-config['car1']['blueprint'] = car_blueprints[5]
-config['car1']['from_to'] = ('road40_lane0', 'road35_lane1')
-config['car1']['spawn_distance'] = 20
-config['car1']['maxSpeed'] = 4  # m/s
+config['car4'] = {}
+config['car4']['blueprint'] = 'vehicle.mercedes-benz.coupe'
+config['car4']['from_to'] = ('road19_lane0', 'road20_lane0')
+config['car4']['spawn_distance'] = 80
+config['car4']['maxSpeed'] = 3  # m/s
+
 
 network = Network.fromFile(config['map_path'])
 for car in config['cars']:
