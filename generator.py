@@ -365,7 +365,7 @@ def logical_solution(scenario, config, sim_events):
     ctl.load(scenario.rules_path)
     ctl.add("base", [], program)
     ctl.ground([("base", [])])
-    ctl.configuration.solve.models = "0"
+    ctl.configuration.solve.models = "10000"
     models = []
     with ctl.solve(yield_=True) as handle:
         for model in handle:
