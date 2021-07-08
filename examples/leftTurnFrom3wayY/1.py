@@ -43,21 +43,28 @@ config['map_path'] = './maps/Town07.xodr'
 config['map_name'] = 'Town07'
 config['intersection_uid'] = 'intersection358'
 config['rules_path'] = '3way-Y_uncontrolled.lp'
-config['constraints'] = []  # ASP statements
-config['cars'] = ['ego', 'car1']
+config['constraints'] = ['lessThan(T1, T2) :- arrivedAtForkAtTime(car1, F, T1), arrivedAtForkAtTime(car2, F, T2)',
+                         'lessThan(T1, T2) :- leftLaneAtTime(car1, L, T1), enteredLaneAtTime(car2, L, T2)']  # ASP statements
+config['cars'] = ['ego', 'car1', 'car2']
 
 config['ego'] = {}
 config['ego']['blueprint'] = car_blueprints[2]
 config['ego']['from_to'] = ('road41_lane1', 'road40_lane1')
-config['ego']['spawn_distance'] = 25
+config['ego']['spawn_distance'] = 20
 config['ego']['maxSpeed'] = 8  # m/s
 config['illegal'] = config['ego']
 
 config['car1'] = {}
-config['car1']['blueprint'] = car_blueprints[5]
+config['car1']['blueprint'] = 'vehicle.tesla.model3'
 config['car1']['from_to'] = ('road40_lane0', 'road35_lane1')
-config['car1']['spawn_distance'] = 20
+config['car1']['spawn_distance'] = 14
 config['car1']['maxSpeed'] = 4  # m/s
+
+config['car2'] = {}
+config['car2']['blueprint'] = 'vehicle.bmw.isetta'
+config['car2']['from_to'] = ('road40_lane0', 'road41_lane0')
+config['car2']['spawn_distance'] = 20
+config['car2']['maxSpeed'] = 4  # m/s
 
 network = Network.fromFile(config['map_path'])
 for car in config['cars']:
