@@ -85,7 +85,7 @@ def cam_callback(image):
 		# Draw events
 		d = ImageDraw.Draw(images[t])
 		fnt = ImageFont.truetype("Pillow/Tests/fonts/FreeMono.ttf", 55)
-		d.multiline_text((0,0), key_events[t], font=fnt, stroke_width=2, fill=(255, 255, 255), stroke_fill=(0, 0, 0))
+		d.multiline_text((0,0), key_events[t], font=fnt, stroke_width=3, fill=(255, 0, 0))
 
 def setup_camera():
 	carla_world = simulation().world
@@ -98,7 +98,7 @@ def setup_camera():
 	cam_bp = carla_world.get_blueprint_library().find('sensor.camera.rgb')
 	cam_bp.set_attribute("image_size_x",str(1700))
 	cam_bp.set_attribute("image_size_y",str(1800))
-	cam_bp.set_attribute("fov",str(110))
+	cam_bp.set_attribute("fov",str(90))
 	over_cam = carla_world.spawn_actor(cam_bp, cam_transform)
 	over_cam.listen(cam_callback)
 	cameras.append(over_cam)
