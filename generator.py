@@ -254,16 +254,16 @@ def realtime_logicalTime_axioms():
     return atoms
 
 
-def car_to_time_to_events(sim_events):
-    """Assumes that for each car, its events in sim_events are given in nondecreasing time order.
+def car_to_time_to_events(car2events):
+    """Assumes that for each car, its events in car2events are given in nondecreasing time order.
     Each car is mapped to a time2events dictionary.
     For each distinct frame in the frames of events of a car, a distince time constant is chosen.
     Each time constant is mapped to the list of corresponding events.
     """
     from collections import OrderedDict
-    car2time2events = {car: OrderedDict() for car in sim_events.keys()}
+    car2time2events = {car: OrderedDict() for car in car2events.keys()}
 
-    for car, events in sim_events.items():
+    for car, events in car2events.items():
         last_frame = -1
         i = -1
         for e in events:
