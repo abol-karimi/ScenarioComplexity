@@ -237,13 +237,13 @@ def geometry_atoms(network, intersection_uid):
 def realtime_logicalTime_axioms():
     atoms = []
 
-    # If logically less-than, then realtime strictly less-than
+    # If perceptibly less-than, then realtime strictly less-than
     atoms += [f'realLTE(S, T) :- lessThan(S, T)',
               f':- lessThan(S, T), realLTE(T, S)']
-    # If logically equal, then realtime equal
+    # If perceptibly equal, then realtime equal
     atoms += [f'realLTE(S, T) :- equal(S, T)',
               f'realLTE(T, S) :- equal(S, T)']
-    # Consistency of logical-time order
+    # Internal consistency of perceptible order
     atoms += [f':- lessThan(S, T), equal(S, T)']
     atoms += [f':- lessThan(S, T), equal(T, S)']
 
@@ -740,6 +740,7 @@ def extend(scenario, config):
     sim_result = {}
     config['ego']['maneuver_uid'] = scenario.maneuver_uid['ego']
     config['ego']['blueprint'] = scenario.blueprints['ego']
+    # TODO skip simulating ego by using the solvability evidence of the old scenario
     for car in config['cars']:
         print(f'Simulate {car}\'s trajectory...')
         params['car_name'] = car
