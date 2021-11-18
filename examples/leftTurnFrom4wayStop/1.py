@@ -47,14 +47,14 @@ config['constraints'] = [':- violatesRule(car1, stopAtSign)']  # ASP statements
 config['cars'] = ['ego', 'car1']
 
 config['ego'] = {}
-config['ego']['blueprint'] = car_blueprints[2]
+config['ego']['blueprint'] = 'vehicle.audi.tt'
 config['ego']['from_to'] = ('road9_lane2', 'road45_lane1')
 config['ego']['spawn_distance'] = 25
 config['ego']['maxSpeed'] = 8  # m/s
 config['illegal'] = config['ego']
 
 config['car1'] = {}
-config['car1']['blueprint'] = car_blueprints[5]
+config['car1']['blueprint'] = 'vehicle.chevrolet.impala'
 config['car1']['from_to'] = ('road45_lane3', 'road44_lane3')
 config['car1']['spawn_distance'] = 8
 config['car1']['maxSpeed'] = 4  # m/s
