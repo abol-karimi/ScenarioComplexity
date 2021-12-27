@@ -1,4 +1,5 @@
 import carla
+from scenic.core.geometry import _RotatedRectangle as RRect
 
 
 def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1, height=0.2):
@@ -78,3 +79,9 @@ def draw_trajectories(world, sim_trajectory):
             position = state[0]
             loc = carla.Location(position.x, -position.y, 0.1)
             world.debug.draw_point(loc)
+
+
+def draw_rect(world, rect, height=0.1):
+    corners = [carla.Location(p.x, -p.y, height) for p in rect.corners]
+    for i in range(-1, len(corners)-1):
+        world.debug.draw_line(corners[i], corners[i+1])

@@ -12,7 +12,7 @@ blueprints = replay_scenario.blueprints
 curves = replay_scenario.curves
 sim_trajs = replay_scenario.sim_trajectories
 sample_size = int(replay_scenario.maxSteps)+1
-from spline_to_traj import curves_to_trajectories
+from utils import curves_to_trajectories
 trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
 param event_monitor = None

@@ -17,6 +17,9 @@ maneuver_uid = globalParameters.maneuver_uid
 param car_blueprint = None
 car_blueprint = globalParameters.car_blueprint
 
+param car_size = None
+car_size = globalParameters.car_size
+
 param event_monitor = None
 event_monitor = globalParameters.event_monitor
 
@@ -89,3 +92,7 @@ monitor ego_events:
 				event_monitor.on_exitLane(ego.name, lane.uid, currentTime)
 		wait
 
+monitor record_properties:
+	car_size['width'] = ego.width
+	car_size['length'] = ego.length
+	wait

@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import math
-from os import replace
 from solver import NoASPSolutionError
+from utils import has_collision, frame_to_distance
 
 from pysmt.logics import QF_NRA
 from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Real
@@ -89,44 +89,6 @@ def realtime_to_frame_float(t, timestep):
 
 def frame_to_realtime(frame, timestep):
     return frame*timestep
-
-
-def frame_to_distance(trajectory):
-    frame2distance = [0]*len(trajectory)
-
-    for i in range(len(trajectory)-1):
-        pi = trajectory[i][0]
-        pii = trajectory[i+1][0]
-        frame2distance[i+1] = frame2distance[i] + pi.distanceTo(pii)
-
-    return frame2distance
-
-
-def distance_to_pose(distances, sim_distances, traj):
-    """ For each frame, we are given a distance in 'sim_distances' and a corresponding pose in 'traj'.
-    We return the poses corresponding to 'distances' by linear interpolation of the above (distance, pose) pairs.
-    """
-    ds, xs, ys, hs = [], [], [], []
-    last_dist = -1
-    for d, pose in zip(sim_distances, traj):
-        if last_dist == d:
-            continue
-        last_dist = d
-        # add data points
-        x, y, h = pose[0].x, pose[0].y, pose[1]
-        ds.append(d), xs.append(x), ys.append(y), hs.append(h)
-
-    import numpy as np
-    pi = np.pi
-    xs_i = np.interp(distances, ds, xs)
-    ys_i = np.interp(distances, ds, ys)
-    hs_i = np.interp(distances, ds, np.unwrap(hs))
-    # wrap headings back to (-pi,pi):
-    hs_i = [(h + pi) % (2*pi) - pi for h in hs_i]
-
-    from scenic.core.vectors import Vector
-    poses = [[Vector(x, y), h] for x, y, h in zip(xs_i, ys_i, hs_i)]
-    return poses
 
 
 def distance_to_time(t, d, d_val):
@@ -684,7 +646,8 @@ def smooth_trajectories(scenario, config,
 
 def solution(scenario, config,
              sim_events,
-             sim_trajectories):
+             sim_trajectories,
+             car_sizes):
     # All the given and new events
     import copy
     sim_events['illegal'] = []
@@ -697,6 +660,15 @@ def solution(scenario, config,
 
     if len(models) == 0:
         raise NoASPSolutionError('No ASP solution found!')
+
+    # from scenic.domains.driving.roads import Network
+    # from visualization import draw_intersection
+    # import carla
+    # client = carla.Client('127.0.0.1', 2000)
+    # world = client.load_world(scenario.map_name)
+    # network = Network.fromFile(scenario.map_path)
+    # intersection = network.elements[scenario.intersection_uid]
+    # draw_intersection(world, intersection)
 
     # Find trajectories that preserve the order of events in the logical solution
     import copy
@@ -712,7 +684,11 @@ def solution(scenario, config,
             new_events, curves = smooth_trajectories(scenario, config,
                                                      sim_trajectories,
                                                      constraints, car2time2events_updated)
-            break
+            if has_collision(scenario, sim_trajectories, curves, car_sizes):
+                print('Collision in SMT solution. Trying next ASP solution...')
+            else:
+                print('No collision in SMT solution.')
+                break
         except NoSMTSolutionError as err:
             print(err.message)
     if not new_events:
@@ -740,6 +716,8 @@ def extend(scenario, config):
     sim_result = {}
     config['ego']['maneuver_uid'] = scenario.maneuver_uid['ego']
     config['ego']['blueprint'] = scenario.blueprints['ego']
+    car_sizes = {car: {'width': 0, 'length': 0}
+                 for car in config['cars']}  # output parameter of simulation
     # TODO skip simulating ego by using the solvability evidence of the old scenario
     for car in config['cars']:
         print(f'Simulate {car}\'s trajectory...')
@@ -747,6 +725,7 @@ def extend(scenario, config):
         params['maneuver_uid'] = config[car]['maneuver_uid']
         params['spawn_distance'] = config[car]['spawn_distance']
         params['car_blueprint'] = config[car]['blueprint']
+        params['car_size'] = car_sizes[car]  # output parameter
         scenic_scenario = scenic.scenarioFromFile(
             'trajectory.scenic', params=params)
         scene, _ = scenic_scenario.generate()
@@ -768,7 +747,8 @@ def extend(scenario, config):
         scenario,
         config,
         monitor.events,
-        sim_trajectories)
+        sim_trajectories,
+        car_sizes)
 
     from scenario import Scenario
     scenario_ext = Scenario()
@@ -781,6 +761,7 @@ def extend(scenario, config):
     scenario_ext.rules_path = scenario.rules_path
     scenario_ext.blueprints = dict(
         scenario.blueprints, **{car: config[car]['blueprint'] for car in config['cars']})
+    scenario_ext.car_sizes = dict(scenario.car_sizes, **car_sizes)
     scenario_ext.maneuver_uid = dict(
         scenario.maneuver_uid, **{car: config[car]['maneuver_uid'] for car in config['cars']})
     scenario_ext.events = dict(scenario.events, **new_events)
@@ -803,6 +784,7 @@ def new(config):
     scenario.rules_path = config['rules_path']
     scenario.blueprints = {car: config[car]
                            ['blueprint'] for car in config['cars']}
+    scenario.car_sizes = {}
     scenario.maneuver_uid = {
         car: config[car]['maneuver_uid'] for car in config['cars']}
     scenario.events = {}
