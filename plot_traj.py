@@ -1,4 +1,4 @@
-#!/home/ak/Scenic/.venv/bin/python
+#!/usr/bin/env python
 from generator import frame_to_realtime
 import matplotlib.pyplot as plt
 import argparse

@@ -1,4 +1,4 @@
-#!/home/ak/Scenic/.venv/bin/python
+#!/usr/bin/env python
 
 import carla
 

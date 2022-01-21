@@ -1,4 +1,4 @@
-#!/home/ak/Scenic/.venv/bin/python
+#!python3.8
 import generator
 import pickle
 import argparse

@@ -1,4 +1,4 @@
-#!/home/ak/Scenic/.venv/bin/python
+#!/usr/bin/env python
 from generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from solver import ASPSolver
