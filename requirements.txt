@@ -1,4 +1,4 @@
-clingo
+# clingo: build from source with python support
 pysmt
 geomdl
 numpy
