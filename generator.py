@@ -684,6 +684,7 @@ def solution(scenario, config,
             new_events, curves = smooth_trajectories(scenario, config,
                                                      sim_trajectories,
                                                      constraints, car2time2events_updated)
+            break
             if has_collision(scenario, sim_trajectories, curves, car_sizes):
                 print('Collision in SMT solution. Trying next ASP solution...')
             else:
