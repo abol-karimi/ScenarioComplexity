@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 
 from scenic.domains.driving.roads import Network
 from generator import geometry_atoms

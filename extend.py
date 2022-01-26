@@ -1,4 +1,4 @@
-#!python3.8
+#!/usr/bin/env python3.8
 import generator
 import pickle
 import argparse

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 from generator import frame_to_realtime
 import matplotlib.pyplot as plt
 import argparse

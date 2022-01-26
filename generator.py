@@ -11,13 +11,13 @@ import fractions
 import clingo
 
 solver_name = "z3-binary"
-path = ["/home/ak/Downloads/z3-4.8.10-x64-ubuntu-18.04/bin/z3", "-in", "-smt2"]
+path = ["z3", "-in", "-smt2"]  # tested with z3-4.8.10-x64-ubuntu-18.04
 
 # solver_name = "mathsat-binary"
-# path = ["/home/ak/Downloads/mathsat-5.6.6-linux-x86_64/bin/mathsat"]
+# path = ["mathsat"] # tested with mathsat-5.6.6-linux-x86_64
 
 # solver_name = "cvc4-binary"
-# path = ["/home/ak/Downloads/cvc4-1.8-x86_64-linux-opt",
+# path = ["~/Downloads/cvc4-1.8-x86_64-linux-opt",
 #         "--lang=smt2", "--produce-models", "--no-interactive-prompt"]
 
 # solver_name = "yices-binary"

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 import argparse
 from scenic.domains.driving.roads import Network
 import carla
