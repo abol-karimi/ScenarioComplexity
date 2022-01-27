@@ -19,7 +19,9 @@ RUN apt-get update ; \
   libjpeg-turbo8 \
   libjpeg-turbo8-dev \
   python3-pil \
-  libtbb2
+  libtbb2 \
+  eog \
+  vim
 
 USER carla
 WORKDIR /home/carla
@@ -63,14 +65,15 @@ WORKDIR /home/carla
 RUN rm -r PythonAPI
 COPY --chown=carla:carla z3-4.8.10-x64-ubuntu-18.04 /home/carla/z3-4.8.10-x64-ubuntu-18.04
 COPY --chown=carla:carla PythonAPI /home/carla/PythonAPI
+COPY --chown=carla:carla Carla /home/carla/CarlaUE4/Content/Carla
 
 RUN  echo "\n" >> .bashrc ; \
-  echo 'export PATH="$HOME/z3-4.8.10-x64-ubuntu-18.04/bin:$PATH"' >> .bashrc ; \
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> .bashrc ; \
-  echo "export CARLA_ROOT=$HOME" >> .bashrc ; \
-  echo "carla_egg=carla-0.9.10-py3.7-linux-x86_64.egg" >> .bashrc ; \
+  echo 'export PATH=$HOME/z3-4.8.10-x64-ubuntu-18.04/bin:$PATH' >> .bashrc ; \
+  echo 'export PATH=$HOME/.local/bin:$PATH' >> .bashrc ; \
+  echo 'export CARLA_ROOT=$HOME' >> .bashrc ; \
+  echo 'carla_egg=carla-0.9.10-py3.7-linux-x86_64.egg' >> .bashrc ; \
   echo 'export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/:${CARLA_ROOT}/PythonAPI/carla/agents/:${CARLA_ROOT}/PythonAPI/carla/dist/${carla_egg}"' >> .bashrc ; \
-  echo "source /home/carla/Scenic/.venv/bin/activate" >> /home/carla/.bashrc
+  echo 'source /home/carla/Scenic/.venv/bin/activate' >> /home/carla/.bashrc
 
 WORKDIR /home/carla/ScenarioGeneration
 CMD bash
