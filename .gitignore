@@ -4,3 +4,8 @@ __pycache__
 *.sc
 *.jpg
 *.log
+
+Docker/Carla
+Docker/PythonAPI
+Docker/Scenic
+Docker/z3-4.8.10-x64-ubuntu-18.04
