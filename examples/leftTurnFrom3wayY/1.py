@@ -1,5 +1,5 @@
 from scenic.domains.driving.roads import Network
-from connecting_lane import connecting_lane as cl
+from complexgen.core.connecting_lane import connecting_lane as cl
 
 car_blueprints = [
     'vehicle.audi.a2',  # No lights
@@ -39,7 +39,7 @@ config = {}
 config['maxSteps'] = 700
 config['timestep'] = 0.05
 config['weather'] = 'CloudySunset'
-config['map_path'] = './maps/Town07.xodr'
+config['map_path'] = '/home/carla/CarlaUE4/Content/Carla/Maps/OpenDrive/Town07.xodr'
 config['map_name'] = 'Town07'
 config['intersection_uid'] = 'intersection358'
 config['rules_path'] = '3way-Y_uncontrolled.lp'
