@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.8
-import pickle
-import src.complexgen.core.generator as generator
+import jsonpickle
+import complexgen.core.generator as generator
 import argparse
 import importlib
 
@@ -14,5 +14,5 @@ config_path = args.config.replace('/', '.').replace('.py', '')
 config_module = importlib.import_module(config_path, package=None)
 scenario = generator.new(config_module.config)
 
-with open(args.output, 'wb') as outFile:
-    pickle.dump(scenario, outFile)
+with open(args.output, 'w') as f:
+    f.write(jsonpickle.encode(scenario))

@@ -15,11 +15,11 @@ curves = replay_scenario.curves
 sim_trajs = replay_scenario.sim_trajectories
 sample_size = int(replay_scenario.maxSteps)+1
 
-from utils import curves_to_trajectories
+from complexgen.core.utils import curves_to_trajectories
 trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
-import visualization
-from signals import SignalType
+import complexgen.simulators.carla.visualization as visualization
+from complexgen.core.signals import SignalType
 
 car2time2signal = {car:{e.frame:e.signal for e in es if e.name == 'signaledAtForkAtTime'} 
 	for car, es in events.items()}
@@ -29,9 +29,9 @@ behavior ReplayBehavior():
 	while True:
 		t = simulation().currentTime
 		state = trajectory[self.name][t]
-		take SetTransformAction(state[0], state[1])
+		take SetPoseAction(state[0], state[1])
 
-		if t in car2time2signal[self.name]:
+		if car2time2signal[self.name].__contains__(t):
 			lights = SignalType[car2time2signal[self.name][t].upper()].to_vehicleLightState()
 			take SetVehicleLightStateAction(lights)
 
@@ -40,21 +40,21 @@ behavior ReplayBehavior():
 for carName, traj in trajectory.items():
 	carState = traj[0]
 	if not carName in {'ego', 'illegal'}:
-		car = Car at carState[0], facing carState[1],
+		car = new Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
 			with color Color(0, 0, 1),
 			with behavior ReplayBehavior(),
 			with physics False
 	elif carName == 'ego':
-		ego = Car at carState[0], facing carState[1],
+		ego = new Car at carState[0], facing carState[1],
 			with name carName,
 			with blueprint blueprints[carName],
 			with color Color(0, 1, 0),
 			with behavior ReplayBehavior(),
 			with physics False
 
-illegal = Car ahead of ego by ego.length,
+illegal = new Car ahead of ego by ego.length,
 	with name 'illegal',
 	with blueprint blueprints['ego'],
 	with color Color(1, 0, 0),
@@ -62,7 +62,9 @@ illegal = Car ahead of ego by ego.length,
 	with physics False
 
 
-monitor showIntersection:
+monitor showIntersection():
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection, draw_lanes=True)
 	wait
+
+require monitor showIntersection()

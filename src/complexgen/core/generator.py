@@ -1,7 +1,19 @@
 from collections import OrderedDict
 import math
+from functools import cmp_to_key
+import copy
+import carla
+import scenic
+from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
+from scenic.domains.driving.roads import Network
+
+import complexgen.core.intersection_monitor as intersection_monitor
+from complexgen.core.intersection_monitor import StoppedAtForkEvent
 from complexgen.core.solver import NoASPSolutionError
 from complexgen.core.utils import has_collision, frame_to_distance
+from complexgen.core.signals import SignalType
+from complexgen.core.scenario import Scenario
+from complexgen.predicates.predicates import TemporalContext
 
 from pysmt.logics import QF_NRA
 from pysmt.shortcuts import get_env, Solver, get_model, Symbol, Equals, And, Real
@@ -128,7 +140,6 @@ def distance_to_time(t, d, d_val):
 
 def geometry_atoms(network, intersection_uid):
     """Assumes the correct map is loaded in CARLA server."""
-    from complexgen.core.signals import SignalType
     intersection = network.elements[intersection_uid]
     maneuvers = intersection.maneuvers
     geometry = []
@@ -161,7 +172,6 @@ def geometry_atoms(network, intersection_uid):
         road2incomings[incoming.road.uid].append(incoming.uid)
     # An intersection stores the intersecting roads in CW or CCW order.
     # Assuming the order is CCW, then:
-    import math
     for i in range(len(roads)):
         ii = (i+1) % len(roads)  # cyclic order
         lefts = road2incomings[roads[i].uid]
@@ -177,17 +187,15 @@ def geometry_atoms(network, intersection_uid):
             f'isOnRightOf({right}, {left})' for left in lefts for right in rights]
 
     # To detect stop signs
-    import carla
     client = carla.Client('127.0.0.1', 2000)
     world = client.get_world()
-    map = world.get_map()
+    carla_map = world.get_map()
 
-    from scenic.simulators.carla.utils.utils import scenicToCarlaLocation
     for lane in incomings:
         end = lane.centerline[-1]
         point = lane.flowFrom(end, -6.0)
         loc = scenicToCarlaLocation(point, world=world)
-        wp = map.get_waypoint(loc)
+        wp = carla_map.get_waypoint(loc)
         landmarks = wp.get_landmarks_of_type(
             6.0, '206')  # 206: stop sign or utencil
         if len(landmarks) > 0:
@@ -222,7 +230,6 @@ def car_to_time_to_events(car2events):
     For each distinct frame in the frames of events of a car, a distince time constant is chosen.
     Each time constant is mapped to the list of corresponding events.
     """
-    from collections import OrderedDict
     car2time2events = {car: OrderedDict() for car in car2events.keys()}
 
     for car, events in car2events.items():
@@ -250,7 +257,6 @@ def logical_solution(scenario, config, sim_events):
     atoms += config['constraints']
 
     # TODO store geometry atoms in the scenario to avoid computing them each time.
-    from scenic.domains.driving.roads import Network
     network = Network.fromFile(scenario.map_path)
     atoms += geometry_atoms(network, scenario.intersection_uid)
 
@@ -274,17 +280,6 @@ def logical_solution(scenario, config, sim_events):
         'ego', 'illegal'}}
     sym2val = {t: events[0].frame
                for car in old_nonegos for t, events in car2time2events[car].items()}
-    min_perceptible_time = 10  # frames
-    atoms += [f'#script(python)\n'
-              f'import clingo\n'
-              f'sym2val = {sym2val}\n'
-              f'def lessThan(S, T):\n'
-              f'  lt = sym2val[S.name] + {min_perceptible_time} < sym2val[T.name]\n'
-              f'  return clingo.Number(1) if lt else clingo.Number(0)\n'
-              f'def equal(S, T):\n'
-              f'  eq = abs(sym2val[S.name] - sym2val[T.name]) < {min_perceptible_time}\n'
-              f'  return clingo.Number(1) if eq else clingo.Number(0)\n'
-              f'#end']
     for s in sym2val:
         for t in sym2val:
             atoms += [f':- lessThan({s}, {t}), 0 = @lessThan({s}, {t})',
@@ -302,14 +297,6 @@ def logical_solution(scenario, config, sim_events):
     for nonego in old_nonegos:
         atoms += [f':- violatesRightOf(illegal, {nonego})']
 
-    # To generate unique time constants:
-    atoms += [f'#script(python)\n'
-              f'import clingo\n'
-              f'def time(V, Pred, Tm, TM):\n'
-              f'  t = V.name + Pred.name + Tm.name + TM.name\n'
-              f'  return clingo.Function(t, [])\n'
-              f'#end']
-
     # The event StopppedAtForkAtTime is generated for new cars,
     #  based on the status of traffic rules violations:
     for car in new_nonegos+['ego', 'illegal']:
@@ -319,14 +306,16 @@ def logical_solution(scenario, config, sim_events):
                   f'enteredForkAtTime({car}, F, T2),'
                   f'not violatesRule({car}, stopAtSign)']
 
-    program = ""
+    instance = ""
     for atom in atoms:
-        program += f'{atom}.\n'
-
+        instance += f'{atom}.\n'
+    
+    with open(scenario.rules_path, 'r') as f:
+        encoding = f.read()
+   
     ctl = clingo.Control()
-    ctl.load(scenario.rules_path)
-    ctl.add("base", [], program)
-    ctl.ground([("base", [])])
+    ctl.add("base", [], instance+encoding)
+    ctl.ground([("base", [])], context=TemporalContext(sym2val))
     ctl.configuration.solve.models = "10000"
     models = []
     with ctl.solve(yield_=True) as handle:
@@ -345,7 +334,6 @@ def model_to_constraints(model, car2time2events, old_nonegos):
     constraints = {n: set() for n in order_names}
     constraints['stop'] = set()
 
-    from complexgen.core.intersection_monitor import StoppedAtForkEvent
     for atom in model:
         name = str(atom.name)
         if name in order_names:
@@ -364,8 +352,6 @@ def model_to_constraints(model, car2time2events, old_nonegos):
                         StoppedAtForkEvent(car, fork, None)]
 
     # Sort the events by their realtime
-    from functools import cmp_to_key
-
     def compare(s, t):
         LTE = constraints['realLTE']  # A total order for any fixed car
         lte, gte = (s, t) in LTE, (t, s) in LTE
@@ -649,7 +635,6 @@ def solution(scenario, config,
              sim_trajectories,
              car_sizes):
     # All the given and new events
-    import copy
     sim_events['illegal'] = []
     for event in sim_events['ego']:
         event_ill = copy.copy(event)
@@ -671,7 +656,6 @@ def solution(scenario, config,
     # draw_intersection(world, intersection)
 
     # Find trajectories that preserve the order of events in the logical solution
-    import copy
     old_nonegos = {car for car in scenario.events if not car in {
         'ego', 'illegal'}}
     new_events = None
@@ -703,10 +687,8 @@ def solution(scenario, config,
 
 
 def extend(scenario, config):
-    import src.complexgen.core.intersection_monitor as intersection_monitor
     monitor = intersection_monitor.Monitor()
 
-    import scenic
     params = {'map': scenario.map_path,
               'carla_map': scenario.map_name,
               'intersection_uid': scenario.intersection_uid,
@@ -728,7 +710,9 @@ def extend(scenario, config):
         params['car_blueprint'] = config[car]['blueprint']
         params['car_size'] = car_sizes[car]  # output parameter
         scenic_scenario = scenic.scenarioFromFile(
-            'trajectory.scenic', params=params)
+            'src/complexgen/core/trajectory.scenic',
+            mode2D=True,
+            params=params)
         scene, _ = scenic_scenario.generate()
         simulator = scenic_scenario.getSimulator()
         settings = simulator.world.get_settings()
@@ -741,7 +725,7 @@ def extend(scenario, config):
     sim_trajectories = {}
     for car in config['cars']:
         sim_trajectories[car] = [state[car]
-                                 for state in sim_result[car].trajectory]
+                                 for state in sim_result[car].records['pose_trajectory']]
     sim_trajectories['illegal'] = sim_trajectories['ego']
 
     new_events, new_curves = solution(
@@ -751,7 +735,6 @@ def extend(scenario, config):
         sim_trajectories,
         car_sizes)
 
-    from complexgen.core.scenario import Scenario
     scenario_ext = Scenario()
     scenario_ext.maxSteps = scenario.maxSteps
     scenario_ext.timestep = scenario.timestep
@@ -774,7 +757,6 @@ def extend(scenario, config):
 
 
 def new(config):
-    from complexgen.core.scenario import Scenario
     scenario = Scenario()
     scenario.maxSteps = config['maxSteps']
     scenario.timestep = config['timestep']

@@ -15,7 +15,7 @@ events = replay_scenario.events
 curves = replay_scenario.curves
 sim_trajs = replay_scenario.sim_trajectories
 sample_size = int(replay_scenario.maxSteps)+1
-from utils import curves_to_trajectories
+from scenariogen.core.utils import curves_to_trajectories
 trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
 param event_monitor = None
@@ -30,10 +30,10 @@ aggressiveness = globalParameters.aggressiveness
 param rss_enabled = False
 rss_enabled = globalParameters.rss_enabled
 
-import visualization
-from signals import vehicleLightState_from_maneuverType
-from rss_sensor import RssSensor
 import carla
+import complexgen.simulators.carla.visualization as visualization
+from complexgen.core.signals import vehicleLightState_from_maneuverType
+from complexgen.simulators.carla.rss_sensor import RssSensor
 
 ARRIVAL_DISTANCE = 4 # meters
 

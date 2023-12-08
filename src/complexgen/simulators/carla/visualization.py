@@ -1,5 +1,4 @@
 import carla
-from scenic.core.geometry import _RotatedRectangle as RRect
 
 
 def draw_lane(world, lane, color=carla.Color(255, 0, 0), life_time=-1, height=0.2):

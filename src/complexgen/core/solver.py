@@ -1,5 +1,5 @@
 import clingo
-
+from complexgen.predicates.predicates import TemporalContext
 
 class NoASPSolutionError(Exception):
     """Exception raised for errors in ASP solving.
@@ -13,7 +13,8 @@ class NoASPSolutionError(Exception):
 
 
 class ASPSolver():
-    def __init__(self):
+    def __init__(self, sym2val):
+        self.sym2val = sym2val
         self.__solution = None
         self.__ctl = clingo.Control()
 
@@ -28,7 +29,7 @@ class ASPSolver():
 
     def solve(self):
         print("\nSolving...")
-        self.__ctl.ground([("base", [])])
+        self.__ctl.ground([("base", [])], context=TemporalContext(self.sym2val))
         result = self.__ctl.solve(on_model=self.__on_model, async_=False)
 
         if not result.satisfiable:

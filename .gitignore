@@ -1,7 +1,7 @@
 __pycache__
 .vscode
 *.snet
-*.sc
+*.json
 *.jpg
 *.log
 

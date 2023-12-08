@@ -14,7 +14,7 @@ events = replay_scenario.events
 curves = replay_scenario.curves
 sim_trajs = replay_scenario.sim_trajectories
 sample_size = int(replay_scenario.maxSteps)+1
-from utils import curves_to_trajectories
+from complexgen.core.utils import curves_to_trajectories
 trajectory = curves_to_trajectories(curves, sim_trajs, sample_size)
 
 param keyframes = None 
@@ -23,9 +23,9 @@ keyframes = globalParameters.keyframes
 param images = None
 images = globalParameters.images
 
-import visualization
 import carla
-import utils
+import scenariogen.simulations.visualization as visualization
+from complexgen.scripts.utils import draw_names
 from PIL import ImageDraw, ImageFont
 from generator import frame_to_realtime
 

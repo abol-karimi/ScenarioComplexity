@@ -1,0 +1,386 @@
+:- violatesRule(car1, stopAtSign).
+laneFromTo(road415_lane1, road8_lane1, road9_lane1).
+laneFromTo(road507_lane0, road8_lane1, road44_lane2).
+laneFromTo(road415_lane0, road8_lane0, road9_lane0).
+laneFromTo(road489_lane0, road8_lane0, road45_lane0).
+laneFromTo(road416_lane1, road9_lane3, road8_lane3).
+laneFromTo(road476_lane0, road9_lane3, road44_lane3).
+laneFromTo(road416_lane0, road9_lane2, road8_lane2).
+laneFromTo(road455_lane0, road9_lane2, road45_lane1).
+laneFromTo(road444_lane0, road45_lane3, road9_lane0).
+laneFromTo(road553_lane1, road45_lane3, road44_lane3).
+laneFromTo(road467_lane0, road44_lane1, road9_lane1).
+laneFromTo(road552_lane1, road44_lane1, road45_lane1).
+laneFromTo(road481_lane0, road45_lane2, road8_lane2).
+laneFromTo(road553_lane0, road45_lane2, road44_lane2).
+laneFromTo(road499_lane0, road44_lane0, road8_lane3).
+laneFromTo(road552_lane0, road44_lane0, road45_lane0).
+laneCorrectSignal(road415_lane1, off).
+laneCorrectSignal(road507_lane0, left).
+laneCorrectSignal(road415_lane0, off).
+laneCorrectSignal(road489_lane0, right).
+laneCorrectSignal(road416_lane1, off).
+laneCorrectSignal(road476_lane0, right).
+laneCorrectSignal(road416_lane0, off).
+laneCorrectSignal(road455_lane0, left).
+laneCorrectSignal(road444_lane0, right).
+laneCorrectSignal(road553_lane1, off).
+laneCorrectSignal(road467_lane0, left).
+laneCorrectSignal(road552_lane1, off).
+laneCorrectSignal(road481_lane0, left).
+laneCorrectSignal(road553_lane0, off).
+laneCorrectSignal(road499_lane0, right).
+laneCorrectSignal(road552_lane0, off).
+overlaps(road415_lane1, road415_lane1).
+overlaps(road415_lane1, road507_lane0).
+overlaps(road507_lane0, road415_lane1).
+overlaps(road415_lane1, road415_lane0).
+overlaps(road415_lane0, road415_lane1).
+overlaps(road415_lane1, road489_lane0).
+overlaps(road489_lane0, road415_lane1).
+overlaps(road415_lane1, road416_lane0).
+overlaps(road416_lane0, road415_lane1).
+overlaps(road415_lane1, road455_lane0).
+overlaps(road455_lane0, road415_lane1).
+overlaps(road415_lane1, road553_lane1).
+overlaps(road553_lane1, road415_lane1).
+overlaps(road415_lane1, road467_lane0).
+overlaps(road467_lane0, road415_lane1).
+overlaps(road415_lane1, road552_lane1).
+overlaps(road552_lane1, road415_lane1).
+overlaps(road415_lane1, road481_lane0).
+overlaps(road481_lane0, road415_lane1).
+overlaps(road415_lane1, road553_lane0).
+overlaps(road553_lane0, road415_lane1).
+overlaps(road415_lane1, road552_lane0).
+overlaps(road552_lane0, road415_lane1).
+overlaps(road507_lane0, road507_lane0).
+overlaps(road507_lane0, road416_lane1).
+overlaps(road416_lane1, road507_lane0).
+overlaps(road507_lane0, road416_lane0).
+overlaps(road416_lane0, road507_lane0).
+overlaps(road507_lane0, road553_lane1).
+overlaps(road553_lane1, road507_lane0).
+overlaps(road507_lane0, road467_lane0).
+overlaps(road467_lane0, road507_lane0).
+overlaps(road507_lane0, road552_lane1).
+overlaps(road552_lane1, road507_lane0).
+overlaps(road507_lane0, road481_lane0).
+overlaps(road481_lane0, road507_lane0).
+overlaps(road507_lane0, road553_lane0).
+overlaps(road553_lane0, road507_lane0).
+overlaps(road507_lane0, road552_lane0).
+overlaps(road552_lane0, road507_lane0).
+overlaps(road415_lane0, road415_lane0).
+overlaps(road415_lane0, road489_lane0).
+overlaps(road489_lane0, road415_lane0).
+overlaps(road415_lane0, road455_lane0).
+overlaps(road455_lane0, road415_lane0).
+overlaps(road415_lane0, road444_lane0).
+overlaps(road444_lane0, road415_lane0).
+overlaps(road415_lane0, road553_lane1).
+overlaps(road553_lane1, road415_lane0).
+overlaps(road415_lane0, road467_lane0).
+overlaps(road467_lane0, road415_lane0).
+overlaps(road415_lane0, road552_lane1).
+overlaps(road552_lane1, road415_lane0).
+overlaps(road415_lane0, road481_lane0).
+overlaps(road481_lane0, road415_lane0).
+overlaps(road415_lane0, road553_lane0).
+overlaps(road553_lane0, road415_lane0).
+overlaps(road415_lane0, road552_lane0).
+overlaps(road552_lane0, road415_lane0).
+overlaps(road489_lane0, road489_lane0).
+overlaps(road489_lane0, road552_lane1).
+overlaps(road552_lane1, road489_lane0).
+overlaps(road489_lane0, road552_lane0).
+overlaps(road552_lane0, road489_lane0).
+overlaps(road416_lane1, road416_lane1).
+overlaps(road416_lane1, road476_lane0).
+overlaps(road476_lane0, road416_lane1).
+overlaps(road416_lane1, road416_lane0).
+overlaps(road416_lane0, road416_lane1).
+overlaps(road416_lane1, road455_lane0).
+overlaps(road455_lane0, road416_lane1).
+overlaps(road416_lane1, road553_lane1).
+overlaps(road553_lane1, road416_lane1).
+overlaps(road416_lane1, road467_lane0).
+overlaps(road467_lane0, road416_lane1).
+overlaps(road416_lane1, road552_lane1).
+overlaps(road552_lane1, road416_lane1).
+overlaps(road416_lane1, road481_lane0).
+overlaps(road481_lane0, road416_lane1).
+overlaps(road416_lane1, road553_lane0).
+overlaps(road553_lane0, road416_lane1).
+overlaps(road416_lane1, road499_lane0).
+overlaps(road499_lane0, road416_lane1).
+overlaps(road416_lane1, road552_lane0).
+overlaps(road552_lane0, road416_lane1).
+overlaps(road476_lane0, road476_lane0).
+overlaps(road476_lane0, road416_lane0).
+overlaps(road416_lane0, road476_lane0).
+overlaps(road476_lane0, road553_lane1).
+overlaps(road553_lane1, road476_lane0).
+overlaps(road416_lane0, road416_lane0).
+overlaps(road416_lane0, road455_lane0).
+overlaps(road455_lane0, road416_lane0).
+overlaps(road416_lane0, road553_lane1).
+overlaps(road553_lane1, road416_lane0).
+overlaps(road416_lane0, road467_lane0).
+overlaps(road467_lane0, road416_lane0).
+overlaps(road416_lane0, road552_lane1).
+overlaps(road552_lane1, road416_lane0).
+overlaps(road416_lane0, road481_lane0).
+overlaps(road481_lane0, road416_lane0).
+overlaps(road416_lane0, road553_lane0).
+overlaps(road553_lane0, road416_lane0).
+overlaps(road416_lane0, road552_lane0).
+overlaps(road552_lane0, road416_lane0).
+overlaps(road455_lane0, road455_lane0).
+overlaps(road455_lane0, road553_lane1).
+overlaps(road553_lane1, road455_lane0).
+overlaps(road455_lane0, road467_lane0).
+overlaps(road467_lane0, road455_lane0).
+overlaps(road455_lane0, road552_lane1).
+overlaps(road552_lane1, road455_lane0).
+overlaps(road455_lane0, road481_lane0).
+overlaps(road481_lane0, road455_lane0).
+overlaps(road455_lane0, road553_lane0).
+overlaps(road553_lane0, road455_lane0).
+overlaps(road455_lane0, road552_lane0).
+overlaps(road552_lane0, road455_lane0).
+overlaps(road444_lane0, road444_lane0).
+overlaps(road444_lane0, road553_lane1).
+overlaps(road553_lane1, road444_lane0).
+overlaps(road444_lane0, road481_lane0).
+overlaps(road481_lane0, road444_lane0).
+overlaps(road553_lane1, road553_lane1).
+overlaps(road553_lane1, road467_lane0).
+overlaps(road467_lane0, road553_lane1).
+overlaps(road553_lane1, road553_lane0).
+overlaps(road553_lane0, road553_lane1).
+overlaps(road467_lane0, road467_lane0).
+overlaps(road467_lane0, road552_lane1).
+overlaps(road552_lane1, road467_lane0).
+overlaps(road467_lane0, road553_lane0).
+overlaps(road553_lane0, road467_lane0).
+overlaps(road467_lane0, road552_lane0).
+overlaps(road552_lane0, road467_lane0).
+overlaps(road552_lane1, road552_lane1).
+overlaps(road552_lane1, road481_lane0).
+overlaps(road481_lane0, road552_lane1).
+overlaps(road552_lane1, road553_lane0).
+overlaps(road553_lane0, road552_lane1).
+overlaps(road552_lane1, road552_lane0).
+overlaps(road552_lane0, road552_lane1).
+overlaps(road481_lane0, road481_lane0).
+overlaps(road481_lane0, road553_lane0).
+overlaps(road553_lane0, road481_lane0).
+overlaps(road481_lane0, road552_lane0).
+overlaps(road552_lane0, road481_lane0).
+overlaps(road553_lane0, road553_lane0).
+overlaps(road499_lane0, road499_lane0).
+overlaps(road499_lane0, road552_lane0).
+overlaps(road552_lane0, road499_lane0).
+overlaps(road552_lane0, road552_lane0).
+isOnRightOf(road8_lane1, road44_lane1).
+isOnRightOf(road8_lane0, road44_lane1).
+isOnRightOf(road8_lane1, road44_lane0).
+isOnRightOf(road8_lane0, road44_lane0).
+isOnRightOf(road45_lane2, road8_lane1).
+isOnRightOf(road45_lane3, road8_lane1).
+isOnRightOf(road45_lane2, road8_lane0).
+isOnRightOf(road45_lane3, road8_lane0).
+isOnRightOf(road9_lane2, road45_lane2).
+isOnRightOf(road9_lane3, road45_lane2).
+isOnRightOf(road9_lane2, road45_lane3).
+isOnRightOf(road9_lane3, road45_lane3).
+isOnRightOf(road44_lane1, road9_lane2).
+isOnRightOf(road44_lane0, road9_lane2).
+isOnRightOf(road44_lane1, road9_lane3).
+isOnRightOf(road44_lane0, road9_lane3).
+hasStopSign(road9_lane2).
+hasStopSign(road9_lane3).
+realLTE(S, T) :- lessThan(S, T).
+:- lessThan(S, T), realLTE(T, S).
+realLTE(S, T) :- equal(S, T).
+realLTE(T, S) :- equal(S, T).
+:- lessThan(S, T), equal(S, T).
+:- lessThan(S, T), equal(T, S).
+realLTE(T1, T3) :- realLTE(T1, T2), realLTE(T2, T3).
+:- realLTE(T1, T2), realLTE(T2, T1), T1 != T2, not equal(T1, T2), not equal(T2, T1).
+arrivedAtForkAtTime(ego, road9_lane2, t_ego_0).
+signaledAtForkAtTime(ego, left, road9_lane2, t_ego_0).
+enteredForkAtTime(ego, road9_lane2, t_ego_1).
+enteredLaneAtTime(ego, road416_lane0, t_ego_1).
+enteredLaneAtTime(ego, road455_lane0, t_ego_1).
+enteredLaneAtTime(ego, road553_lane1, t_ego_2).
+enteredLaneAtTime(ego, road467_lane0, t_ego_2).
+enteredLaneAtTime(ego, road415_lane1, t_ego_3).
+enteredLaneAtTime(ego, road553_lane0, t_ego_4).
+enteredLaneAtTime(ego, road415_lane0, t_ego_5).
+enteredLaneAtTime(ego, road552_lane1, t_ego_6).
+enteredLaneAtTime(ego, road481_lane0, t_ego_6).
+leftLaneAtTime(ego, road416_lane0, t_ego_7).
+leftLaneAtTime(ego, road553_lane1, t_ego_8).
+leftLaneAtTime(ego, road467_lane0, t_ego_9).
+leftLaneAtTime(ego, road415_lane1, t_ego_10).
+leftLaneAtTime(ego, road553_lane0, t_ego_11).
+leftLaneAtTime(ego, road415_lane0, t_ego_12).
+leftLaneAtTime(ego, road481_lane0, t_ego_13).
+exitedFromAtTime(ego, road45_lane1, t_ego_14).
+leftLaneAtTime(ego, road455_lane0, t_ego_14).
+leftLaneAtTime(ego, road552_lane1, t_ego_14).
+arrivedAtForkAtTime(car1, road45_lane3, t_car1_0).
+signaledAtForkAtTime(car1, off, road45_lane3, t_car1_0).
+enteredForkAtTime(car1, road45_lane3, t_car1_1).
+enteredLaneAtTime(car1, road444_lane0, t_car1_1).
+enteredLaneAtTime(car1, road553_lane1, t_car1_1).
+enteredLaneAtTime(car1, road415_lane0, t_car1_2).
+enteredLaneAtTime(car1, road415_lane1, t_car1_3).
+enteredLaneAtTime(car1, road467_lane0, t_car1_4).
+enteredLaneAtTime(car1, road455_lane0, t_car1_5).
+enteredLaneAtTime(car1, road416_lane0, t_car1_6).
+leftLaneAtTime(car1, road444_lane0, t_car1_6).
+leftLaneAtTime(car1, road415_lane0, t_car1_7).
+enteredLaneAtTime(car1, road416_lane1, t_car1_8).
+enteredLaneAtTime(car1, road476_lane0, t_car1_9).
+leftLaneAtTime(car1, road415_lane1, t_car1_10).
+leftLaneAtTime(car1, road467_lane0, t_car1_11).
+leftLaneAtTime(car1, road455_lane0, t_car1_12).
+leftLaneAtTime(car1, road416_lane0, t_car1_13).
+leftLaneAtTime(car1, road416_lane1, t_car1_14).
+exitedFromAtTime(car1, road44_lane3, t_car1_15).
+leftLaneAtTime(car1, road476_lane0, t_car1_15).
+leftLaneAtTime(car1, road553_lane1, t_car1_15).
+arrivedAtForkAtTime(illegal, road9_lane2, t_illegal_0).
+signaledAtForkAtTime(illegal, left, road9_lane2, t_illegal_0).
+enteredForkAtTime(illegal, road9_lane2, t_illegal_1).
+enteredLaneAtTime(illegal, road416_lane0, t_illegal_1).
+enteredLaneAtTime(illegal, road455_lane0, t_illegal_1).
+enteredLaneAtTime(illegal, road553_lane1, t_illegal_2).
+enteredLaneAtTime(illegal, road467_lane0, t_illegal_2).
+enteredLaneAtTime(illegal, road415_lane1, t_illegal_3).
+enteredLaneAtTime(illegal, road553_lane0, t_illegal_4).
+enteredLaneAtTime(illegal, road415_lane0, t_illegal_5).
+enteredLaneAtTime(illegal, road552_lane1, t_illegal_6).
+enteredLaneAtTime(illegal, road481_lane0, t_illegal_6).
+leftLaneAtTime(illegal, road416_lane0, t_illegal_7).
+leftLaneAtTime(illegal, road553_lane1, t_illegal_8).
+leftLaneAtTime(illegal, road467_lane0, t_illegal_9).
+leftLaneAtTime(illegal, road415_lane1, t_illegal_10).
+leftLaneAtTime(illegal, road553_lane0, t_illegal_11).
+leftLaneAtTime(illegal, road415_lane0, t_illegal_12).
+leftLaneAtTime(illegal, road481_lane0, t_illegal_13).
+exitedFromAtTime(illegal, road45_lane1, t_illegal_14).
+leftLaneAtTime(illegal, road455_lane0, t_illegal_14).
+leftLaneAtTime(illegal, road552_lane1, t_illegal_14).
+realLTE(t_ego_0, t_ego_1).
+:- realLTE(t_ego_1, t_ego_0).
+realLTE(t_ego_1, t_ego_2).
+:- realLTE(t_ego_2, t_ego_1).
+realLTE(t_ego_2, t_ego_3).
+:- realLTE(t_ego_3, t_ego_2).
+realLTE(t_ego_3, t_ego_4).
+:- realLTE(t_ego_4, t_ego_3).
+realLTE(t_ego_4, t_ego_5).
+:- realLTE(t_ego_5, t_ego_4).
+realLTE(t_ego_5, t_ego_6).
+:- realLTE(t_ego_6, t_ego_5).
+realLTE(t_ego_6, t_ego_7).
+:- realLTE(t_ego_7, t_ego_6).
+realLTE(t_ego_7, t_ego_8).
+:- realLTE(t_ego_8, t_ego_7).
+realLTE(t_ego_8, t_ego_9).
+:- realLTE(t_ego_9, t_ego_8).
+realLTE(t_ego_9, t_ego_10).
+:- realLTE(t_ego_10, t_ego_9).
+realLTE(t_ego_10, t_ego_11).
+:- realLTE(t_ego_11, t_ego_10).
+realLTE(t_ego_11, t_ego_12).
+:- realLTE(t_ego_12, t_ego_11).
+realLTE(t_ego_12, t_ego_13).
+:- realLTE(t_ego_13, t_ego_12).
+realLTE(t_ego_13, t_ego_14).
+:- realLTE(t_ego_14, t_ego_13).
+realLTE(t_car1_0, t_car1_1).
+:- realLTE(t_car1_1, t_car1_0).
+realLTE(t_car1_1, t_car1_2).
+:- realLTE(t_car1_2, t_car1_1).
+realLTE(t_car1_2, t_car1_3).
+:- realLTE(t_car1_3, t_car1_2).
+realLTE(t_car1_3, t_car1_4).
+:- realLTE(t_car1_4, t_car1_3).
+realLTE(t_car1_4, t_car1_5).
+:- realLTE(t_car1_5, t_car1_4).
+realLTE(t_car1_5, t_car1_6).
+:- realLTE(t_car1_6, t_car1_5).
+realLTE(t_car1_6, t_car1_7).
+:- realLTE(t_car1_7, t_car1_6).
+realLTE(t_car1_7, t_car1_8).
+:- realLTE(t_car1_8, t_car1_7).
+realLTE(t_car1_8, t_car1_9).
+:- realLTE(t_car1_9, t_car1_8).
+realLTE(t_car1_9, t_car1_10).
+:- realLTE(t_car1_10, t_car1_9).
+realLTE(t_car1_10, t_car1_11).
+:- realLTE(t_car1_11, t_car1_10).
+realLTE(t_car1_11, t_car1_12).
+:- realLTE(t_car1_12, t_car1_11).
+realLTE(t_car1_12, t_car1_13).
+:- realLTE(t_car1_13, t_car1_12).
+realLTE(t_car1_13, t_car1_14).
+:- realLTE(t_car1_14, t_car1_13).
+realLTE(t_car1_14, t_car1_15).
+:- realLTE(t_car1_15, t_car1_14).
+realLTE(t_illegal_0, t_illegal_1).
+:- realLTE(t_illegal_1, t_illegal_0).
+realLTE(t_illegal_1, t_illegal_2).
+:- realLTE(t_illegal_2, t_illegal_1).
+realLTE(t_illegal_2, t_illegal_3).
+:- realLTE(t_illegal_3, t_illegal_2).
+realLTE(t_illegal_3, t_illegal_4).
+:- realLTE(t_illegal_4, t_illegal_3).
+realLTE(t_illegal_4, t_illegal_5).
+:- realLTE(t_illegal_5, t_illegal_4).
+realLTE(t_illegal_5, t_illegal_6).
+:- realLTE(t_illegal_6, t_illegal_5).
+realLTE(t_illegal_6, t_illegal_7).
+:- realLTE(t_illegal_7, t_illegal_6).
+realLTE(t_illegal_7, t_illegal_8).
+:- realLTE(t_illegal_8, t_illegal_7).
+realLTE(t_illegal_8, t_illegal_9).
+:- realLTE(t_illegal_9, t_illegal_8).
+realLTE(t_illegal_9, t_illegal_10).
+:- realLTE(t_illegal_10, t_illegal_9).
+realLTE(t_illegal_10, t_illegal_11).
+:- realLTE(t_illegal_11, t_illegal_10).
+realLTE(t_illegal_11, t_illegal_12).
+:- realLTE(t_illegal_12, t_illegal_11).
+realLTE(t_illegal_12, t_illegal_13).
+:- realLTE(t_illegal_13, t_illegal_12).
+realLTE(t_illegal_13, t_illegal_14).
+:- realLTE(t_illegal_14, t_illegal_13).
+#script(python)
+import clingo
+sym2val = {}
+def lessThan(S, T):
+  lt = sym2val[S.name] + 10 < sym2val[T.name]
+  return clingo.Number(1) if lt else clingo.Number(0)
+def equal(S, T):
+  eq = abs(sym2val[S.name] - sym2val[T.name]) < 10
+  return clingo.Number(1) if eq else clingo.Number(0)
+#end.
+:- V != illegal, violatesRightOf(ego, V).
+:- violatesRule(ego, _).
+:- not violatesRightOf(illegal, car1).
+:- violatesRule(illegal, _).
+#script(python)
+import clingo
+def time(V, Pred, Tm, TM):
+  t = V.name + Pred.name + Tm.name + TM.name
+  return clingo.Function(t, [])
+#end.
+#count {0:stoppedAtForkAtTime(car1, F, @time(car1, stop, T1, T2)); 1:lessThan(T1, @time(car1, stop, T1, T2)); 2:lessThan(@time(car1, stop, T1, T2),  T2) } = 3 :-arrivedAtForkAtTime(car1, F, T1),hasStopSign(F),enteredForkAtTime(car1, F, T2),not violatesRule(car1, stopAtSign).
+#count {0:stoppedAtForkAtTime(ego, F, @time(ego, stop, T1, T2)); 1:lessThan(T1, @time(ego, stop, T1, T2)); 2:lessThan(@time(ego, stop, T1, T2),  T2) } = 3 :-arrivedAtForkAtTime(ego, F, T1),hasStopSign(F),enteredForkAtTime(ego, F, T2),not violatesRule(ego, stopAtSign).
+#count {0:stoppedAtForkAtTime(illegal, F, @time(illegal, stop, T1, T2)); 1:lessThan(T1, @time(illegal, stop, T1, T2)); 2:lessThan(@time(illegal, stop, T1, T2),  T2) } = 3 :-arrivedAtForkAtTime(illegal, F, T1),hasStopSign(F),enteredForkAtTime(illegal, F, T2),not violatesRule(illegal, stopAtSign).

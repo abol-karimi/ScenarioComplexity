@@ -3,7 +3,7 @@ from complexgen.core.generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from complexgen.core.solver import ASPSolver
 import argparse
-import pickle
+import jsonpickle
 import scenic
 from complexgen.core.generator import geometry_atoms
 
@@ -11,8 +11,8 @@ parser = argparse.ArgumentParser(description='play the given scenario.')
 parser.add_argument('inputfile', help='filename of the given scenario')
 args = parser.parse_args()
 
-with open(args.inputfile, 'rb') as inFile:
-    scenario = pickle.load(inFile)
+with open(args.inputfile, 'r') as f:
+    scenario = jsonpickle.decode(f.read())
 
 # Events:
 for car, events in scenario.events.items():

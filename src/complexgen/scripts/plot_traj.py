@@ -2,7 +2,7 @@
 from complexgen.core.generator import frame_to_realtime
 import matplotlib.pyplot as plt
 import argparse
-import pickle
+import jsonpickle
 from geomdl import BSpline
 from complexgen.core.mscatter import mscatter
 
@@ -11,8 +11,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument('inputfile', help='filename of the given scenario')
 args = parser.parse_args()
 
-with open(args.inputfile, 'rb') as inFile:
-    scenario = pickle.load(inFile)
+with open(args.inputfile, 'r') as f:
+    scenario = jsonpickle.decode(f.read())
 
 curves = scenario.curves
 frame2distance = {}

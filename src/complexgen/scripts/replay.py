@@ -3,7 +3,7 @@ from complexgen.core.generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from complexgen.core.solver import ASPSolver
 import argparse
-import pickle
+import jsonpickle
 import scenic
 from complexgen.core.generator import geometry_atoms
 
@@ -11,8 +11,8 @@ parser = argparse.ArgumentParser(description='play the given scenario.')
 parser.add_argument('inputfile', help='filename of the given scenario')
 args = parser.parse_args()
 
-with open(args.inputfile, 'rb') as inFile:
-    scenario = pickle.load(inFile)
+with open(args.inputfile, 'r') as f:
+    scenario = jsonpickle.decode(f.read())
 
 # Events:
 for car, events in scenario.events.items():
@@ -30,7 +30,9 @@ params = {'map': scenario.map_path,  # scenic.simulators.carla.model
 
 print('Replay the loaded scenario...')
 scenic_scenario = scenic.scenarioFromFile(
-    'replay.scenic', params=params)
+    'src/complexgen/scripts/replay.scenic',
+    mode2D=True,
+    params=params)
 scene, _ = scenic_scenario.generate()
 simulator = scenic_scenario.getSimulator()
 simulator.simulate(scene, maxSteps=scenario.maxSteps)
@@ -49,22 +51,12 @@ atoms += event_atoms
 min_perceptible_time = 10  # frames
 sym2val = {t: events[0].frame
            for time2events in car2time2events.values() for t, events in time2events.items()}
-atoms += [f'#script(python)\n'
-          f'import clingo\n'
-          f'sym2val = {sym2val}\n'
-          f'def lessThan(S, T):\n'
-          f'  lt = sym2val[S.name] + {min_perceptible_time} < sym2val[T.name]\n'
-          f'  return clingo.Number(1) if lt else clingo.Number(0)\n'
-          f'def equal(S, T):\n'
-          f'  eq = abs(sym2val[S.name] - sym2val[T.name]) < {min_perceptible_time}\n'
-          f'  return clingo.Number(1) if eq else clingo.Number(0)\n'
-          f'#end']
 for s in sym2val:
     for t in sym2val:
         atoms += [f':- lessThan({s}, {t}), 0 = @lessThan({s}, {t})',
                   f':- equal({s}, {t}), 0 = @equal({s}, {t})']
 
-solver = ASPSolver()
+solver = ASPSolver(sym2val)
 solver.load(scenario.rules_path)
 solver.add_atoms(atoms)
 

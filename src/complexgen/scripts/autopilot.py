@@ -2,9 +2,9 @@
 from complexgen.core.generator import car_to_time_to_events
 from scenic.domains.driving.roads import Network
 from complexgen.core.solver import ASPSolver
-import src.complexgen.core.intersection_monitor as intersection_monitor
+import complexgen.core.intersection_monitor as intersection_monitor
 import scenic
-import pickle
+import jsonpickle
 import argparse
 from complexgen.core.generator import geometry_atoms
 
@@ -17,8 +17,8 @@ parser.add_argument('-a', '--aggressiveness', choices=['cautious', 'normal', 'ag
 parser.add_argument('--rss', action='store_true', help='enable RSS restrictor')
 args = parser.parse_args()
 
-with open(args.inputfile, 'rb') as inFile:
-    scenario = pickle.load(inFile)
+with open(args.inputfile, 'r') as f:
+    scenario = jsonpickle.decode(f.read())
 
 monitor = intersection_monitor.Monitor()
 

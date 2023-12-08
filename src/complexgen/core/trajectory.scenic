@@ -26,9 +26,9 @@ event_monitor = globalParameters.event_monitor
 param spawn_distance = None
 spawn_distance = globalParameters.spawn_distance
 
-import visualization
 import carla
-from signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
+import complexgen.simulators.carla.visualization as visualization
+from complexgen.core.signals import vehicleLightState_from_maneuverType, signalType_from_vehicleLightState, SignalType
 		
 #CONSTANTS
 SPEED = 4
@@ -49,7 +49,7 @@ l0 = network.elements[l0_uid]
 l1 = network.elements[l1_uid]
 l2 = network.elements[l2_uid]
 maneuverType = ManeuverType.guessTypeFromLanes(l0, l2, l1)
-ego = Car following roadDirection from l0.centerline[-1] for -spawn_distance,
+ego = new Car following roadDirection from l0.centerline[-1] for -spawn_distance,
 	with name car_name,
 	with blueprint car_blueprint,
 	with behavior PassBehavior(SPEED, [l0, l1, l2], maneuverType)
@@ -57,7 +57,16 @@ ego = Car following roadDirection from l0.centerline[-1] for -spawn_distance,
 
 signal = SignalType.from_maneuverType(maneuverType)
 
-monitor ego_events:
+pose_trajectory = []
+monitor RecordPoseTrajectory():
+  while True:
+    pose_trajectory.append({car.name:(car.position, car.heading) for car in simulation().agents})
+    wait
+
+require monitor RecordPoseTrajectory()
+record final pose_trajectory as pose_trajectory
+
+monitor ego_events():
 	carla_world = simulation().world
 	visualization.draw_intersection(carla_world, intersection)
 	maneuvers = intersection.maneuvers
@@ -68,7 +77,7 @@ monitor ego_events:
 	while True:
 		currentTime = simulation().currentTime
 		visualization.label_car(carla_world, ego)
-		inIntersection = intersection.intersects(ego)
+		inIntersection = intersection.intersects(PolygonalRegion(polygon=ego._boundingPolygon))
 		
 		if (not arrived) and (distance from (front of ego) to intersection) < ARRIVAL_DISTANCE:
 			arrived = True
@@ -83,7 +92,7 @@ monitor ego_events:
 		for maneuver in maneuvers:
 			lane = maneuver.connectingLane
 			wasOnLane = lane in lanes
-			isOnLane = lane.intersects(ego)
+			isOnLane = lane.intersects(PolygonalRegion(polygon=ego._boundingPolygon))
 			if isOnLane and not wasOnLane:
 				lanes.add(lane)
 				event_monitor.on_enterLane(ego.name, lane.uid, currentTime)
@@ -92,7 +101,12 @@ monitor ego_events:
 				event_monitor.on_exitLane(ego.name, lane.uid, currentTime)
 		wait
 
-monitor record_properties:
+require monitor ego_events()
+
+
+monitor record_properties():
 	car_size['width'] = ego.width
 	car_size['length'] = ego.length
 	wait
+
+require monitor record_properties()
