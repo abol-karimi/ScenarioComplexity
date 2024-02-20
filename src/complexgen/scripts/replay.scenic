@@ -8,7 +8,6 @@ model scenic.simulators.carla.model
 param replay_scenario = None
 replay_scenario = globalParameters.replay_scenario
 intersection = network.elements[replay_scenario.intersection_uid]
-maneuver_uid = replay_scenario.maneuver_uid
 blueprints = replay_scenario.blueprints
 events = replay_scenario.events
 curves = replay_scenario.curves
