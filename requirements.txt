@@ -1,9 +1,8 @@
 # clingo: build from source with python support
 cffi # for clingo
-pysmt
 geomdl
 numpy
-z3-solver==4.8.10.0
-PySMT==0.9.6.dev53
+z3-solver==4.12.6.0
+PySMT==0.9.6.dev57
 networkx
 jsonpickle
